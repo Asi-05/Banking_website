@@ -29,13 +29,13 @@ Wir migrieren unseren ursprünglichen CLI Budget Tracker zu einer vollwertigen, 
 ### Software Architecture
 🚧 Insert your UML class diagram(s). Split into multiple diagrams if needed.
 
-### Layers / components:
+#### Layers / components:
 
  * UI (NiceGUI pages/components, browser as thin client)
  * Application logic (controllers + domain/services)
  * Persistence (SQLite + ORM entities + repositories/queries)
 
-### Design decisions (examples):
+#### Design decisions (examples):
 
  * Organize code using MVC:
    * Model: domain + ORM entities (e.g. models.py)
@@ -46,12 +46,22 @@ Wir migrieren unseren ursprünglichen CLI Budget Tracker zu einer vollwertigen, 
  * Use and interaction of modules to minimize dependencies, by minimizing            cohesion and maximizing coupling
  * Keep business rules testable without starting the UI
 
-### Design patterns used (examples):
+#### Design patterns used (examples):
 
  * MVC (Model–View–Controller)
  * Repository/DAO for database access (e.g. queries.py)
  * Strategy for business rules (e.g. discount calculation)
  * Adapter for external services (e.g. invoice generation backend)
+
+
+## 🗄️ Database and ORM
+🚧 Describe the database and your ORM entities. Ideally, a diagram documents the database and it is described together with the ORM entities.
+
+ORM and Entities (example): In the database, order are stored in ... that are mapped an Order entity. The Order ↔ OrderItem relationship ... ensures that an Order has at least one OrderItem and an OrderItem always relates to an Order.
+
+## ✅ Project Requirements
+
+
 
 
 

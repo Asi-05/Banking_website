@@ -31,8 +31,8 @@ Wir migrieren unseren ursprünglichen CLI Budget Tracker zu einer vollwertigen, 
 
 Layers / components:
 
-  *UI (NiceGUI pages/components, browser as thin client)
-  Application logic (controllers + domain/services)
+ * UI (NiceGUI pages/components, browser as thin client)
+ * Application logic (controllers + domain/services)
   Persistence (SQLite + ORM entities + repositories/queries)
   Design decisions (examples):
 

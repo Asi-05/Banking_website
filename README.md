@@ -31,10 +31,10 @@ Wir migrieren unseren ursprünglichen CLI Budget Tracker zu einer vollwertigen, 
 
 Layers / components:
 
-UI (NiceGUI pages/components, browser as thin client)
-Application logic (controllers + domain/services)
-Persistence (SQLite + ORM entities + repositories/queries)
-Design decisions (examples):
+  *UI (NiceGUI pages/components, browser as thin client)
+  Application logic (controllers + domain/services)
+  Persistence (SQLite + ORM entities + repositories/queries)
+  Design decisions (examples):
 
 Organize code using MVC:
 Model: domain + ORM entities (e.g. models.py)

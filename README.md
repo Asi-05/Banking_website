@@ -2,7 +2,7 @@
 
 ## 🎯 Projektziel 
 
-Wir migrieren unseren ursprünglichen CLI Budget Tracker zu einer vollwertigen, browserbasierten E-Banking Anwendung. Die App ermöglicht es Nutzern , Finanzen in einer moderner Weboberfläche zu verwalten, konten zu eröffnen und automatisierte Zahlungen zu tätigen. (Wird noch ergänzt!)
+Das Ziel dieses Projekts ist die Entwicklung einer umfassenden Personal Finance & Banking Application. Die Anwendung dient als zentrales Hub für die Verwaltung privater Finanzen, die Überwachung von budgets und die Abwicklung täglicher Bankgeschäfte in einer intuitiven, digitalen Umgebung. 
 
 ## 📝 Application Requirements
 ### Problem
@@ -16,8 +16,36 @@ Wir migrieren unseren ursprünglichen CLI Budget Tracker zu einer vollwertigen, 
 💡 Example: PizzaRP solves the part of the problem where orders and totals are created by letting a user select items from a menu, validating the inputs, storing orders in a database, and automatically generating a correct invoice.
 
 ### 👤 User Stories
+📝 Finanzverwaltung (Core Features)
+* US1: Als User möchte ich meine Einnahmen und Ausgaben manuell erfassen können, um meine Finanzen lückenlos zu überwachen.
+* US2: Als User möchte ich jeder Transaktion eine Kategorie zuweisen können, um die Struktur meiner Ausgaben zu verstehen.
+* US3: Als User möchte ich bestehende Einträge nachträglich bearbeiten oder löschen können, um Fehler zu korrigieren.
+* US4: Als User möchte ich meine Einnahmen und Ausgaben nach Datum und Kategorien filten können, um gezielt nach alten Zahlungen zu suchen.
 
---
+📊 Dashboard & Analyse
+* US5: Als User möchte ich ein Dashboard mit Charts sehen, damit ich meine Einnahmen und Ausgaben auf einem Blick sehen kann.
+* US6: Als User möchte ich jederzeit meine aktuelle Gesamtbilanz einsehen können, um zu wissen, wie viel Budget mir noch Verfügbar steht.
+* US7: Als User möchte ich Summen für bestimmte Zeiträume (z.B. aktueller Monat) abrufen können, um meine finanzielle Entwicklung zu sehen.
+* (US8: Als User möchte ich die vier grössten Aktienticker direkt auf der Startseite sehen, um über Marktbewegungen informiert zu bleiben. )
+
+💰 Budgetierung & Planung
+* US9: Als User möchte ich monatliche Limits setzen können, damit ich automatisch gewarnt werde, wenn ich mein Budget überschreite.
+* US10: Als User möchte ich wiederkehrende Zahlungen für definierte Kategorien erfassen können, um Fixkosten zu automatisieren.
+
+🏦 Konten- & Kartenmanagement
+* US11: Als User möchte ich Privat und Sparkonten selbständig eröffnen oder schliessen können.
+* US12: Als User möchte ich neue Karten bestellen, sowie bei Karten Verlust sperren oder ersetzen können.
+* US13: Als User möchte ich ein 3a Konto eröffnen können und direkt einen Beratungstermin vereinbaren können.
+
+💸 Zahlungsverkehr & Dokumente
+* US14: Als User möchte ich Inlandzahlungen per IBAN Eingabe oder durch PDF Upload erfassen.
+* US15: Als User möchte ich Geld schnell zwischen meinen eigenen Konten umbuchen können.
+* US16: Als User möchte ich für spezifische Zeiträume Kontoauszüge generieren und einsehen können.
+
+🔐 Sicherheit & Onboarding
+* US17: Als User möchte ich mich mit Vertragsnummer und Passwort anmelden können.
+* US18: Als User möchte ich mich auf Wunsch ein neues Benutzerkonto erstellen können.
+
 
 ### Use cases
 🚧 Name actors and briefly describe each use case. Ideally, a UML use case diagram specifies use cases and relationships.

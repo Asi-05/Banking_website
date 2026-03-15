@@ -96,7 +96,7 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
 **Alternative Szenarien / Ausnahmen:**
   * *Sperrung abbrechen:* Der User ist sich während des Prozesses (z.B. bei der Sperrung Auswahl) unsicher und klickt auf "Abbrechen". Das System bricht den Vorgang sofort ab. Der Status der Karte bleibt unverändert und das System leitet den User zurück auf das Dashboard (Home) .
 
-### UC4: Inlandzahlung per PDF-Upload erfassen
+### UC4: Inlandzahlung erfassen
 **Basiert auf:** US14 | **Akteur:** Registrierter User
 
 **Hauptszenario (Happy Path):**

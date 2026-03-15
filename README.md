@@ -17,6 +17,48 @@ Unsere App (Mazebank :D?) löst das Problem der unübersichtlichen Finanzen, ind
 
 Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu bezahlen oder alltägliche Ausgaben manuell zu erfassen und zu kategorisieren. Die Anwendung speichert die Transaktionen sicher, berechnet sofort die aktuellen Bilanzen und gleicht sie mit vordefinierten Monatsbudgets ab (inklusive autoamtischer Warnungen bei Überschreitung). Darüber hinaus ermöglicht das System dem Nutzer, mit wenigen Klicks komplette Bankgeschäfte zu erledigen, wie das Sperren einer Kreditkarte im Notfall, das Herunterladen von Kontoauszügen oder die direkte Vereinbarung eines Termins für die Eröffnung eines 3a Vorsorgekontos.
 
+## Data Input & Output
+
+### Data Input
+The application receives user input through the web interface. All inputs are validated before they are stored in the database via the ORM.
+
+#### Input Fields
+
+| Field | Type | Required | Example |
+| :--- | :--- | :--- | :--- |
+| `amount` | float | yes | 45.50 |
+| `category` | string | yes | Food |
+| `date` | date | yes | 2026-03-10 |
+| `description` | string | no | Lunch |
+
+#### Example Input (JSON)
+```json
+{
+  "amount": 45.50,
+  "category": "Food",
+  "date": "2026-03-10",
+  "description": "Lunch"
+}
+
+### Data Output
+After processing the stored transactions, the system generates summarized financial information which is displayed in the dashboard.
+
+#### Output Structure
+
+| Field | Type |
+| :--- | :--- |
+| `total_income` | float |
+| `total_expenses` | float |
+| `balance` | float |
+
+#### Example Output (JSON)
+```json
+{
+  "total_income": 3500.0,
+  "total_expenses": 2100.0,
+  "balance": 1400.0
+}
+
 ### 👤 User Stories
 📝 Finanzverwaltung (Core Features)
 * US1: Als User möchte ich meine Einnahmen und Ausgaben manuell erfassen können, um meine Finanzen lückenlos zu überwachen.

@@ -8,12 +8,14 @@ Das Ziel dieses Projekts ist die Entwicklung einer umfassenden Personal Finance 
 ### Problem
 🚧 Describe the real-world problem your application solves. (Not HOW, but WHAT)
 
-💡 Example: In a small local pizzeria, the staff writes orders and calculates totals by hand. This causes mistakes and inconsistent orders or discounts.
+Im Alltag verlieren viele Menschen schnell den Überblick über ihre Finanzen, da tägliche Ausgaben, Sparkonten und die Altersvorsorge (Säule 3a) oft auf verschiedene Bank Apps oder manuellen Excellisten veteilt sind. Das fürhrt unbemerkten Budgetüberschreitungen, verfehlten Sparzielen und hohem Zeitaufwand bei alltäglichen Aufgaben, wie dem Abtippen von Rechnungen oder dem Verwalten von Bankkarten.
 
 ### Scenario
 🚧 Describe when and how a user will use your application
 
-💡 Example: PizzaRP solves the part of the problem where orders and totals are created by letting a user select items from a menu, validating the inputs, storing orders in a database, and automatically generating a correct invoice.
+Unsere App (Mazebank :D?) löst das Problem der unübersichtlichen Finanzen, indem der Nutzer eine einzige, zentrale Plattform für den Alltag bietet.
+
+Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu bezahlen oder alltägliche Ausgaben manuell zu erfassen und zu kategorisieren. Die Anwendung speichert die Transaktionen sicher, berechnet sofort die aktuellen Bilanzen und gleicht sie mit vordefinierten Monatsbudgets ab (inklusive autoamtischer Warnungen bei Überschreitung). Darüber hinaus ermöglicht das System dem Nutzer, mit wenigen Klicks komplette Bankgeschäfte zu erledigen, wie das Sperren einer Kreditkarte im Notfall, das Herunterladen von Kontoauszügen oder die direkte Vereinbarung eines Termins für die Eröffnung eines 3a Vorsorgekontos.
 
 ### 👤 User Stories
 📝 Finanzverwaltung (Core Features)

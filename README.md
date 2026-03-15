@@ -40,7 +40,7 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
 * US13: Als User möchte ich ein 3a Konto eröffnen können und direkt einen Beratungstermin vereinbaren können.
 
 💸 Zahlungsverkehr & Dokumente
-* US14: Als User möchte ich Inlandzahlungen per IBAN Eingabe oder durch PDF Upload erfassen.
+* US14: Als User möchte ich Inlandzahlungen per IBAN Eingabe erfassen.
 * US15: Als User möchte ich Geld schnell zwischen meinen eigenen Konten umbuchen können.
 * US16: Als User möchte ich für spezifische Zeiträume Kontoauszüge generieren und einsehen können.
 
@@ -63,6 +63,7 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
   5. Der User wählt aus einem Dropdown-Menü eine passende Kategorie (z.B. "Lebensmittel", "Miete").
   6. Der User klickt auf "Speichern".
   7. Das System speichert die Transaktion, schliesst das Formular und aktualisiert die Gesamtbilanz (US6) auf dem Dashboard.
+
 **Alternative Szenarien / Ausnahmen:**
   * *Pflichtfelder fehlen:* Das System speichert den Eintrag nicht, markiert die fehlenden Felder rot und zeigt eine Fehlermeldung an.
   * *Nachträgliche Bearbeitung (US3):* Der User wählt eine bestehende Transaktion aus, ändert den Betrag und klickt auf "Aktualisieren". Das System überschreibt den alten Datensatz.
@@ -76,6 +77,7 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
   3. Der User gibt einen maximalen monatlichen Betrag ein und speichert.
   4. Das System erfasst im Hintergrund eine neue Ausgabe in dieser Kategorie, die das gesetzte Limit überschreitet.
   5. Das System generiert sofort eine Push-Benachrichtigung und einen visuellen Warnhinweis im Dashboard.
+
 **Alternative Szenarien / Ausnahmen:**
   * *Limit herabsetzen:* Der User setzt ein Limit, das bereits durch bestehende Ausgaben im aktuellen Monat überschritten ist. Das System warnt den User direkt bei der Eingabe darüber.
 
@@ -90,22 +92,27 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
   5. Das System ändert den Status der Karte auf "Gesperrt" und blockiert alle weiteren Zahlungen.
   6. Das System bietet im Anschluss direkt die Option: "Neue Ersatzkarte bestellen".
   7. Der User bestätigt die Lieferadresse und bestellt den Ersatz.
+
 **Alternative Szenarien / Ausnahmen:**
-  * *Temporäre Sperrung:* Der User wählt "Karte temporär einfrieren" anstatt "Verlust". Die Karte wird deaktiviert, kann aber vom User jederzeit per Knopfdruck wieder entsperrt werden.
+  * *Sperrung abbrechen:* Der User ist sich während des Prozesses (z.B. bei der Sperrung Auswahl) unsicher und klickt auf "Abbrechen". Das System bricht den Vorgang sofort ab. Der Status der Karte bleibt unverändert und das System leitet den User zurück auf das Dashboard (Home) .
 
 ### UC4: Inlandzahlung per PDF-Upload erfassen
 **Basiert auf:** US14 | **Akteur:** Registrierter User
 
 **Hauptszenario (Happy Path):**
-  1. Der User wählt im Zahlungsverkehr "Neue Zahlung" und klickt auf "PDF / Rechnung hochladen".
-  2. Der User wählt eine PDF-Datei aus.
-  3. Das System analysiert das Dokument (OCR) und extrahiert automatisch: IBAN, Empfängername, Betrag und Referenznummer.
-  4. Das System präsentiert dem User ein vorausgefülltes Zahlungsformular zur Kontrolle.
-  5. Der User prüft die Daten und klickt auf "Zahlung freigeben".
-  6. Das System führt die Zahlung aus und zeigt eine Erfolgsmeldung.
+1. Der User navigiert zum Bereich "Zahlungsverkehr" und wählt "Neue Zahlung erfassen".
+2. Der User tippt oder kopiert die IBAN des Empfängers in das dafür vorgesehene Feld.
+3. Das System prüft die IBAN im Hintergrund sofort auf das korrekte Format und die mathematische Prüfziffer.
+4. Das System markiert die IBAN als gültig (z.B. mit einem kleinen grünen Häkchen).
+5. Der User gibt den Namen des Empfängers, den Betrag und optional einen Verwendungszweck ein.
+6. Der User klickt auf "Weiter zur Überprüfung".
+7. Das System präsentiert eine übersichtliche Zusammenfassung aller Zahlungsdaten zur finalen Kontrolle.
+8. Der User klickt auf "Zahlung freigeben".
+9. Das System verbucht den Auftrag und zeigt eine Erfolgsmeldung an.
+
 **Alternative Szenarien / Ausnahmen:**
-  * *Scan fehlgeschlagen:* Das System kann die IBAN nicht eindeutig lesen und fordert den User auf: "Bitte Daten manuell nachtragen."
-  * *Fehlende Kontodeckung:* Das Saldo ist zu niedrig. Das System lehnt die Ausführung ab und schlägt eine Umbuchung von einem anderen Konto vor.
+* *Ungültige IBAN eingegeben:* Das System erkennt den Fehler anhand der Prüfziffer sofort, markiert das Feld rot und blockiert den "Weiter"-Button mit dem Hinweis: "Die eingegebene IBAN ist ungültig."
+* *Zahlungsvorgang abbrechen:* Der User klickt auf "Abbrechen". Das System warnt kurz ("Nicht gespeicherte Daten gehen verloren"), bricht den Vorgang ab und leitet zurück zur Startseite.
 
 ### UC5: Login mit Vertragsnummer und Passwort
 **Basiert auf:** US17 | **Akteur:** Registrierter User
@@ -116,6 +123,7 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
   3. Der User klickt auf "Anmelden".
   4. Das System validiert die Zugangsdaten gegen die Datenbank.
   5. Die Daten sind korrekt. Das System leitet den User auf das gesicherte Dashboard weiter.
+
 **Alternative Szenarien / Ausnahmen:**
   * *Falsches Passwort:* Das System verweigert den Zugriff und zeigt die verbleibenden Versuche an.
   * *Konto gesperrt:* Nach 3 Fehlversuchen sperrt das System den Zugang temporär und bietet den Prozess "Passwort vergessen" an.

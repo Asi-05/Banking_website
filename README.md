@@ -40,7 +40,7 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
 * US13: Als User möchte ich ein 3a Konto eröffnen können und direkt einen Beratungstermin vereinbaren können.
 
 💸 Zahlungsverkehr & Dokumente
-* US14: Als User möchte ich Inlandzahlungen per IBAN Eingabe oder durch PDF Upload erfassen.
+* US14: Als User möchte ich Inlandzahlungen per IBAN Eingabe erfassen.
 * US15: Als User möchte ich Geld schnell zwischen meinen eigenen Konten umbuchen können.
 * US16: Als User möchte ich für spezifische Zeiträume Kontoauszüge generieren und einsehen können.
 
@@ -51,6 +51,82 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
 
 ### Use cases
 🚧 Name actors and briefly describe each use case. Ideally, a UML use case diagram specifies use cases and relationships.
+
+### UC1: Transaktion manuell erfassen & kategorisieren
+**Basiert auf:** US1, US2, US3 | **Akteur:** Registrierter User
+
+**Hauptszenario (Happy Path):**
+  1. Der User klickt auf den Button "Neue Transaktion erfassen".
+  2. Das System öffnet ein Eingabeformular.
+  3. Der User wählt den Transaktionstyp (Einnahme oder Ausgabe).
+  4. Der User gibt Betrag, Datum und einen Beschreibungstext ein.
+  5. Der User wählt aus einem Dropdown-Menü eine passende Kategorie (z.B. "Lebensmittel", "Miete").
+  6. Der User klickt auf "Speichern".
+  7. Das System speichert die Transaktion, schliesst das Formular und aktualisiert die Gesamtbilanz (US6) auf dem Dashboard.
+
+**Alternative Szenarien / Ausnahmen:**
+  * *Pflichtfelder fehlen:* Das System speichert den Eintrag nicht, markiert die fehlenden Felder rot und zeigt eine Fehlermeldung an.
+  * *Nachträgliche Bearbeitung (US3):* Der User wählt eine bestehende Transaktion aus, ändert den Betrag und klickt auf "Aktualisieren". Das System überschreibt den alten Datensatz.
+
+### UC2: Budget-Limit setzen und Warnung auslösen
+**Basiert auf:** US9 | **Akteur:** Registrierter User, System
+
+**Hauptszenario (Happy Path):**
+  1. Der User navigiert zum Bereich "Budgetierung".
+  2. Der User klickt bei einer bestimmten Kategorie auf "Limit setzen".
+  3. Der User gibt einen maximalen monatlichen Betrag ein und speichert.
+  4. Das System erfasst im Hintergrund eine neue Ausgabe in dieser Kategorie, die das gesetzte Limit überschreitet.
+  5. Das System generiert sofort eine Push-Benachrichtigung und einen visuellen Warnhinweis im Dashboard.
+
+**Alternative Szenarien / Ausnahmen:**
+  * *Limit herabsetzen:* Der User setzt ein Limit, das bereits durch bestehende Ausgaben im aktuellen Monat überschritten ist. Das System warnt den User direkt bei der Eingabe darüber.
+
+### UC3: Bankkarte bei Verlust sperren und ersetzen
+**Basiert auf:** US12 | **Akteur:** Registrierter User
+
+**Hauptszenario (Happy Path):**
+  1. Der User navigiert zum Bereich "Kartenmanagement".
+  2. Der User wählt die betroffene Karte aus und klickt auf "Karte sperren".
+  3. Das System fragt nach dem Sperrgrund.
+  4. Der User wählt "Verlust" und bestätigt die Sperrung mit einer Zwei-Faktor-Authentifizierung.
+  5. Das System ändert den Status der Karte auf "Gesperrt" und blockiert alle weiteren Zahlungen.
+  6. Das System bietet im Anschluss direkt die Option: "Neue Ersatzkarte bestellen".
+  7. Der User bestätigt die Lieferadresse und bestellt den Ersatz.
+
+**Alternative Szenarien / Ausnahmen:**
+  * *Sperrung abbrechen:* Der User ist sich während des Prozesses (z.B. bei der Sperrung Auswahl) unsicher und klickt auf "Abbrechen". Das System bricht den Vorgang sofort ab. Der Status der Karte bleibt unverändert und das System leitet den User zurück auf das Dashboard (Home) .
+
+### UC4: Inlandzahlung erfassen
+**Basiert auf:** US14 | **Akteur:** Registrierter User
+
+**Hauptszenario (Happy Path):**
+1. Der User navigiert zum Bereich "Zahlungsverkehr" und wählt "Neue Zahlung erfassen".
+2. Der User tippt oder kopiert die IBAN des Empfängers in das dafür vorgesehene Feld.
+3. Das System prüft die IBAN im Hintergrund sofort auf das korrekte Format und die mathematische Prüfziffer.
+4. Das System markiert die IBAN als gültig (z.B. mit einem kleinen grünen Häkchen).
+5. Der User gibt den Namen des Empfängers, den Betrag und optional einen Verwendungszweck ein.
+6. Der User klickt auf "Weiter zur Überprüfung".
+7. Das System präsentiert eine übersichtliche Zusammenfassung aller Zahlungsdaten zur finalen Kontrolle.
+8. Der User klickt auf "Zahlung freigeben".
+9. Das System verbucht den Auftrag und zeigt eine Erfolgsmeldung an.
+
+**Alternative Szenarien / Ausnahmen:**
+* *Ungültige IBAN eingegeben:* Das System erkennt den Fehler anhand der Prüfziffer sofort, markiert das Feld rot und blockiert den "Weiter"-Button mit dem Hinweis: "Die eingegebene IBAN ist ungültig."
+* *Zahlungsvorgang abbrechen:* Der User klickt auf "Abbrechen". Das System warnt kurz ("Nicht gespeicherte Daten gehen verloren"), bricht den Vorgang ab und leitet zurück zur Startseite.
+
+### UC5: Login mit Vertragsnummer und Passwort
+**Basiert auf:** US17 | **Akteur:** Registrierter User
+
+**Hauptszenario (Happy Path):**
+  1. Der User öffnet die App/Webseite und sieht den Login-Screen.
+  2. Der User gibt seine Vertragsnummer und sein Passwort ein.
+  3. Der User klickt auf "Anmelden".
+  4. Das System validiert die Zugangsdaten gegen die Datenbank.
+  5. Die Daten sind korrekt. Das System leitet den User auf das gesicherte Dashboard weiter.
+
+**Alternative Szenarien / Ausnahmen:**
+  * *Falsches Passwort:* Das System verweigert den Zugriff und zeigt die verbleibenden Versuche an.
+  * *Konto gesperrt:* Nach 3 Fehlversuchen sperrt das System den Zugang temporär und bietet den Prozess "Passwort vergessen" an.
 
 ### Wireframes/ Mockups
 🚧 Add screenshots of the wireframe mockups you chose to implement.

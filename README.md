@@ -40,7 +40,7 @@ Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu b
 * US13: Als User möchte ich ein 3a Konto eröffnen können und direkt einen Beratungstermin vereinbaren können.
 
 💸 Zahlungsverkehr & Dokumente
-* US14: Als User möchte ich Inlandzahlungen per IBAN Eingabe erfassen.
+* US14: Als User möchte ich Inlandzahlungen per IBAN Eingabe oder durch PDF Upload erfassen.
 * US15: Als User möchte ich Geld schnell zwischen meinen eigenen Konten umbuchen können.
 * US16: Als User möchte ich für spezifische Zeiträume Kontoauszüge generieren und einsehen können.
 

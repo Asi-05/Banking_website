@@ -24,7 +24,7 @@
 ### Bedürfnis 3: Kontoauszüge
 - Begründung: Nutzer benötigen Nachweise für Kontrolle und externe Zwecke.
 - Edge Cases: Leere Zeiträume, sehr große Ergebnislisten.
-- Abhängigkeiten: Reporting-Abfragen, Dateigenerierung.
+- Abhängigkeiten: Reporting-Abfragen, Dateigenerierung. 
 
 ## Dokumentierte Anforderungen
 1. FR-PAY-01

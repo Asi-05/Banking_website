@@ -17,117 +17,246 @@ Unsere App (Mazebank :D?) löst das Problem der unübersichtlichen Finanzen, ind
 
 Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu bezahlen oder alltägliche Ausgaben manuell zu erfassen und zu kategorisieren. Die Anwendung speichert die Transaktionen sicher, berechnet sofort die aktuellen Bilanzen und gleicht sie mit vordefinierten Monatsbudgets ab (inklusive autoamtischer Warnungen bei Überschreitung). Darüber hinaus ermöglicht das System dem Nutzer, mit wenigen Klicks komplette Bankgeschäfte zu erledigen, wie das Sperren einer Kreditkarte im Notfall, das Herunterladen von Kontoauszügen oder die direkte Vereinbarung eines Termins für die Eröffnung eines 3a Vorsorgekontos.
 
-### 👤 User Stories
-📝 Finanzverwaltung (Core Features)
-* US1: Als User möchte ich meine Einnahmen und Ausgaben manuell erfassen können, um meine Finanzen lückenlos zu überwachen.
-* US2: Als User möchte ich jeder Transaktion eine Kategorie zuweisen können, um die Struktur meiner Ausgaben zu verstehen.
-* US3: Als User möchte ich bestehende Einträge nachträglich bearbeiten oder löschen können, um Fehler zu korrigieren.
-* US4: Als User möchte ich meine Einnahmen und Ausgaben nach Datum und Kategorien filten können, um gezielt nach alten Zahlungen zu suchen.
+## 📝 Application Requirements
 
-📊 Dashboard & Analyse
-* US5: Als User möchte ich ein Dashboard mit Charts sehen, damit ich meine Einnahmen und Ausgaben auf einem Blick sehen kann.
-* US6: Als User möchte ich jederzeit meine aktuelle Gesamtbilanz einsehen können, um zu wissen, wie viel Budget mir noch Verfügbar steht.
-* US7: Als User möchte ich Summen für bestimmte Zeiträume (z.B. aktueller Monat) abrufen können, um meine finanzielle Entwicklung zu sehen.
-* (US8: Als User möchte ich die vier grössten Aktienticker direkt auf der Startseite sehen, um über Marktbewegungen informiert zu bleiben. )
+---
 
-💰 Budgetierung & Planung
-* US9: Als User möchte ich monatliche Limits setzen können, damit ich automatisch gewarnt werde, wenn ich mein Budget überschreite.
-* US10: Als User möchte ich wiederkehrende Zahlungen für definierte Kategorien erfassen können, um Fixkosten zu automatisieren.
+### Problem
 
-🏦 Konten- & Kartenmanagement
-* US11: Als User möchte ich Privat und Sparkonten selbständig eröffnen oder schliessen können.
-* US12: Als User möchte ich neue Karten bestellen, sowie bei Karten Verlust sperren oder ersetzen können.
-* US13: Als User möchte ich ein 3a Konto eröffnen können und direkt einen Beratungstermin vereinbaren können.
+Viele Menschen verlieren im Alltag leicht den Überblick über ihre Einnahmen und Ausgaben. Die manuelle Erfassung ist mühsam, und bestehende Banking-Apps bieten oft nicht die nötige Flexibilität, um Budgets individuell zu verwalten, wiederkehrende Kosten zu automatisieren und gleichzeitig Konten oder Karten direkt zu managen. Das führt zu unbemerkten Budgetüberschreitungen und fehlender finanzieller Kontrolle.
 
-💸 Zahlungsverkehr & Dokumente
-* US14: Als User möchte ich Inlandzahlungen per IBAN Eingabe erfassen.
-* US15: Als User möchte ich Geld schnell zwischen meinen eigenen Konten umbuchen können.
-* US16: Als User möchte ich für spezifische Zeiträume Kontoauszüge generieren und einsehen können.
+---
 
-🔐 Sicherheit & Onboarding
-* US17: Als User möchte ich mich mit Vertragsnummer und Passwort anmelden können.
-* US18: Als User möchte ich mich auf Wunsch ein neues Benutzerkonto erstellen können.
+### Scenario
 
+Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentrale Plattform bietet. Der User loggt sich ein und kann auf einem übersichtlichen Dashboard seine aktuelle finanzielle Lage prüfen. Er kann im Alltag neue Transaktionen mit wenigen Klicks erfassen und kategorisieren. Am Ende des Monats sieht er dank automatischer Warnungen sofort, ob er seine gesetzten Budgets eingehalten hat, und kann sich bei Bedarf Kontoauszüge als PDF generieren.
+
+---
+
+## User Stories
+
+### 1. Transaktion manuell erfassen (inkl. Kategorie)
+**As a user, I want to add my income and expenses manually and assign them a category, so I can monitor and understand my financial structure.**
+
+**Description:** Die Anwendung speichert eine neue Einnahme oder Ausgabe mit Betrag, Datum und der zugewiesenen Kategorie.
+
+**Inputs:** * `betrag` as `float`
+* `typ` as `str` (e.g., "Einnahme" | "Ausgabe")
+* `datum` as `date`
+* `kategorie_id` as `int`
+* `notiz` as `str` (optional)
+
+**Outputs:** * gespeicherte Transaktion (internally: `Transaction`)
+
+---
+
+### 2. Transaktion bearbeiten oder löschen
+**As a user, I want to edit or delete existing entries to correct mistakes.**
+
+**Description:** Der User ändert die Werte einer bestehenden Transaktion oder entfernt sie vollständig aus der Datenbank.
+
+**Inputs:** * `transaktion_id` as `int`
+* `aktion` as `edit | delete`
+* `neue_werte` as `dict` (optional, bei edit)
+
+**Outputs:** * `erfolgsstatus` as `bool`
+* aktualisierte Transaktionsliste
+
+---
+
+### 3. Transaktionen filtern
+**As a user, I want to filter my income and expenses by date and category to specifically search for old payments.**
+
+**Description:** Das System wendet Suchkriterien auf die Transaktionshistorie an und gibt eine gefilterte Liste zurück.
+
+**Inputs:** * `start_datum` as `date` (optional)
+* `end_datum` as `date` (optional)
+* `kategorie_id` as `int` (optional)
+
+**Outputs:** * gefilterte Transaktionsliste (internally: `list[Transaction]`)
+
+---
+
+### 4. Dashboard und Bilanz anzeigen
+**As a user, I want to see a dashboard with charts, my total balance, and sums for specific timeframes to understand my financial health at a glance.**
+
+**Description:** Das System berechnet die aktuelle Bilanz sowie die Einnahmen/Ausgaben für den gewählten Zeitraum und bereitet die Daten für das Charting auf.
+
+**Inputs:** * `zeitraum_start` as `date`
+* `zeitraum_ende` as `date`
+
+**Outputs:** * `aktuelle_gesamtbilanz` as `float`
+* `summe_einnahmen` as `float`
+* `summe_ausgaben` as `float`
+* `chart_daten` (internally: `list[ChartData]`)
+
+---
+
+### 5. Aktienticker anzeigen
+**As a user, I want to see the top four stock tickers on the start page to stay informed about market movements.**
+
+**Description:** Die Applikation ruft Marktdaten der vier grössten Aktienwerte (z.B. über eine externe API) ab und zeigt diese an.
+
+**Inputs:** none
+
+**Outputs:** * `aktien_kurse` (internally: `list[StockTicker]`)
+
+---
+
+### 6. Monatliche Limits setzen
+**As a user, I want to set monthly limits so I am automatically warned if I exceed my budget.**
+
+**Description:** Der User definiert ein Budget. Das System prüft aktuelle Ausgaben gegen dieses Budget und gibt bei Überschreitung ein Flag aus.
+
+**Inputs:** * `limit_betrag` as `float`
+* `kategorie_id` as `int` (optional für kategoriebasiertes Budget)
+* `monat` as `int`
+* `jahr` as `int`
+
+**Outputs:** * `budget_status` (internally: `Budget`)
+* `budget_ueberschritten` as `bool`
+
+---
+
+### 7. Wiederkehrende Zahlungen erfassen
+**As a user, I want to create recurring payments for specific categories to automate my fixed costs.**
+
+**Description:** Das System plant eine Transaktion, die sich basierend auf dem gewählten Intervall automatisch wiederholt.
+
+**Inputs:** * `betrag` as `float`
+* `kategorie_id` as `int`
+* `intervall` as `str` ("monatlich" | "jährlich")
+* `start_datum` as `date`
+
+**Outputs:** * aktiver Dauerauftrag (internally: `RecurringTransaction`)
+
+---
+
+### 8. Konten eröffnen und schliessen
+**As a user, I want to open or close personal and savings accounts independently.**
+
+**Description:** Der User ändert den Status (aktiv/inaktiv) eines bestehenden Kontos oder legt ein neues Konto an.
+
+**Inputs:** * `konto_typ` as `str` ("Privatkonto" | "Sparkonto")
+* `aktion` as `open | close`
+* `konto_id` as `int` (nur relevant bei 'close')
+
+**Outputs:** * `erfolgsstatus` as `bool`
+* neues oder aktualisiertes Konto (internally: `Account`)
+
+---
+
+### 9. Karten verwalten
+**As a user, I want to order new cards, as well as block or replace them in case of loss.**
+
+**Description:** Der User kann eine neue Karte zu einem Konto bestellen oder den Status einer bestehenden Karte auf "gesperrt" setzen.
+
+**Inputs:** * `konto_id` as `int`
+* `karte_id` as `int` (optional, bei Sperrung/Ersatz)
+* `aktion` as `order | block | replace`
+
+**Outputs:** * `karten_status` as `str`
+* aktualisierte Kartenliste (internally: `list[Card]`)
+
+---
+
+### 10. 3a Konto eröffnen & Beratungstermin
+**As a user, I want to open a 3a account and directly schedule an advisory appointment.**
+
+**Description:** Die Anwendung generiert ein Vorsorgekonto und sendet parallel eine Terminanfrage an das System der Bankberater.
+
+**Inputs:** * `agb_akzeptiert` as `bool`
+* `wunsch_termin` as `datetime`
+
+**Outputs:** * `neues_3a_konto` (internally: `Account3a`)
+* `termin_bestaetigung` (internally: `MeetingRequest`)
+
+---
+
+### 11. Inlandzahlungen erfassen
+**As a user, I want to enter domestic payments using an IBAN.**
+
+**Description:** Der User gibt Empfängerdaten ein, und das System initiiert eine Überweisung vom gewählten Belastungskonto.
+
+**Inputs:** * `ziel_iban` as `str`
+* `betrag` as `float`
+* `belastungs_konto_id` as `int`
+* `verwendungszweck` as `str`
+
+**Outputs:** * `zahlungs_status` as `str` ("pending" | "success")
+* Zahlungsbeleg (internally: `Payment`)
+
+---
+
+### 12. Kontenumbuchung
+**As a user, I want to quickly transfer money between my own accounts.**
+
+**Description:** Das System bucht einen Betrag von einem eigenen Konto sofort auf ein anderes eigenes Konto um.
+
+**Inputs:** * `von_konto_id` as `int`
+* `zu_konto_id` as `int`
+* `betrag` as `float`
+
+**Outputs:** * `umbuchung_erfolgreich` as `bool`
+* aktualisierte Kontostände (internally: `list[Account]`)
+
+---
+
+### 13. Kontoauszüge generieren
+**As a user, I want to generate and view account statements for specific periods.**
+
+**Description:** Die Anwendung sammelt alle Transaktionen eines Kontos im gewählten Zeitraum und generiert daraus ein PDF.
+
+**Inputs:** * `konto_id` as `int`
+* `start_datum` as `date`
+* `end_datum` as `date`
+
+**Outputs:** * Kontoauszug als Datei (PDF)
+* `datei_pfad` as `str`
+
+---
+
+### 14. Login
+**As a user, I want to log in using my contract number and password.**
+
+**Description:** Das System gleicht die Anmeldedaten ab und erstellt bei Erfolg eine sichere Session für den User.
+
+**Inputs:** * `vertragsnummer` as `str`
+* `passwort` as `str`
+
+**Outputs:** * `auth_token` as `str`
+* `login_erfolgreich` as `bool`
+
+---
+
+### 15. Registrierung (Onboarding)
+**As a user, I want to be able to create a new user account if desired.**
+
+**Description:** Das System erfasst die Profildaten eines neuen Users, hasht das Passwort und legt den User in der Datenbank an.
+
+**Inputs:** * `vorname` as `str`
+* `nachname` as `str`
+* `email` as `str`
+* `passwort` as `str`
+
+**Outputs:** * `neue_vertragsnummer` as `str`
+* `registrierung_erfolgreich` as `bool`
+* neues User-Profil (internally: `User`)
+
+---
 
 ### Use cases
-🚧 Name actors and briefly describe each use case. Ideally, a UML use case diagram specifies use cases and relationships.
 
-### UC1: Transaktion manuell erfassen & kategorisieren
-**Basiert auf:** US1, US2, US3 | **Akteur:** Registrierter User
+**Actors**
+* **User:** Eine Privatperson, die ihre Finanzen verwalten, Zahlungen tätigen und ihr Budget überwachen möchte.
 
-**Hauptszenario (Happy Path):**
-  1. Der User klickt auf den Button "Neue Transaktion erfassen".
-  2. Das System öffnet ein Eingabeformular.
-  3. Der User wählt den Transaktionstyp (Einnahme oder Ausgabe).
-  4. Der User gibt Betrag, Datum und einen Beschreibungstext ein.
-  5. Der User wählt aus einem Dropdown-Menü eine passende Kategorie (z.B. "Lebensmittel", "Miete").
-  6. Der User klickt auf "Speichern".
-  7. Das System speichert die Transaktion, schliesst das Formular und aktualisiert die Gesamtbilanz (US6) auf dem Dashboard.
-
-**Alternative Szenarien / Ausnahmen:**
-  * *Pflichtfelder fehlen:* Das System speichert den Eintrag nicht, markiert die fehlenden Felder rot und zeigt eine Fehlermeldung an.
-  * *Nachträgliche Bearbeitung (US3):* Der User wählt eine bestehende Transaktion aus, ändert den Betrag und klickt auf "Aktualisieren". Das System überschreibt den alten Datensatz.
-
-### UC2: Budget-Limit setzen und Warnung auslösen
-**Basiert auf:** US9 | **Akteur:** Registrierter User, System
-
-**Hauptszenario (Happy Path):**
-  1. Der User navigiert zum Bereich "Budgetierung".
-  2. Der User klickt bei einer bestimmten Kategorie auf "Limit setzen".
-  3. Der User gibt einen maximalen monatlichen Betrag ein und speichert.
-  4. Das System erfasst im Hintergrund eine neue Ausgabe in dieser Kategorie, die das gesetzte Limit überschreitet.
-  5. Das System generiert sofort eine Push-Benachrichtigung und einen visuellen Warnhinweis im Dashboard.
-
-**Alternative Szenarien / Ausnahmen:**
-  * *Limit herabsetzen:* Der User setzt ein Limit, das bereits durch bestehende Ausgaben im aktuellen Monat überschritten ist. Das System warnt den User direkt bei der Eingabe darüber.
-
-### UC3: Bankkarte bei Verlust sperren und ersetzen
-**Basiert auf:** US12 | **Akteur:** Registrierter User
-
-**Hauptszenario (Happy Path):**
-  1. Der User navigiert zum Bereich "Kartenmanagement".
-  2. Der User wählt die betroffene Karte aus und klickt auf "Karte sperren".
-  3. Das System fragt nach dem Sperrgrund.
-  4. Der User wählt "Verlust" und bestätigt die Sperrung mit einer Zwei-Faktor-Authentifizierung.
-  5. Das System ändert den Status der Karte auf "Gesperrt" und blockiert alle weiteren Zahlungen.
-  6. Das System bietet im Anschluss direkt die Option: "Neue Ersatzkarte bestellen".
-  7. Der User bestätigt die Lieferadresse und bestellt den Ersatz.
-
-**Alternative Szenarien / Ausnahmen:**
-  * *Sperrung abbrechen:* Der User ist sich während des Prozesses (z.B. bei der Sperrung Auswahl) unsicher und klickt auf "Abbrechen". Das System bricht den Vorgang sofort ab. Der Status der Karte bleibt unverändert und das System leitet den User zurück auf das Dashboard (Home) .
-
-### UC4: Inlandzahlung erfassen
-**Basiert auf:** US14 | **Akteur:** Registrierter User
-
-**Hauptszenario (Happy Path):**
-1. Der User navigiert zum Bereich "Zahlungsverkehr" und wählt "Neue Zahlung erfassen".
-2. Der User tippt oder kopiert die IBAN des Empfängers in das dafür vorgesehene Feld.
-3. Das System prüft die IBAN im Hintergrund sofort auf das korrekte Format und die mathematische Prüfziffer.
-4. Das System markiert die IBAN als gültig (z.B. mit einem kleinen grünen Häkchen).
-5. Der User gibt den Namen des Empfängers, den Betrag und optional einen Verwendungszweck ein.
-6. Der User klickt auf "Weiter zur Überprüfung".
-7. Das System präsentiert eine übersichtliche Zusammenfassung aller Zahlungsdaten zur finalen Kontrolle.
-8. Der User klickt auf "Zahlung freigeben".
-9. Das System verbucht den Auftrag und zeigt eine Erfolgsmeldung an.
-
-**Alternative Szenarien / Ausnahmen:**
-* *Ungültige IBAN eingegeben:* Das System erkennt den Fehler anhand der Prüfziffer sofort, markiert das Feld rot und blockiert den "Weiter"-Button mit dem Hinweis: "Die eingegebene IBAN ist ungültig."
-* *Zahlungsvorgang abbrechen:* Der User klickt auf "Abbrechen". Das System warnt kurz ("Nicht gespeicherte Daten gehen verloren"), bricht den Vorgang ab und leitet zurück zur Startseite.
-
-### UC5: Login mit Vertragsnummer und Passwort
-**Basiert auf:** US17 | **Akteur:** Registrierter User
-
-**Hauptszenario (Happy Path):**
-  1. Der User öffnet die App/Webseite und sieht den Login-Screen.
-  2. Der User gibt seine Vertragsnummer und sein Passwort ein.
-  3. Der User klickt auf "Anmelden".
-  4. Das System validiert die Zugangsdaten gegen die Datenbank.
-  5. Die Daten sind korrekt. Das System leitet den User auf das gesicherte Dashboard weiter.
-
-**Alternative Szenarien / Ausnahmen:**
-  * *Falsches Passwort:* Das System verweigert den Zugriff und zeigt die verbleibenden Versuche an.
-  * *Konto gesperrt:* Nach 3 Fehlversuchen sperrt das System den Zugang temporär und bietet den Prozess "Passwort vergessen" an.
-
+**Main Use Cases**
+* **Konto & Sicherheit:** Registrieren (Onboarding), Login
+* **Transaktionen verwalten:** Einnahmen und Ausgaben manuell erfassen, bearbeiten, löschen und filtern
+* **Finanzen analysieren:** Dashboard mit Gesamtbilanz ansehen, Aktienticker verfolgen
+* **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen
+* **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
+* **Konten- & Kartenmanagement:** Privat- und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen, 3a-Konto eröffnen & Termin anfragen
 ### Wireframes/ Mockups
 🚧 Add screenshots of the wireframe mockups you chose to implement.
 

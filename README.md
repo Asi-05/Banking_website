@@ -8,14 +8,14 @@ Das Ziel dieses Projekts ist die Entwicklung einer umfassenden Personal Finance 
 ### Problem
 🚧 Describe the real-world problem your application solves. (Not HOW, but WHAT)
 
-Im Alltag verlieren viele Menschen schnell den Überblick über ihre Finanzen, da tägliche Ausgaben, Sparkonten und die Altersvorsorge (Säule 3a) oft auf verschiedene Bank Apps oder manuellen Excellisten veteilt sind. Das fürhrt unbemerkten Budgetüberschreitungen, verfehlten Sparzielen und hohem Zeitaufwand bei alltäglichen Aufgaben, wie dem Abtippen von Rechnungen oder dem Verwalten von Bankkarten.
+Im Alltag verlieren viele Menschen schnell den Überblick über ihre Finanzen, da tägliche Ausgaben oft auf manuellen Excellisten veteilt sind. Das fürhrt unbemerkten Budgetüberschreitungen, verfehlten Sparzielen und hohem Zeitaufwand bei alltäglichen Aufgaben, wie dem Abtippen von Rechnungen oder dem Verwalten von Bankkarten.
 
 ### Scenario
 🚧 Describe when and how a user will use your application
 
 Unsere App (Mazebank :D?) löst das Problem der unübersichtlichen Finanzen, indem der Nutzer eine einzige, zentrale Plattform für den Alltag bietet.
 
-Ein Benutzer loggt sich in die App ein, um Rechnungen bequem per PDF Upload zu bezahlen oder alltägliche Ausgaben manuell zu erfassen und zu kategorisieren. Die Anwendung speichert die Transaktionen sicher, berechnet sofort die aktuellen Bilanzen und gleicht sie mit vordefinierten Monatsbudgets ab (inklusive autoamtischer Warnungen bei Überschreitung). Darüber hinaus ermöglicht das System dem Nutzer, mit wenigen Klicks komplette Bankgeschäfte zu erledigen, wie das Sperren einer Kreditkarte im Notfall, das Herunterladen von Kontoauszügen oder die direkte Vereinbarung eines Termins für die Eröffnung eines 3a Vorsorgekontos.
+Ein Benutzer loggt sich in die App ein, um Rechnungen bequem alltägliche Ausgaben manuell zu erfassen und zu kategorisieren. Die Anwendung speichert die Transaktionen sicher, berechnet sofort die aktuellen Bilanzen und gleicht sie mit vordefinierten Monatsbudgets ab inklusive autoamtischer Warnungen bei Überschreitung. Darüber hinaus ermöglicht das System dem Nutzer, mit wenigen Klicks komplette Bankgeschäfte zu erledigen, wie das Sperren einer Kreditkarte im Notfall, das Herunterladen von Kontoauszügen oder die direkte Vereinbarung eines Termins für die Eröffnung eines 3a Vorsorgekontos.
 
 ## 📝 Application Requirements
 
@@ -35,8 +35,8 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ## User Stories
 
-### 1. Transaktion manuell erfassen (inkl. Kategorie)
-**As a user, I want to add my income and expenses manually and assign them a category, so I can monitor and understand my financial structure.**
+### 1. Transaktion manuell erfassen inkl. Kategorie
+**Als User möchte ich meine Einnahmen und Ausgaben manuell hinzufügen und ihnen eine Kategorie zuweisen, damit ich meine Finanzstruktur überwachen und verstehen kann.**
 
 **Description:** Die Anwendung speichert eine neue Einnahme oder Ausgabe mit Betrag, Datum und der zugewiesenen Kategorie.
 
@@ -51,7 +51,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ---
 
 ### 2. Transaktion bearbeiten oder löschen
-**As a user, I want to edit or delete existing entries to correct mistakes.**
+**Als User möchte ich bestehende Einträge bearbeiten oder löschen, um Fehler zu korrigieren.**
 
 **Description:** Der User ändert die Werte einer bestehenden Transaktion oder entfernt sie vollständig aus der Datenbank.
 
@@ -65,7 +65,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ---
 
 ### 3. Transaktionen filtern
-**As a user, I want to filter my income and expenses by date and category to specifically search for old payments.**
+**Als User möchte ich meine Einnahmen und Ausgaben nach Datum und Kategorie filtern, um gezielt nach älteren Zahlungen zu suchen.**
 
 **Description:** Das System wendet Suchkriterien auf die Transaktionshistorie an und gibt eine gefilterte Liste zurück.
 
@@ -78,7 +78,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ---
 
 ### 4. Dashboard und Bilanz anzeigen
-**As a user, I want to see a dashboard with charts, my total balance, and sums for specific timeframes to understand my financial health at a glance.**
+**Als User möchte ich ein Dashboard mit Diagrammen, meinem Gesamtsaldo und Summen für bestimmte Zeiträume sehen, um meine finanzielle Situation auf einen Blick erfassen zu können.**
 
 **Description:** Das System berechnet die aktuelle Bilanz sowie die Einnahmen/Ausgaben für den gewählten Zeitraum und bereitet die Daten für das Charting auf.
 
@@ -93,7 +93,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ---
 
 ### 5. Aktienticker anzeigen
-**As a user, I want to see the top four stock tickers on the start page to stay informed about market movements.**
+**Als User möchte ich die vier wichtigsten Aktiensymbole auf der Startseite sehen, um über die Marktentwicklung informiert zu bleiben.**
 
 **Description:** Die Applikation ruft Marktdaten der vier grössten Aktienwerte (z.B. über eine externe API) ab und zeigt diese an.
 
@@ -104,7 +104,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ---
 
 ### 6. Monatliche Limits setzen
-**As a user, I want to set monthly limits so I am automatically warned if I exceed my budget.**
+**Als User möchte ich monatliche Limits festlegen, damit ich automatisch gewarnt werde, wenn ich mein Budget überschreite.**
 
 **Description:** Der User definiert ein Budget. Das System prüft aktuelle Ausgaben gegen dieses Budget und gibt bei Überschreitung ein Flag aus.
 
@@ -119,7 +119,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ---
 
 ### 7. Wiederkehrende Zahlungen erfassen
-**As a user, I want to create recurring payments for specific categories to automate my fixed costs.**
+**Als User möchte ich wiederkehrende Zahlungen für bestimmte Kategorien erstellen, um meine Fixkosten zu automatisieren.**
 
 **Description:** Das System plant eine Transaktion, die sich basierend auf dem gewählten Intervall automatisch wiederholt.
 
@@ -133,7 +133,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ---
 
 ### 8. Konten eröffnen und schliessen
-**As a user, I want to open or close personal and savings accounts independently.**
+**Als User möchte ich Privat- und Sparkonten selbstständig eröffnen oder schliessen.**
 
 **Description:** Der User ändert den Status (aktiv/inaktiv) eines bestehenden Kontos oder legt ein neues Konto an.
 
@@ -147,7 +147,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ---
 
 ### 9. Karten verwalten
-**As a user, I want to order new cards, as well as block or replace them in case of loss.**
+**Als User möchte ich neue Karten bestellen sowie meine Karten im Verlustfall sperren oder ersetzen lassen.**
 
 **Description:** Der User kann eine neue Karte zu einem Konto bestellen oder den Status einer bestehenden Karte auf "gesperrt" setzen.
 
@@ -160,21 +160,8 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 10. 3a Konto eröffnen & Beratungstermin
-**As a user, I want to open a 3a account and directly schedule an advisory appointment.**
-
-**Description:** Die Anwendung generiert ein Vorsorgekonto und sendet parallel eine Terminanfrage an das System der Bankberater.
-
-**Inputs:** * `agb_akzeptiert` as `bool`
-* `wunsch_termin` as `datetime`
-
-**Outputs:** * `neues_3a_konto` (internally: `Account3a`)
-* `termin_bestaetigung` (internally: `MeetingRequest`)
-
----
-
-### 11. Inlandzahlungen erfassen
-**As a user, I want to enter domestic payments using an IBAN.**
+### 10. Inlandzahlungen erfassen
+**Als User möchte ich Inlandszahlungen mit einer IBAN eingeben.**
 
 **Description:** Der User gibt Empfängerdaten ein, und das System initiiert eine Überweisung vom gewählten Belastungskonto.
 
@@ -188,8 +175,8 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 12. Kontenumbuchung
-**As a user, I want to quickly transfer money between my own accounts.**
+### 11. Kontenumbuchung
+**Als User möchte ich schnell Geld zwischen meinen Konten überweisen können.**
 
 **Description:** Das System bucht einen Betrag von einem eigenen Konto sofort auf ein anderes eigenes Konto um.
 
@@ -202,8 +189,8 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 13. Kontoauszüge generieren
-**As a user, I want to generate and view account statements for specific periods.**
+### 12. Kontoauszüge generieren
+**Als User möchte ich Kontoauszüge für bestimmte Zeiträume erstellen und einsehen.**
 
 **Description:** Die Anwendung sammelt alle Transaktionen eines Kontos im gewählten Zeitraum und generiert daraus ein PDF.
 
@@ -216,8 +203,8 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 14. Login
-**As a user, I want to log in using my contract number and password.**
+### 13. Login
+**Als User möchte ich mich mit meiner Vertragsnummer und meinem Passwort anmelden.**
 
 **Description:** Das System gleicht die Anmeldedaten ab und erstellt bei Erfolg eine sichere Session für den User.
 
@@ -229,8 +216,8 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 15. Registrierung (Onboarding)
-**As a user, I want to be able to create a new user account if desired.**
+### 14. Registrierung (Onboarding)
+**Als User möchte ich bei Bedarf ein neues Benutzerkonto erstellen können.**
 
 **Description:** Das System erfasst die Profildaten eines neuen Users, hasht das Passwort und legt den User in der Datenbank an.
 
@@ -256,7 +243,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 * **Finanzen analysieren:** Dashboard mit Gesamtbilanz ansehen, Aktienticker verfolgen
 * **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen
 * **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
-* **Konten- & Kartenmanagement:** Privat- und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen, 3a-Konto eröffnen & Termin anfragen
+* **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
 ### Wireframes/ Mockups
 🚧 Add screenshots of the wireframe mockups you chose to implement.
 

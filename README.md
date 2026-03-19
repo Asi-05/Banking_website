@@ -244,8 +244,6 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 * **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen
 * **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
 * **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
-### Wireframes/ Mockups
-🚧 Add screenshots of the wireframe mockups you chose to implement.
 
 ## Data Input & Output
  
@@ -299,6 +297,9 @@ Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusam
 
 Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassungen im Dashboard zu erstellen.
 
+
+### Wireframes/ Mockups
+🚧 Add screenshots of the wireframe mockups you chose to implement.
 
 ## 🏛️ Architecture
 🚧 Document the architecture components, relationships, and key design decisions.

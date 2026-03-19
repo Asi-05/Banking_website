@@ -10,17 +10,17 @@
 - Bedürfnis 1: Nutzer brauchen eine schnelle, manuelle Erfassung von Einnahmen und Ausgaben.
 - Bedürfnis 2: Nutzer brauchen eine einheitliche Kategorisierung, um Ausgabestrukturen zu erkennen.
 - Bedürfnis 3: Nutzer brauchen Korrekturmöglichkeiten bei Fehleingaben.
-- Bedürfnis 4: Nutzer brauchen gezielte Such- und Filtermöglichkeiten für historische Transaktionen.
+- Bedürfnis 4: Nutzer brauchen gezielte Such- und Filtermöglichkeiten für alte  Transaktionen.
 
 ## Analyse
 ### Bedürfnis 1: Manuelle Erfassung
 - Begründung: Die App muss den Alltag unterstützen, auch wenn keine automatische Kontobuchung vorliegt.
 - Edge Cases: Negative oder extrem hohe Beträge, fehlendes Datum, ungültiges Zahlenformat.
-- Abhängigkeiten: Persistente Speicherung in der Datenbank.
+- Abhängigkeiten: Konstante Speicherung in der Datenbank.
 
 ### Bedürfnis 2: Kategorisierung
 - Begründung: Nur kategorisierte Daten ermöglichen aussagekräftige Auswertungen und Budgetwarnungen.
-- Edge Cases: Leere Kategorie, freie Kategoriebezeichnungen mit Tippfehlern, nachträglicher Kategorienwechsel.
+- Edge Cases: Leere Kategorie, freie Kategoriebezeichnungen mit Tippfehlern, nachträglicher Kategorienwechsel. (Nur Sonstiges als Sonderfall zulassen?)
 - Abhängigkeiten: Kategorienmodell und Referenz auf Transaktionen.
 
 ### Bedürfnis 3: Bearbeiten/Löschen

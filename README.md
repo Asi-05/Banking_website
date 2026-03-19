@@ -233,6 +233,60 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 * **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen
 * **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
 * **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
+
+## Data Input & Output
+ 
+### Dateneingabe
+
+Die Anwendung erhält Benutzereingaben über die Weboberfläche. Alle Eingaben werden validiert, bevor sie über das ORM in der Datenbank gespeichert werden.
+ 
+### Eingabefelder
+ 
+| Felder       | Typ    | Pflicht  | Beispiel     |
+|--------------|--------|----------|--------------|
+| Betrag       | float  | ja       | 45.50        |
+| Kategorie    | string | ja       | Lebensmittel |
+| Datum        | date   | ja       | 2026-03-10   |
+| Beschreibung | string | nein     | Mittagessen  |
+ 
+### Beispiel Eingabe (JSON)
+ 
+```json
+{
+  "amount": 45.50,
+  "category": "Food",
+  "date": "2026-03-10",
+  "description": "Lunch"
+}
+```
+
+Die Eingaben werden über die NiceGUI-Benutzeroberfläche übermittelt und vor der weiteren Verarbeitung validiert.
+ 
+### Datenausgabe
+
+Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusammengefasste Finanzinformationen, die im Dashboard angezeigt werden.
+ 
+### Output Struktur
+ 
+| Feld          | Typ    |
+|---------------|--------|
+| total_income  | float  |   
+| total_expenses| float  |
+| balance       | float  |
+
+### Example Output (JSON)
+ 
+```json
+{
+  "total_income": 3500,
+  "total_expenses": 2100,
+  "balance": 1400
+}
+```
+
+Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassungen im Dashboard zu erstellen.
+
+
 ### Wireframes/ Mockups
 🚧 Add screenshots of the wireframe mockups you chose to implement.
 

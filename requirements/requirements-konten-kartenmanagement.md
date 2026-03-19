@@ -1,14 +1,12 @@
 # Requirements-Dokument: Konten- & Kartenmanagement
 
 ## Quelle User Stories
-- US11: Privat- und Sparkonten eröffnen oder schließen
-- US12: Karten bestellen, bei Verlust sperren oder ersetzen
-- US13: 3a-Konto eröffnen und Beratungstermin vereinbaren
+- US7: Konten eröffnen und schließen
+- US8: Karten verwalten
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen Selbstservice für Kontoeröffnung und -schließung.
 - Bedürfnis 2: Nutzer brauchen schnelle Kartenverwaltung, insbesondere im Notfall.
-- Bedürfnis 3: Nutzer brauchen einen klaren Prozess für 3a-Konto und Beratungstermin.
 
 ## Analyse
 ### Bedürfnis 1: Kontoverwaltung
@@ -20,11 +18,6 @@
 - Begründung: Kartenverlust ist zeitkritisch, Sperrprozess muss sofort greifen.
 - Edge Cases: Mehrere Karten pro Konto, wiederholte Sperranfragen.
 - Abhängigkeiten: Kartenmodell, Statushistorie, Ersatzprozess.
-
-### Bedürfnis 3: 3a und Beratung
-- Begründung: Eröffnung benötigt oft Beratung und Terminabstimmung.
-- Edge Cases: Keine freien Termine, doppelte Buchungen.
-- Abhängigkeiten: Terminverwaltung, Kontotyp 3a.
 
 ## Dokumentierte Anforderungen
 1. FR-ACC-01
@@ -43,10 +36,6 @@
    - Herleitung: Bedürfnis 2 verlangt einen Anschlussprozess nach Sperrung.
    - Anforderung: Das System muss die Bestellung einer Ersatzkarte aus einem gesperrten Kartenkontext heraus unterstützen.
 
-5. FR-PENS-01
-   - Herleitung: Bedürfnis 3 verlangt eine kombinierte Prozessführung.
-   - Anforderung: Das System muss die Eröffnung eines 3a-Kontos ermöglichen und im selben Ablauf die Vereinbarung eines Beratungstermins anbieten.
-
 ## Offene Punkte für Stakeholder
 - Welche fachlichen Vorbedingungen gelten für Kontoeröffnung/-schließung?
-- Welche Mindestinformationen sind für einen Beratungstermin erforderlich?
+- Sollen Karten direkt einem Konto verpflichtend zugeordnet sein oder optional kontounabhängig geführt werden?

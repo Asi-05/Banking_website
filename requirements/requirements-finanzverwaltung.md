@@ -1,10 +1,9 @@
 # Requirements-Dokument: Finanzverwaltung (Core Features)
 
 ## Quelle User Stories
-- US1: Einnahmen und Ausgaben manuell erfassen
-- US2: Transaktionen kategorisieren
-- US3: Einträge bearbeiten oder löschen
-- US4: Einträge nach Datum und Kategorie filtern
+- US1: Transaktion manuell erfassen inkl. Kategorie
+- US2: Transaktion bearbeiten oder löschen
+- US3: Transaktionen nach Datum und Kategorie filtern
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen eine schnelle, manuelle Erfassung von Einnahmen und Ausgaben.

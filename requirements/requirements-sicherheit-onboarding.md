@@ -36,7 +36,7 @@
 
 3. FR-AUTH-03
    - Herleitung: Bedürfnis 1 verlangt Schutz vor Missbrauch.
-   - Anforderung: Das System muss nach wiederholten Fehlversuchen eine Schutzmaßnahme auslösen (z. B. temporäre Sperre oder Verzögerung).
+   - Anforderung: Das System muss nach wiederholten Fehlversuchen eine Schutzmaßnahme auslösen (z. B. temporäre Sperre).
 
 4. FR-REG-01
    - Herleitung: Bedürfnis 2 verlangt einen vollständigen Self-Service-Registrierungsprozess.
@@ -47,5 +47,5 @@
    - Anforderung: Das System muss Vertragsnummern auf Eindeutigkeit prüfen und bei Konflikten eine neutrale, verständliche Fehlermeldung anzeigen.
 
 ## Offene Punkte für Stakeholder
-- Soll für den MVP bereits 2-Faktor-Authentifizierung vorgesehen werden?
-- Welche Passwortregeln gelten verbindlich (Länge, Sonderzeichen, Rotation)?
+- Soll für den MVP bereits 2-Faktor-Authentifizierung vorgesehen werden? Nein
+- Welche Passwortregeln gelten verbindlich (Länge, Sonderzeichen, Rotation)?Sonderzeichen, mindestens 8 Zeichen, keine Rotationspflicht.

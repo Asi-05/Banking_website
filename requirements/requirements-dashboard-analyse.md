@@ -11,7 +11,7 @@
 ## Analyse
 ### Bedürfnis 1: Visuelles Dashboard
 - Begründung: Diagramme reduzieren Interpretationsaufwand gegenüber Rohlisten.
-- Edge Cases: Keine Transaktionen vorhanden, sehr große Datenmengen.
+- Edge Cases: Keine Transaktionen vorhanden, sehr grosse Datenmengen.
 - Abhängigkeiten: Aggregationslogik, Chart-Komponenten.
 
 ### Bedürfnis 2: Gesamtbilanz

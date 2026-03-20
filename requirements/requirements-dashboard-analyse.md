@@ -38,4 +38,4 @@
    - Anforderung: Das System muss Summen für auswählbare Zeiträume (z. B. aktueller Monat) berechnen und anzeigen.
 
 ## Offene Punkte für Stakeholder
-- Welche Diagrammtypen werden bevorzugt (Balken, Linie, Kreis)?
+- Welche Diagrammtypen werden bevorzugt (Balken)

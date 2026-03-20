@@ -252,6 +252,30 @@ Die Anwendung erhält Benutzereingaben über die Weboberfläche. Alle Eingaben w
 }
 ```
 
+### Datenausgabe
+
+Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusammengefasste Finanzinformationen, die im Dashboard angezeigt werden.
+ 
+### Output Struktur
+ 
+| Feld          | Typ    |
+|---------------|--------|
+| total_income  | float  |   
+| total_expenses| float  |
+| balance       | float  |
+
+### Example Output (JSON)
+ 
+```json
+{
+  "total_income": 3500,
+  "total_expenses": 2100,
+  "balance": 1400
+}
+```
+
+Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassungen im Dashboard zu erstellen.
+
 
 ### Wireframes/ Mockups
 🚧 Add screenshots of the wireframe mockups you chose to implement.

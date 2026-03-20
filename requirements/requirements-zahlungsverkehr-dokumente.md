@@ -33,7 +33,7 @@
 
 2. FR-PAY-02
    - Herleitung: Bedürfnis 1 verlangt Eingabesicherheit.
-   - Anforderung: Das System muss IBAN, Betrag und Empfängerangaben vor dem Auslösen einer Zahlung validieren.
+   - Anforderung: Das System muss target_iban, amount, source_account_id und purpose vor dem Auslösen einer Zahlung validieren.
 
 3. FR-TRF-01
    - Herleitung: Bedürfnis 2 verlangt konsistente Doppelbuchung.
@@ -47,6 +47,9 @@
    - Herleitung: Bedürfnis 3 verlangt zeitbasierte Dokumenterstellung.
    - Anforderung: Das System muss Kontoauszüge für frei wählbare Zeiträume als PDF generieren und in der Anwendung anzeigen können.
 
+## Entscheidungen der Stakeholder
+- Für Kontoauszüge wird genau ein einheitliches PDF-Layout verwendet.
+- Für Inlandzahlungen sind keine zusätzlichen Pflichtfelder neben dem Verwendungszweck erforderlich.
+
 ## Offene Punkte für Stakeholder
-- Sollen mehrere PDF-Layouts für Kontoauszüge unterstützt werden oder ein einheitliches Standardlayout?
-- Sind für Inlandzahlungen zusätzliche Pflichtfelder neben Verwendungszweck erforderlich?
+- Keine.

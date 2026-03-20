@@ -1,9 +1,9 @@
 # Requirements-Dokument: Zahlungsverkehr & Dokumente
 
 ## Quelle User Stories
-- US9: Inlandzahlungen per IBAN-Eingabe erfassen
-- US10: Geld zwischen eigenen Konten umbuchen
-- US11: Kontoauszüge für Zeiträume generieren und einsehen
+- US10: Inlandzahlungen per IBAN-Eingabe erfassen
+- US11: Geld zwischen eigenen Konten umbuchen
+- US12: Kontoauszüge für Zeiträume generieren und einsehen
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen einen einfachen Prozess für Inlandszahlungen.

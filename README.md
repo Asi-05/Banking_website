@@ -149,7 +149,22 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 9. Inlandzahlungen erfassen
+### 9. Unabhängige Kreditkarten verwalten
+**Als User möchte ich eine eigenständige Kreditkarte mit eigenem Kreditrahmen bestellen sowie verwalten (sperren/ersetzen), um Zahlungen unabhängig von meinem Kontostand abzuwickeln.**
+
+**Description:** Der User beantragt eine Kreditkarte. Das System erstellt ein neues, unabhängiges Kreditkarten-Objekt mit einem festgelegten Limit. Der User kann Transaktionen direkt über diese Karte abwickeln, wodurch sich der genutzte Kreditrahmen (Saldo) verändert. Bei Verlust kann die Karte gesperrt werden.
+
+**Inputs:** * `user_id` as `int`
+* `gewuenschtes_limit` as `float` (bei Neubestellung)
+* `karte_id` as `int` (bei Sperrung/Ersatz)
+* `aktion` as `order | block | replace`
+
+**Outputs:** * `karten_status` as `str`
+* aktualisiertes Kreditkarten-Objekt (internally: `CreditCard`)
+
+---
+
+### 10. Inlandzahlungen erfassen
 **Als User möchte ich Inlandszahlungen mit einer IBAN eingeben.**
 
 **Description:** Der User gibt Empfängerdaten ein, und das System initiiert eine Überweisung vom gewählten Belastungskonto.
@@ -164,7 +179,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 10. Kontenumbuchung
+### 11. Kontenumbuchung
 **Als User möchte ich schnell Geld zwischen meinen Konten überweisen können.**
 
 **Description:** Das System bucht einen Betrag von einem eigenen Konto sofort auf ein anderes eigenes Konto um.
@@ -178,7 +193,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 11. Kontoauszüge generieren
+### 12. Kontoauszüge generieren
 **Als User möchte ich Kontoauszüge für bestimmte Zeiträume erstellen und einsehen.**
 
 **Description:** Die Anwendung sammelt alle Transaktionen eines Kontos im gewählten Zeitraum und generiert daraus ein PDF.
@@ -192,7 +207,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 12. Login
+### 13. Login
 **Als User möchte ich mich mit meiner Vertragsnummer und meinem Passwort anmelden.**
 
 **Description:** Das System gleicht die Anmeldedaten ab und erstellt bei Erfolg eine sichere Session für den User.
@@ -216,7 +231,7 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 * **Finanzen analysieren:** Dashboard mit Gesamtbilanz ansehen
 * **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen
 * **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
-* **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
+* **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten verwalten sowie unabhängige Kreditkarten mit Kreditrahmen verwalten
 
 ## Data Input & Output
  

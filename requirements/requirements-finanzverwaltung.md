@@ -28,7 +28,7 @@
 - Abhängigkeiten: Änderungslogik, konsistente Neuberechnung von Summen.
 
 ### Bedürfnis 4: Filtern
-- Begründung: Ohne Filter sind große Datenmengen nicht nutzbar.
+- Begründung: Ohne Filter sind grosse Datenmengen nicht nutzbar.
 - Edge Cases: Leere Trefferlisten, ungültige Datumsintervalle (von > bis), kombinierte Filter.
 - Abhängigkeiten: Indizierung/Query-Logik in der Datenbank.
 
@@ -57,8 +57,6 @@
    - Herleitung: Bedürfnis 4 erfordert kombinierbare Suchkriterien.
    - Anforderung: Das System muss Transaktionen nach Datumsbereich und Kategorie filtern können, inklusive kombinierter Filteranfragen.
 
-## Entscheidungen der Stakeholder
-- Kategorien sind nicht frei anlegbar; es gilt ausschließlich die feste Kategorienliste.
-- Feste Kategorienliste: 1 Transport, 2 Einkäufe, 3 Versicherungen, 4 Miete, 5 Steuern, 6 Freizeit, 7 Sparen, 8 Well being, 9 Kontübertrag, 10 Sonstiges.
-- Soft Delete wird nicht benötigt; Löschungen sind endgültig und müssen vom User vorab bestätigt werden.
-
+## Offene Punkte für Stakeholder
+- Sollen Kategorien frei anlegbar sein oder aus einer festen Liste stammen?
+- Wird für Löschvorgänge ein Soft-Delete (Wiederherstellung) benötigt?

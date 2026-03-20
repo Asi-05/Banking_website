@@ -11,7 +11,7 @@
 ## Analyse
 ### Bedürfnis 1: Visuelles Dashboard
 - Begründung: Diagramme reduzieren Interpretationsaufwand gegenüber Rohlisten.
-- Edge Cases: Keine Transaktionen vorhanden, sehr große Datenmengen.
+- Edge Cases: Keine Transaktionen vorhanden, sehr grosse Datenmengen.
 - Abhängigkeiten: Aggregationslogik, Chart-Komponenten.
 
 ### Bedürfnis 2: Gesamtbilanz
@@ -38,4 +38,4 @@
    - Anforderung: Das System muss Summen für auswählbare Zeiträume (z. B. aktueller Monat) berechnen und anzeigen.
 
 ## Offene Punkte für Stakeholder
-- Welche Diagrammtypen werden bevorzugt (Balken, Linie, Kreis)?
+- Welche Diagrammtypen werden bevorzugt (Balken)

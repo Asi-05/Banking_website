@@ -28,7 +28,7 @@
 - Abhängigkeiten: Änderungslogik, konsistente Neuberechnung von Summen.
 
 ### Bedürfnis 4: Filtern
-- Begründung: Ohne Filter sind große Datenmengen nicht nutzbar.
+- Begründung: Ohne Filter sind grosse Datenmengen nicht nutzbar.
 - Edge Cases: Leere Trefferlisten, ungültige Datumsintervalle (von > bis), kombinierte Filter.
 - Abhängigkeiten: Indizierung/Query-Logik in der Datenbank.
 

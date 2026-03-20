@@ -58,5 +58,3 @@
 - Für den MVP ist keine 2-Faktor-Authentifizierung vorgesehen.
 - Passwortregeln: mindestens 8 Zeichen, mindestens ein Sonderzeichen, keine Rotationspflicht.
 
-## Offene Punkte für Stakeholder
-- Keine.

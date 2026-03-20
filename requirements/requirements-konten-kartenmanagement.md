@@ -46,5 +46,3 @@
 - Kontoschließung ist nur bei Kontostand 0 zulässig.
 - Für Kontoeröffnung gelten keine zusätzlichen Vorbedingungen außer gültigen Login-Daten.
 
-## Offene Punkte für Stakeholder
-- Keine.

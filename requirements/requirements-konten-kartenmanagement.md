@@ -1,39 +1,32 @@
 # Requirements-Dokument: Konten- & Kartenmanagement
 
 ## Quelle User Stories
-- US11: Privat- und Sparkonten eröffnen oder schließen
-- US12: Karten bestellen, bei Verlust sperren oder ersetzen
-- US13: 3a-Konto eröffnen und Beratungstermin vereinbaren
+- US7: Konten eröffnen und schliessen
+- US8: Karten verwalten
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen Selbstservice für Kontoeröffnung und -schließung.
 - Bedürfnis 2: Nutzer brauchen schnelle Kartenverwaltung, insbesondere im Notfall.
-- Bedürfnis 3: Nutzer brauchen einen klaren Prozess für 3a-Konto und Beratungstermin.
 
 ## Analyse
 ### Bedürfnis 1: Kontoverwaltung
 - Begründung: Kontoaktionen sollen ohne manuelle Bankkontakte möglich sein.
-- Edge Cases: Schließung mit Restguthaben, Schließung von Referenzkonten.
+- Edge Cases: Schliessung mit Restguthaben, Schließung von Referenzkonten.
 - Abhängigkeiten: Kontenmodell, Statusverwaltung (aktiv/geschlossen).
 
 ### Bedürfnis 2: Kartenverwaltung
 - Begründung: Kartenverlust ist zeitkritisch, Sperrprozess muss sofort greifen.
-- Edge Cases: Mehrere Karten pro Konto, wiederholte Sperranfragen.
+- Edge Cases: Kartenbestellung für Sparkonto, wiederholte Sperranfragen.
 - Abhängigkeiten: Kartenmodell, Statushistorie, Ersatzprozess.
-
-### Bedürfnis 3: 3a und Beratung
-- Begründung: Eröffnung benötigt oft Beratung und Terminabstimmung.
-- Edge Cases: Keine freien Termine, doppelte Buchungen.
-- Abhängigkeiten: Terminverwaltung, Kontotyp 3a.
 
 ## Dokumentierte Anforderungen
 1. FR-ACC-01
    - Herleitung: Bedürfnis 1 verlangt einen vollständigen Self-Service-Prozess.
-   - Anforderung: Das System muss das Eröffnen und Schließen von Privat- und Sparkonten inklusive Statusanzeige ermöglichen.
+   - Anforderung: Das System muss das Eröffnen und Schließen von Privat- und Sparkonten inklusive Statusanzeige ermöglichen; für die Kontoeröffnung gelten keine weiteren fachlichen Vorbedingungen außer gültigen Login-Daten.
 
 2. FR-ACC-02
    - Herleitung: Bedürfnis 1 verlangt sichere Schließregeln.
-   - Anforderung: Das System muss eine Kontoschließung nur zulassen, wenn definierte Vorbedingungen erfüllt sind (z. B. kein negatives Saldo).
+   - Anforderung: Das System muss eine Kontoschließung nur zulassen, wenn der Kontostand exakt 0 ist.
 
 3. FR-CARD-01
    - Herleitung: Bedürfnis 2 verlangt zeitnahe Sicherheitsmaßnahmen.
@@ -43,10 +36,13 @@
    - Herleitung: Bedürfnis 2 verlangt einen Anschlussprozess nach Sperrung.
    - Anforderung: Das System muss die Bestellung einer Ersatzkarte aus einem gesperrten Kartenkontext heraus unterstützen.
 
-5. FR-PENS-01
-   - Herleitung: Bedürfnis 3 verlangt eine kombinierte Prozessführung.
-   - Anforderung: Das System muss die Eröffnung eines 3a-Kontos ermöglichen und im selben Ablauf die Vereinbarung eines Beratungstermins anbieten.
+5. FR-CARD-03
+   - Herleitung: Bedürfnis 2 verlangt eine eindeutige Kontozuordnung und fachliche Einschränkung.
+   - Anforderung: Das System muss jede Karte verpflichtend genau einem Konto zuordnen und Kartenbestellungen ausschließlich für Privatkonten erlauben.
 
-## Offene Punkte für Stakeholder
-- Welche fachlichen Vorbedingungen gelten für Kontoeröffnung/-schließung?
-- Welche Mindestinformationen sind für einen Beratungstermin erforderlich?
+## Entscheidungen der Stakeholder
+- Karten sind verpflichtend direkt einem Konto zugeordnet.
+- Karten können nur für Privatkonten geführt und bestellt werden.
+- Kontoschließung ist nur bei Kontostand 0 zulässig.
+- Für Kontoeröffnung gelten keine zusätzlichen Vorbedingungen außer gültigen Login-Daten.
+

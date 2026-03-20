@@ -1,9 +1,9 @@
 # Requirements-Dokument: Zahlungsverkehr & Dokumente
 
 ## Quelle User Stories
-- US14: Inlandzahlungen per IBAN-Eingabe erfassen
-- US15: Geld zwischen eigenen Konten umbuchen
-- US16: Kontoauszüge für Zeiträume generieren und einsehen
+- US9: Inlandzahlungen per IBAN-Eingabe erfassen
+- US10: Geld zwischen eigenen Konten umbuchen
+- US11: Kontoauszüge für Zeiträume generieren und einsehen
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen einen einfachen Prozess für Inlandszahlungen.
@@ -24,7 +24,7 @@
 ### Bedürfnis 3: Kontoauszüge
 - Begründung: Nutzer benötigen Nachweise für Kontrolle und externe Zwecke.
 - Edge Cases: Leere Zeiträume, sehr große Ergebnislisten.
-- Abhängigkeiten: Reporting-Abfragen, Dateigenerierung. 
+- Abhängigkeiten: Reporting-Abfragen, PDF-Dateigenerierung.
 
 ## Dokumentierte Anforderungen
 1. FR-PAY-01
@@ -45,8 +45,8 @@
 
 5. FR-STM-01
    - Herleitung: Bedürfnis 3 verlangt zeitbasierte Dokumenterstellung.
-   - Anforderung: Das System muss Kontoauszüge für frei wählbare Zeiträume generieren und in der Anwendung anzeigen können.
+   - Anforderung: Das System muss Kontoauszüge für frei wählbare Zeiträume als PDF generieren und in der Anwendung anzeigen können.
 
 ## Offene Punkte für Stakeholder
-- In welchem Dateiformat sollen Kontoauszüge exportiert werden (PDF, CSV, beides)?
-- Sollen für Inlandzahlungen zusätzliche Pflichtfelder definiert werden (z. B. Zahlungsreferenz oder Verwendungszweck)?
+- Sollen mehrere PDF-Layouts für Kontoauszüge unterstützt werden oder ein einheitliches Standardlayout?
+- Sind für Inlandzahlungen zusätzliche Pflichtfelder neben Verwendungszweck erforderlich?

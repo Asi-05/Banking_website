@@ -1,8 +1,8 @@
 # Requirements-Dokument: Budgetierung & Planung
 
 ## Quelle User Stories
-- US9: Monatliche Limits setzen mit Warnung bei Überschreitung
-- US10: Wiederkehrende Zahlungen für Kategorien erfassen
+- US5: Monatliche Limits setzen mit Warnung bei Überschreitung
+- US6: Wiederkehrende Zahlungen für Kategorien erfassen
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen monatliche Budgetgrenzen pro Kategorie oder gesamt.
@@ -44,4 +44,4 @@
 
 ## Entscheidungen der Stakeholder
 - Bei 80 Prozent Budgetverbrauch wird keine Warnung ausgelöst.
-- Für wiederkehrende Zahlungen werden alle drei Intervalle benötigt: monatlich, wöchentlich und jährlich.
+- Für wiederkehrende Zahlungen werden die Intervalle monatlich und jährlich benötigt.

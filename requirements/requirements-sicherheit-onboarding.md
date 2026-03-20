@@ -1,8 +1,8 @@
 # Requirements-Dokument: Sicherheit & Onboarding
 
 ## Quelle User Stories
-- US17: Anmeldung mit Vertragsnummer und Passwort
-- US18: Neues Benutzerkonto erstellen
+- US12: Login mit Vertragsnummer und Passwort
+- US13: Registrierung (Onboarding)
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen einen verlässlichen Login mit Vertragsnummer und Passwort.
@@ -17,7 +17,7 @@
 
 ### Bedürfnis 2: Registrierung
 - Begründung: Der Einstieg in die App muss ohne Supportaufwand möglich sein.
-- Edge Cases: Doppelte Vertragsnummer, schwaches Passwort, unvollständige Eingaben.
+- Edge Cases: Doppelte E-Mail-Adresse, schwaches Passwort, unvollständige Eingaben.
 - Abhängigkeiten: Eindeutigkeitsprüfung, Validierungsregeln.
 
 ### Bedürfnis 3: Sicherheitsfeedback
@@ -38,14 +38,23 @@
    - Herleitung: Bedürfnis 1 verlangt Schutz vor Missbrauch.
    - Anforderung: Das System muss nach wiederholten Fehlversuchen eine Schutzmaßnahme auslösen (z. B. temporäre Sperre).
 
-4. FR-REG-01
+4. FR-AUTH-04
+   - Herleitung: Bedürfnis 1 und 3 verlangen klar definierte Passwortregeln.
+   - Anforderung: Das System muss Passwörter mit mindestens 8 Zeichen und mindestens einem Sonderzeichen verlangen; eine Passwort-Rotationspflicht besteht nicht.
+
+5. FR-REG-01
    - Herleitung: Bedürfnis 2 verlangt einen vollständigen Self-Service-Registrierungsprozess.
-   - Anforderung: Das System muss die Erstellung eines neuen Benutzerkontos mit Vertragsnummer, Passwort und Pflichtprofilfeldern ermöglichen.
+   - Anforderung: Das System muss die Erstellung eines neuen Benutzerkontos mit Vorname, Nachname, E-Mail und Passwort ermöglichen und dabei eine neue Vertragsnummer erzeugen.
 
-5. FR-REG-02
+6. FR-REG-02
    - Herleitung: Bedürfnis 2 und 3 verlangen datenkonsistente Registrierung.
-   - Anforderung: Das System muss Vertragsnummern auf Eindeutigkeit prüfen und bei Konflikten eine neutrale, verständliche Fehlermeldung anzeigen.
+   - Anforderung: Das System muss E-Mail-Adressen auf Eindeutigkeit prüfen und bei Konflikten eine neutrale, verständliche Fehlermeldung anzeigen.
 
-## Offene Punkte für Stakeholder
-- Soll für den MVP bereits 2-Faktor-Authentifizierung vorgesehen werden? Nein
-- Welche Passwortregeln gelten verbindlich (Länge, Sonderzeichen, Rotation)?Sonderzeichen, mindestens 8 Zeichen, keine Rotationspflicht.
+7. FR-REG-03
+   - Herleitung: Bedürfnis 2 verlangt eine persistente und eindeutig identifizierbare Benutzerverwaltung.
+   - Anforderung: Das System muss alle registrierten Benutzer in einer zentralen Benutzerliste (Datenbanktabelle) speichern, wobei jeder Benutzer eine eindeutige User-ID und die zugehörigen Profildaten besitzt.
+
+## Entscheidungen der Stakeholder
+- Für den MVP ist keine 2-Faktor-Authentifizierung vorgesehen.
+- Passwortregeln: mindestens 8 Zeichen, mindestens ein Sonderzeichen, keine Rotationspflicht.
+

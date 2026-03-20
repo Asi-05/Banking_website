@@ -1,10 +1,9 @@
 # Requirements-Dokument: Finanzverwaltung (Core Features)
 
 ## Quelle User Stories
-- US1: Einnahmen und Ausgaben manuell erfassen
-- US2: Transaktionen kategorisieren
-- US3: Einträge bearbeiten oder löschen
-- US4: Einträge nach Datum und Kategorie filtern
+- US1: Transaktion manuell erfassen inkl. Kategorie
+- US2: Transaktion bearbeiten oder löschen
+- US3: Transaktionen nach Datum und Kategorie filtern
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen eine schnelle, manuelle Erfassung von Einnahmen und Ausgaben.
@@ -20,7 +19,7 @@
 
 ### Bedürfnis 2: Kategorisierung
 - Begründung: Nur kategorisierte Daten ermöglichen aussagekräftige Auswertungen und Budgetwarnungen.
-- Edge Cases: Leere Kategorie, freie Kategoriebezeichnungen mit Tippfehlern, nachträglicher Kategorienwechsel. (Nur Sonstiges als Sonderfall zulassen?)
+- Edge Cases: Leere Kategorie, ungültige Kategorie-ID außerhalb der freigegebenen Liste, nachträglicher Kategorienwechsel.
 - Abhängigkeiten: Kategorienmodell und Referenz auf Transaktionen.
 
 ### Bedürfnis 3: Bearbeiten/Löschen
@@ -29,7 +28,7 @@
 - Abhängigkeiten: Änderungslogik, konsistente Neuberechnung von Summen.
 
 ### Bedürfnis 4: Filtern
-- Begründung: Ohne Filter sind große Datenmengen nicht nutzbar.
+- Begründung: Ohne Filter sind grosse Datenmengen nicht nutzbar.
 - Edge Cases: Leere Trefferlisten, ungültige Datumsintervalle (von > bis), kombinierte Filter.
 - Abhängigkeiten: Indizierung/Query-Logik in der Datenbank.
 
@@ -44,16 +43,22 @@
 
 3. FR-FIN-03
    - Herleitung: Bedürfnis 2 erfordert eine stabile Kategorisierung je Transaktion.
-   - Anforderung: Das System muss jeder Transaktion genau eine Kategorie zuweisen und eine Änderung der Kategorie nachträglich erlauben.
+   - Anforderung: Das System muss jeder Transaktion genau eine Kategorie aus der festen Liste zuweisen und eine nachträgliche Änderung innerhalb dieser Liste erlauben.
 
 4. FR-FIN-04
-   - Herleitung: Bedürfnis 3 erfordert Korrektur- und Löschprozesse.
-   - Anforderung: Das System muss das Bearbeiten und Löschen vorhandener Transaktionen ermöglichen und alle betroffenen Summen unmittelbar neu berechnen.
+   - Herleitung: Bedürfnis 2 verlangt eine eindeutige, standardisierte Kategorienstruktur.
+   - Anforderung: Das System muss exakt folgende Kategorien bereitstellen: 1 Transport, 2 Einkäufe, 3 Versicherungen, 4 Miete, 5 Steuern, 6 Freizeit, 7 Sparen, 8 Well being, 9 Kontübertrag, 10 Sonstiges.
 
 5. FR-FIN-05
+   - Herleitung: Bedürfnis 3 erfordert Korrektur- und Löschprozesse.
+   - Anforderung: Das System muss das Bearbeiten und endgültige Löschen vorhandener Transaktionen ermöglichen, vor dem Löschen eine explizite Bestätigung des Users verlangen und alle betroffenen Summen unmittelbar neu berechnen.
+
+6. FR-FIN-06
    - Herleitung: Bedürfnis 4 erfordert kombinierbare Suchkriterien.
    - Anforderung: Das System muss Transaktionen nach Datumsbereich und Kategorie filtern können, inklusive kombinierter Filteranfragen.
 
-## Offene Punkte für Stakeholder
-- Sollen Kategorien frei anlegbar sein oder aus einer festen Liste stammen?
-- Wird für Löschvorgänge ein Soft-Delete (Wiederherstellung) benötigt?
+## Entscheidungen der Stakeholder
+- Kategorien sind nicht frei anlegbar; es gilt ausschließlich die feste Kategorienliste.
+- Feste Kategorienliste: 1 Transport, 2 Einkäufe, 3 Versicherungen, 4 Miete, 5 Steuern, 6 Freizeit, 7 Sparen, 8 Well being, 9 Kontübertrag, 10 Sonstiges.
+- Soft Delete wird nicht benötigt; vor jeder Löschung muss der User die Löschung explizit bestätigen.
+

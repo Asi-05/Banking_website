@@ -205,29 +205,13 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 ---
 
-### 13. Registrierung (Onboarding)
-**Als User möchte ich bei Bedarf ein neues Benutzerkonto erstellen können.**
-
-**Description:** Das System erfasst die Profildaten eines neuen Users, hasht das Passwort und legt den User in der Datenbank an.
-
-**Inputs:** * `vorname` as `str`
-* `nachname` as `str`
-* `email` as `str`
-* `passwort` as `str`
-
-**Outputs:** * `neue_vertragsnummer` as `str`
-* `registrierung_erfolgreich` as `bool`
-* neues User-Profil (internally: `User`)
-
----
-
 ### Use cases
 
 **Actors**
 * **User:** Eine Privatperson, die ihre Finanzen verwalten, Zahlungen tätigen und ihr Budget überwachen möchte.
 
 **Main Use Cases**
-* **Konto & Sicherheit:** Registrieren (Onboarding), Login
+* **Konto & Sicherheit:** Login mit vordefinierten Usern
 * **Transaktionen verwalten:** Einnahmen und Ausgaben manuell erfassen, bearbeiten, löschen und filtern
 * **Finanzen analysieren:** Dashboard mit Gesamtbilanz ansehen
 * **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen

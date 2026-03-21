@@ -1,21 +1,7 @@
 # 💰 E-Banking-Budget-Tracker-Anwendung
 
-## 🎯 Projektziel 
-
-Das Ziel dieses Projekts ist die Entwicklung einer umfassenden Personal Finance & Banking Application. Die Anwendung dient als zentrales Hub für die Verwaltung privater Finanzen, die Überwachung von budgets und die Abwicklung täglicher Bankgeschäfte in einer intuitiven, digitalen Umgebung. 
-
-## 📝 Application Requirements
-### Problem
-🚧 Describe the real-world problem your application solves. (Not HOW, but WHAT)
-
-Im Alltag verlieren viele Menschen schnell den Überblick über ihre Finanzen, da tägliche Ausgaben oft auf manuellen Excellisten veteilt sind. Das fürhrt unbemerkten Budgetüberschreitungen, verfehlten Sparzielen und hohem Zeitaufwand bei alltäglichen Aufgaben, wie dem Abtippen von Rechnungen oder dem Verwalten von Bankkarten.
-
-### Scenario
-🚧 Describe when and how a user will use your application
-
-Unsere App (Mazebank :D?) löst das Problem der unübersichtlichen Finanzen, indem der Nutzer eine einzige, zentrale Plattform für den Alltag bietet.
-
-Ein Benutzer loggt sich in die App ein, um Rechnungen bequem alltägliche Ausgaben manuell zu erfassen und zu kategorisieren. Die Anwendung speichert die Transaktionen sicher, berechnet sofort die aktuellen Bilanzen und gleicht sie mit vordefinierten Monatsbudgets ab inklusive autoamtischer Warnungen bei Überschreitung. Darüber hinaus ermöglicht das System dem Nutzer, mit wenigen Klicks komplette Bankgeschäfte zu erledigen, wie das Sperren einer Kreditkarte im Notfall, das Herunterladen von Kontoauszügen oder die direkte Vereinbarung eines Termins für die Eröffnung eines 3a Vorsorgekontos.
+## 🎯 Projektziel
+Das Ziel dieses Projekts ist die Entwicklung einer umfassenden Personal Finance & Banking Application. Die Anwendung dient als zentrales Hub für die Verwaltung privater Finanzen, die Überwachung von Budgets und die Abwicklung täglicher Bankgeschäfte in einer intuitiven, digitalen Umgebung.
 
 ## 📝 Application Requirements
 
@@ -29,7 +15,7 @@ Viele Menschen verlieren im Alltag leicht den Überblick über ihre Einnahmen un
 
 ### Scenario
 
-Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentrale Plattform bietet. Der User loggt sich ein und kann auf einem übersichtlichen Dashboard seine aktuelle finanzielle Lage prüfen. Er kann im Alltag neue Transaktionen mit wenigen Klicks erfassen und kategorisieren. Am Ende des Monats sieht er dank automatischer Warnungen sofort, ob er seine gesetzten Budgets eingehalten hat, und kann sich bei Bedarf Kontoauszüge als PDF generieren.
+Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User eine zentrale Plattform bietet. Der User loggt sich ein und kann auf einem übersichtlichen Dashboard seine aktuelle finanzielle Lage prüfen. Er kann im Alltag neue Transaktionen mit wenigen Klicks erfassen und kategorisieren. Am Ende des Monats sieht er dank automatischer Warnungen sofort, ob er seine gesetzten Budgets eingehalten hat, und kann sich bei Bedarf Kontoauszüge als PDF generieren.
 
 ---
 
@@ -38,13 +24,18 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 ### 1. Transaktion manuell erfassen inkl. Kategorie
 **Als User möchte ich meine Einnahmen und Ausgaben manuell hinzufügen und ihnen eine Kategorie zuweisen, damit ich meine Finanzstruktur überwachen und verstehen kann.**
 
-**Description:** Die Anwendung speichert eine neue Einnahme oder Ausgabe mit Betrag, Datum und der zugewiesenen Kategorie.
+**Description:** Die Anwendung speichert eine neue Einnahme oder Ausgabe mit Betrag, Datum, der zugewiesenen Kategorie und dem belasteten Konto/der belasteten Karte.
 
-**Inputs:** * `betrag` as `float`
-* `typ` as `str` (e.g., "Einnahme" | "Ausgabe")
-* `datum` as `date`
-* `kategorie_id` as `int`
-* `notiz` as `str` (optional)
+**Inputs:** * `amount` as `float`
+* `type` as `str` (e.g., "income" | "expense")
+* `date` as `date`
+* `category_id` as `int`
+* `account_id` as `int` (optional, falls über Konto bezahlt)
+* `debit_card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)
+* `credit_card_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
+* `note` as `str` (optional)
+
+**Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `debit_card_id`, `credit_card_id`).
 
 **Outputs:** * gespeicherte Transaktion (internally: `Transaction`)
 
@@ -55,11 +46,11 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 **Description:** Der User ändert die Werte einer bestehenden Transaktion oder entfernt sie vollständig aus der Datenbank.
 
-**Inputs:** * `transaktion_id` as `int`
-* `aktion` as `edit | delete`
-* `neue_werte` as `dict` (optional, bei edit)
+**Inputs:** * `transaction_id` as `int`
+* `action` as `str` ("edit" | "delete")
+* `new_values` as `dict` (optional, bei edit)
 
-**Outputs:** * `erfolgsstatus` as `bool`
+**Outputs:** * `success` as `bool`
 * aktualisierte Transaktionsliste
 
 ---
@@ -69,9 +60,9 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 **Description:** Das System wendet Suchkriterien auf die Transaktionshistorie an und gibt eine gefilterte Liste zurück.
 
-**Inputs:** * `start_datum` as `date` (optional)
-* `end_datum` as `date` (optional)
-* `kategorie_id` as `int` (optional)
+**Inputs:** * `start_date` as `date` (optional)
+* `end_date` as `date` (optional)
+* `category_id` as `int` (optional)
 
 **Outputs:** * gefilterte Transaktionsliste (internally: `list[Transaction]`)
 
@@ -82,13 +73,13 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 **Description:** Das System berechnet die aktuelle Bilanz sowie die Einnahmen/Ausgaben für den gewählten Zeitraum und bereitet die Daten für das Charting auf.
 
-**Inputs:** * `zeitraum_start` as `date`
-* `zeitraum_ende` as `date`
+**Inputs:** * `start_date` as `date`
+* `end_date` as `date`
 
-**Outputs:** * `aktuelle_gesamtbilanz` as `float`
-* `summe_einnahmen` as `float`
-* `summe_ausgaben` as `float`
-* `chart_daten` (internally: `list[ChartData]`)
+**Outputs:** * `total_balance` as `float`
+* `total_income` as `float`
+* `total_expenses` as `float`
+* `chart_data` (internally: `list[ChartData]`)
 
 ---
 
@@ -97,25 +88,26 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 **Description:** Der User definiert ein Budget. Das System prüft aktuelle Ausgaben gegen dieses Budget und gibt bei Überschreitung ein Flag aus.
 
-**Inputs:** * `limit_betrag` as `float`
-* `kategorie_id` as `int` (optional für kategoriebasiertes Budget)
-* `monat` as `int`
-* `jahr` as `int`
+**Inputs:** * `limit_amount` as `float`
+* `category_id` as `int` (optional für kategoriebasiertes Budget)
+* `month` as `int`
+* `year` as `int`
 
 **Outputs:** * `budget_status` (internally: `Budget`)
-* `budget_ueberschritten` as `bool`
+* `is_exceeded` as `bool`
 
 ---
 
 ### 6. Wiederkehrende Zahlungen erfassen
 **Als User möchte ich wiederkehrende Zahlungen für bestimmte Kategorien erstellen, um meine Fixkosten zu automatisieren.**
 
-**Description:** Das System plant eine Transaktion, die sich basierend auf dem gewählten Intervall automatisch wiederholt.
+**Description:** Das System plant eine Transaktion, die sich basierend auf dem gewählten Intervall automatisch wiederholt und das angegebene Konto belastet.
 
-**Inputs:** * `betrag` as `float`
-* `kategorie_id` as `int`
-* `intervall` as `str` ("monatlich" | "jährlich")
-* `start_datum` as `date`
+**Inputs:** * `amount` as `float`
+* `category_id` as `int`
+* `account_id` as `int`
+* `interval` as `str` ("monthly" | "yearly")
+* `start_date` as `date`
 
 **Outputs:** * aktiver Dauerauftrag (internally: `RecurringTransaction`)
 
@@ -126,11 +118,11 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 **Description:** Der User ändert den Status (aktiv/inaktiv) eines bestehenden Kontos oder legt ein neues Konto an.
 
-**Inputs:** * `konto_typ` as `str` ("Privatkonto" | "Sparkonto")
-* `aktion` as `open | close`
-* `konto_id` as `int` (nur relevant bei 'close')
+**Inputs:** * `account_type` as `str` ("private" | "savings")
+* `action` as `str` ("open" | "close")
+* `account_id` as `int` (nur relevant bei 'close')
 
-**Outputs:** * `erfolgsstatus` as `bool`
+**Outputs:** * `success` as `bool`
 * neues oder aktualisiertes Konto (internally: `Account`)
 
 ---
@@ -140,77 +132,94 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 
 **Description:** Der User kann eine neue Karte zu einem Konto bestellen oder den Status einer bestehenden Karte auf "gesperrt" setzen.
 
-**Inputs:** * `konto_id` as `int`
-* `karte_id` as `int` (optional, bei Sperrung/Ersatz)
-* `aktion` as `order | block | replace`
+**Inputs:** * `account_id` as `int`
+* `card_id` as `int` (optional, bei Sperrung/Ersatz)
+* `action` as `str` ("order" | "block" | "replace")
 
-**Outputs:** * `karten_status` as `str`
+**Outputs:** * `card_status` as `str`
 * aktualisierte Kartenliste (internally: `list[Card]`)
 
 ---
 
-### 9. Inlandzahlungen erfassen
+### 9. Unabhängige Kreditkarten verwalten
+**Als User möchte ich eine eigenständige Kreditkarte mit eigenem Kreditrahmen bestellen sowie verwalten (sperren/ersetzen), um Zahlungen unabhängig von meinem Kontostand abzuwickeln.**
+
+**Description:** Der User beantragt eine Kreditkarte. Das System erstellt ein neues, unabhängiges Kreditkarten-Objekt mit einem festgelegten Limit. Der User kann Transaktionen direkt über diese Karte abwickeln, wodurch sich der genutzte Kreditrahmen (Saldo) verändert. Bei Verlust kann die Karte gesperrt werden.
+
+**Inputs:** * `user_id` as `int`
+* `desired_limit` as `float` (bei Neubestellung)
+* `card_id` as `int` (bei Sperrung/Ersatz)
+* `action` as `str` ("order" | "block" | "replace")
+
+**Outputs:** * `card_status` as `str`
+* aktualisiertes Kreditkarten-Objekt (internally: `CreditCard`)
+
+---
+
+### 10. Inlandzahlungen erfassen
 **Als User möchte ich Inlandszahlungen mit einer IBAN eingeben.**
 
 **Description:** Der User gibt Empfängerdaten ein, und das System initiiert eine Überweisung vom gewählten Belastungskonto.
 
-**Inputs:** * `ziel_iban` as `str`
-* `betrag` as `float`
-* `belastungs_konto_id` as `int`
-* `verwendungszweck` as `str`
+**Inputs:** * `target_iban` as `str`
+* `amount` as `float`
+* `source_account_id` as `int`
+* `purpose` as `str`
 
-**Outputs:** * `zahlungs_status` as `str` ("pending" | "success")
+**Outputs:** * `payment_status` as `str` ("pending" | "success")
 * Zahlungsbeleg (internally: `Payment`)
 
 ---
 
-### 10. Kontenumbuchung
+### 11. Kontenumbuchung
 **Als User möchte ich schnell Geld zwischen meinen Konten überweisen können.**
 
 **Description:** Das System bucht einen Betrag von einem eigenen Konto sofort auf ein anderes eigenes Konto um.
 
-**Inputs:** * `von_konto_id` as `int`
-* `zu_konto_id` as `int`
-* `betrag` as `float`
+**Inputs:** * `from_account_id` as `int`
+* `to_account_id` as `int`
+* `amount` as `float`
 
-**Outputs:** * `umbuchung_erfolgreich` as `bool`
+**Outputs:** * `success` as `bool`
 * aktualisierte Kontostände (internally: `list[Account]`)
 
 ---
 
-### 11. Kontoauszüge generieren
+### 12. Kontoauszüge generieren
 **Als User möchte ich Kontoauszüge für bestimmte Zeiträume erstellen und einsehen.**
 
 **Description:** Die Anwendung sammelt alle Transaktionen eines Kontos im gewählten Zeitraum und generiert daraus ein PDF.
 
-**Inputs:** * `konto_id` as `int`
-* `start_datum` as `date`
-* `end_datum` as `date`
+**Inputs:** * `account_id` as `int`
+* `start_date` as `date`
+* `end_date` as `date`
 
 **Outputs:** * Kontoauszug als Datei (PDF)
-* `datei_pfad` as `str`
+* `file_path` as `str`
 
 ---
 
-### 12. Login
+### 13. Login
 **Als User möchte ich mich mit meiner Vertragsnummer und meinem Passwort anmelden.**
 
 **Description:** Das System gleicht die Anmeldedaten ab und erstellt bei Erfolg eine sichere Session für den User.
 
-**Inputs:** * `vertragsnummer` as `str`
-* `passwort` as `str`
+**Inputs:** * `contract_number` as `str`
+* `password` as `str`
 
 **Outputs:** * `auth_token` as `str`
-* `login_erfolgreich` as `bool`
+* `success` as `bool`
 
 ---
 
-### Use cases
+## Use cases
 
-**Actors**
+### Actors
+
 * **User:** Eine Privatperson, die ihre Finanzen verwalten, Zahlungen tätigen und ihr Budget überwachen möchte.
 
-**Main Use Cases**
+### Main Use Cases
+
 * **Konto & Sicherheit:** Login mit vordefinierten Usern
 * **Transaktionen verwalten:** Einnahmen und Ausgaben manuell erfassen, bearbeiten, löschen und filtern
 * **Finanzen analysieren:** Dashboard mit Gesamtbilanz ansehen
@@ -219,33 +228,33 @@ Unsere Finanzverwaltungs-App löst dieses Problem, indem sie dem User eine zentr
 * **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
 
 ## Data Input & Output
- 
+
 ### Dateneingabe
 
 Die Anwendung erhält Benutzereingaben über die Weboberfläche. Alle Eingaben werden validiert, bevor sie über das ORM in der Datenbank gespeichert werden.
- 
-### Eingabefelder
- 
-| Felder       | Typ    | Pflicht  | Beispiel     |
-|--------------|--------|----------|--------------|
-| Betrag       | float  | ja       | 45.50        |
-| Kategorie    | string | ja       | Lebensmittel |
-| Datum        | date   | ja       | 2026-03-10   |
-| Beschreibung | string | nein     | Mittagessen  |
- 
+
+### Eingabefelder (Beispiel für Transaktion)
+
+| Felder       | Code-Variable | Typ    | Pflicht | Beispiel       |
+|--------------|---------------|--------|---------|----------------|
+| Betrag       | `amount`      | float  | ja      | 45.50          |
+| Kategorie ID | `category_id` | int    | ja      | 4 (Food)       |
+| Konto ID     | `account_id`  | int    | ja      | 12             |
+| Datum        | `date`        | date   | ja      | 2026-03-10     |
+| Notiz        | `note`        | string | nein    | Mittagessen    |
+
 ### Beispiel Eingabe (JSON)
- 
+
 ```json
 {
   "amount": 45.50,
-  "category": "Food",
+  "category_id": 4,
+  "account_id": 12,
   "date": "2026-03-10",
-  "description": "Lunch"
+  "note": "Lunch"
 }
 ```
 
-Die Eingaben werden über die NiceGUI-Benutzeroberfläche übermittelt und vor der weiteren Verarbeitung validiert.
- 
 ### Datenausgabe
 
 Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusammengefasste Finanzinformationen, die im Dashboard angezeigt werden.

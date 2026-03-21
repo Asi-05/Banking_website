@@ -40,7 +40,7 @@
 
 4. FR-BUD-04
    - Herleitung: Bedürfnis 3 verlangt planbare Erfassung von Fixkosten.
-   - Anforderung: Das System muss wiederkehrende Zahlungen mit Betrag, Kategorie, Intervall und Startdatum speichern und automatisch in Transaktionen überführen können.
+   - Anforderung: Das System muss wiederkehrende Zahlungen mit amount, category_id, account_id, interval (monthly/yearly) und start_date speichern und automatisch in Transaktionen überführen können.
 
 ## Entscheidungen der Stakeholder
 - Bei 80 Prozent Budgetverbrauch wird keine Warnung ausgelöst.

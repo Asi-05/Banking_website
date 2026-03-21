@@ -1,7 +1,7 @@
 # Requirements-Dokument: Sicherheit & Login
 
 ## Quelle User Stories
-- US12: Login mit Vertragsnummer und Passwort
+- US13: Login mit Vertragsnummer und Passwort
 
 ## Erhebung
 - Bedürfnis 1: Nutzer brauchen einen verlässlichen Login mit Vertragsnummer und Passwort.

@@ -35,11 +35,11 @@
 ## Dokumentierte Anforderungen
 1. FR-FIN-01
    - Herleitung: Bedürfnis 1 erfordert eine vollständige manuelle Eingabe mit Pflichtfeldern.
-   - Anforderung: Das System muss eine manuelle Erfassung von Einnahmen und Ausgaben mit den Feldern amount, type, date, category_id, note sowie optional account_id oder card_id bereitstellen.
+   - Anforderung: Das System muss eine manuelle Erfassung von Einnahmen und Ausgaben mit den Feldern amount, type, date, category_id, note sowie den optionalen Belastungsfeldern account_id, debit_card_id und credit_card_id bereitstellen.
 
 2. FR-FIN-02
    - Herleitung: Bedürfnis 1 und 2 erfordern valide und strukturierte Daten.
-   - Anforderung: Das System muss Eingaben validieren und fehlerhafte Werte (z. B. nicht numerischer Betrag, fehlendes Datum, ungültige category_id, fehlendes Belastungsobjekt) mit verständlichen Fehlermeldungen ablehnen.
+   - Anforderung: Das System muss Eingaben validieren und fehlerhafte Werte (z. B. nicht numerischer Betrag, fehlendes Datum, ungültige category_id) mit verständlichen Fehlermeldungen ablehnen. Zusätzlich muss das System eine Exactly-one-Regel für Belastungsobjekte erzwingen: Genau eines der Felder account_id, debit_card_id oder credit_card_id muss gesetzt sein.
 
 3. FR-FIN-03
    - Herleitung: Bedürfnis 2 erfordert eine stabile Kategorisierung je Transaktion.

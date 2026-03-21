@@ -30,9 +30,12 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 * `type` as `str` (e.g., "income" | "expense")
 * `date` as `date`
 * `category_id` as `int`
-* `account_id` as `int` (optional, falls via Konto bezahlt)
-* `card_id` as `int` (optional, falls via Kreditkarte bezahlt)
+* `account_id` as `int` (optional, falls über Konto bezahlt)
+* `debit_card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)
+* `credit_card_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
 * `note` as `str` (optional)
+
+**Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `debit_card_id`, `credit_card_id`).
 
 **Outputs:** * gespeicherte Transaktion (internally: `Transaction`)
 
@@ -217,7 +220,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 ### Main Use Cases
 
-* **Konto & Sicherheit:** Registrieren (Onboarding), Login
+* **Konto & Sicherheit:** Login mit vordefinierten Usern
 * **Transaktionen verwalten:** Einnahmen und Ausgaben manuell erfassen, bearbeiten, löschen und filtern
 * **Finanzen analysieren:** Dashboard mit Gesamtbilanz ansehen
 * **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen

@@ -33,7 +33,7 @@
 
 2. FR-PAY-02
    - Herleitung: Bedürfnis 1 verlangt Eingabesicherheit.
-   - Anforderung: Das System muss target_iban, amount, source_account_id und purpose vor dem Auslösen einer Zahlung validieren.
+   - Anforderung: Das System muss target_iban, amount, source_account_id und purpose vor dem Auslösen einer Zahlung validieren und prüfen, ob ausreichend Guthaben auf dem Belastungskonto vorhanden ist.
 
 3. FR-TRF-01
    - Herleitung: Bedürfnis 2 verlangt konsistente Doppelbuchung.

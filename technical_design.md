@@ -1,508 +1,229 @@
-# Technical Design - Betterbank
+# Technical Design - Betterbank (Lernprojekt)
 
-## 1. Systemuebersicht
+## 1. Requirements Elicitation & Clarification
 
-Betterbank ist eine serverseitige Webanwendung (NiceGUI als Thin Client im Browser) zur Verwaltung privater Finanzen und typischer Banking-Prozesse. Die Architektur folgt einer klaren Trennung in:
+### Funktionale Anforderungen
 
-- Presentation Layer (UI-Seiten und Komponenten)
-- Application Layer (Services, Use-Case-orientierte Geschaeftslogik)
-- Domain/Persistence Layer (ORM-Modelle, Repositories, DB)
+1. Login mit Vertragsnummer und Passwort.
+2. Manuelle Erfassung von Einnahmen und Ausgaben.
+3. Bearbeiten und Loeschen von Transaktionen.
+4. Filter fuer Transaktionen nach Datum und Kategorie.
+5. Dashboard mit Gesamtbilanz sowie Einnahmen/Ausgaben fuer Zeitraeume.
+6. Monatliche Budgetlimits (optional pro Kategorie) mit Warnung bei Erreichen/Ueberschreitung.
+7. Wiederkehrende Zahlungen (monatlich, jaehrlich).
+8. Konteneroeffnung und Kontoschliessung (nur bei Kontostand 0).
+9. Debitkarten verwalten (bestellen, sperren, ersetzen), nur fuer Privatkonten.
+10. Unabhaengige Kreditkarten verwalten (bestellen, sperren, ersetzen) mit Kreditlimit.
+11. Inlandzahlungen per IBAN.
+12. Umbuchung zwischen eigenen Konten.
+13. Kontoauszuege als PDF fuer freie Zeitraeume.
+14. Feste Kategorienliste (1-10), keine freien Kategorien im MVP.
 
-Zentrale Leitlinien:
+### Nicht-funktionale Anforderungen
 
-- Business-Regeln sind in Services gekapselt, nicht in der UI.
-- ORM-Modelle repraesentieren den fachlichen Kern (Transaktionen, Konten, Karten, Budgets, Zahlungen).
-- Validierung erfolgt mehrstufig: UI-Validierung + Service-Validierung + DB-Constraints.
-- Sicherheitsrelevante Logik (Auth, Rate-Limits, Sperrungen) ist zentral in AuthService implementiert.
+1. Einfache, gut verstaendliche Architektur fuer Lernzwecke.
+2. Browser-App mit NiceGUI als Thin Client.
+3. ORM-basierte Datenhaltung mit SQLite.
+4. Eingabevalidierung auf UI- und Service-Ebene.
+5. Passwoerter nur gehasht speichern.
+6. Schutz bei wiederholten Login-Fehlern (temporare Sperre).
+7. Keine Selbstregistrierung im MVP.
 
----
+### Annahmen und Klaerungen
 
-## 2. High-Level Architektur
+1. Es gibt genau einen Hauptnutzerfluss: Login und danach Nutzung der Funktionen.
+2. Waehrung ist EUR.
+3. 2FA ist im MVP nicht enthalten.
+4. Budgetwarnung erfolgt erst bei Erreichen oder Ueberschreiten des Limits (nicht bei 80%).
+5. Kontoauszuege nutzen ein fixes PDF-Layout.
+
+## 2. Architecture Reasoning
+
+### Gewaehlte Architektur
+
+Es wird eine einfache Layered Architecture genutzt:
+
+1. UI Layer (NiceGUI Seiten)
+2. Service Layer (Geschaeftslogik)
+3. Persistence Layer (ORM + SQLite)
+
+Diese Struktur passt gut zu einem Lernprojekt, weil sie klar trennt, wo was passiert.
+
+### Warum das gut zu den Anforderungen passt
+
+1. Viele Regeln sind fachlich (z. B. Exactly-one-Regel bei Transaktionen, Kontoschliessung nur bei 0). Diese Regeln gehoeren in den Service Layer.
+2. Viele Datenobjekte mit Beziehungen (User, Account, Card, Transaction, Budget). Das passt sehr gut zu ORM.
+3. NiceGUI ermoeglicht schnelle Umsetzung einer einfachen Browser-App ohne komplexes Frontend-Framework.
+4. Diese Architektur ermoeglicht eine klare Trennung der Verantwortlichkeiten und erleichtert spaetere Erweiterungen.
+
+### Moegliche Alternativen (kurz)
+
+1. Monolith ohne Layer: waere schneller startbar, aber unuebersichtlich.
+2. Vollstaendiges Clean Architecture Setup: sehr sauber, aber fuer ein Lern-MVP oft zu umfangreich.
+
+### Trade-offs
+
+1. Pro Layered Architecture: leicht verstaendlich, testbar, gut erweiterbar.
+2. Contra Layered Architecture: etwas mehr Dateien als bei einer sehr kleinen Ein-Datei-Loesung.
+
+## 3. Architecture Specification
+
+### Gesamtarchitektur
+
+1. UI (NiceGUI): Formulare, Tabellen, Dashboard, Meldungen.
+2. Services: validieren Eingaben und setzen Geschaeftsregeln durch.
+3. Models/Database: speichern Daten dauerhaft in SQLite.
+
+### Hauptkomponenten und Verantwortung
+
+1. AuthService: Login, Passwortregeln, Sperrlogik, Session-Token.
+2. TransactionService: anlegen, aendern, loeschen, filtern, Exactly-one-Regel.
+3. DashboardService: Bilanz- und Summenberechnung, Chartdaten.
+4. BudgetService: Limits setzen, Verbrauch pruefen, Warnungen erzeugen.
+5. RecurringPaymentService: wiederkehrende Zahlungen planen und ausfuehren.
+6. AccountService: Konten oeffnen/schliessen und Status verwalten.
+7. CardService: Debit-/Kreditkarten bestellen, sperren, ersetzen.
+8. PaymentService: Inlandszahlungen und Umbuchungen.
+9. StatementService: PDF-Auszuege generieren.
+
+### High-Level Diagramm
 
 ```mermaid
-flowchart LR
-    U[User im Browser] --> UI[NiceGUI Pages/Components]
-    UI --> C[Controller/Event Handler]
-    C --> S[Application Services]
-    S --> R[Repositories]
-    R --> DB[(SQLite + ORM)]
+flowchart TD
+    A[Browser User] --> B[NiceGUI UI]
+    B --> C[Service Layer]
+    C --> D[ORM Models]
+    D --> E[(SQLite)]
 
-    S --> EXT1[PDF Generator]
-    S --> EXT2[Scheduler fuer Recurring Payments]
+    C --> F[PDF Generator]
+    C --> G[Recurring Job]
 ```
 
-Komponentenverantwortung:
-
-- UI: Dateneingabe, Ergebnisdarstellung, Navigation, Feedback.
-- Controller: Mapping von UI-Events auf Service-Aufrufe.
-- Services: Fachlogik, Regeln, Orchestrierung mehrerer Modelle.
-- Repositories: DB-Zugriffe, Query-Kapselung.
-- DB/ORM: Persistenz, Relationen, Konsistenz.
-
----
-
-## 3. Datenmodelle (Domain + ORM)
-
-### 3.1 Kernmodelle
-
-### User
-- Attribute:
-  - id: int
-  - contract_number: str (unique)
-  - password_hash: str
-  - full_name: str
-  - email: str
-  - is_active: bool
-  - failed_login_attempts: int
-  - locked_until: datetime | null
-  - created_at: datetime
-
-### Account
-- Attribute:
-  - id: int
-  - user_id: int (FK -> User)
-  - iban: str (unique)
-  - account_type: str (private|savings)
-  - status: str (active|closed)
-  - balance: float
-  - created_at: datetime
-  - closed_at: datetime | null
-
-### Card (abstrakt)
-- Attribute:
-  - id: int
-  - card_number_masked: str
-  - status: str (active|blocked|replaced)
-  - issued_at: date
-  - blocked_at: date | null
-
-### DebitCard (kontogebunden)
-- Attribute:
-  - id: int (FK -> Card)
-  - account_id: int (FK -> Account)
-
-### CreditCard (unabhaengig)
-- Attribute:
-  - id: int (FK -> Card)
-  - user_id: int (FK -> User)
-  - credit_limit: float
-  - used_balance: float
-
-### Category
-- Attribute:
-  - id: int
-  - name: str
-- Feste Stammdaten:
-  - 1 Transport
-  - 2 Einkaeufe
-  - 3 Versicherungen
-  - 4 Miete
-  - 5 Steuern
-  - 6 Freizeit
-  - 7 Sparen
-  - 8 Well being
-  - 9 Kontouebertrag
-  - 10 Sonstiges
-
-### Transaction
-- Attribute:
-  - id: int
-  - amount: float
-  - type: str (income|expense)
-  - date: date
-  - category_id: int (FK -> Category)
-  - note: str | null
-  - account_id: int | null (FK -> Account)
-  - debit_card_id: int | null (FK -> DebitCard)
-  - credit_card_id: int | null (FK -> CreditCard)
-  - created_at: datetime
-  - updated_at: datetime
-- Fachregel:
-  - Exactly-One-Constraint fuer Belastungsobjekt:
-    - Genau eines der Felder account_id, debit_card_id, credit_card_id muss gesetzt sein.
-
-### BudgetLimit
-- Attribute:
-  - id: int
-  - user_id: int (FK -> User)
-  - category_id: int | null (FK -> Category)
-  - month: int
-  - year: int
-  - limit_amount: float
-  - created_at: datetime
-  - updated_at: datetime
-
-### BudgetAlert
-- Attribute:
-  - id: int
-  - budget_limit_id: int (FK -> BudgetLimit)
-  - triggered_at: datetime
-  - spent_amount: float
-  - is_exceeded: bool
-  - message: str
-
-### RecurringTransaction
-- Attribute:
-  - id: int
-  - user_id: int (FK -> User)
-  - amount: float
-  - category_id: int (FK -> Category)
-  - account_id: int (FK -> Account)
-  - interval: str (monthly|yearly)
-  - start_date: date
-  - next_run_date: date
-  - status: str (active|paused|stopped)
-
-### Payment
-- Attribute:
-  - id: int
-  - source_account_id: int (FK -> Account)
-  - target_iban: str
-  - amount: float
-  - purpose: str
-  - status: str (pending|success|failed)
-  - created_at: datetime
-
-### Transfer
-- Attribute:
-  - id: int
-  - from_account_id: int (FK -> Account)
-  - to_account_id: int (FK -> Account)
-  - amount: float
-  - created_at: datetime
-  - booking_reference: str
-
-### Statement
-- Attribute:
-  - id: int
-  - account_id: int (FK -> Account)
-  - start_date: date
-  - end_date: date
-  - file_path: str
-  - created_at: datetime
-
-### SessionToken
-- Attribute:
-  - id: int
-  - user_id: int (FK -> User)
-  - auth_token: str (unique)
-  - expires_at: datetime
-  - revoked_at: datetime | null
-
-### 3.2 Beziehungen
-
-- User 1:n Account
-- User 1:n CreditCard
-- User 1:n BudgetLimit
-- User 1:n RecurringTransaction
-- User 1:n SessionToken
-- Account 1:n DebitCard
-- Account 1:n Transaction (wenn account_id genutzt)
-- DebitCard 1:n Transaction (wenn debit_card_id genutzt)
-- CreditCard 1:n Transaction (wenn credit_card_id genutzt)
-- Category 1:n Transaction
-- Category 1:n BudgetLimit (optional)
-- Account 1:n Payment (als source_account)
-- Account 1:n Statement
-- Account 1:n Transfer (als from_account)
-- Account 1:n Transfer (als to_account)
-
----
-
-## 4. Geschaeftslogik-Klassen (Services)
-
-### AuthService
-Verantwortung: Login, Session-Management, Credential-Sicherheit, Schutzmechanismen.
-
-Zentrale Methoden:
-
-- login(contract_number: str, password: str) -> AuthResult
-- validate_password_policy(password: str) -> bool
-- record_failed_login(user_id: int) -> None
-- is_user_locked(user_id: int) -> bool
-- create_session(user_id: int) -> str
-- logout(auth_token: str) -> None
-
-### TransactionService
-Verantwortung: CRUD fuer Transaktionen, Validierungen, Filter.
-
-Zentrale Methoden:
-
-- create_transaction(cmd: CreateTransactionCommand) -> Transaction
-- update_transaction(transaction_id: int, values: dict) -> Transaction
-- delete_transaction(transaction_id: int, confirm: bool) -> bool
-- filter_transactions(user_id: int, start_date: date | null, end_date: date | null, category_id: int | null) -> list[Transaction]
-- validate_exactly_one_source(account_id, debit_card_id, credit_card_id) -> None
-
-### DashboardService
-Verantwortung: Aggregationen fuer Dashboard und Charts.
-
-Zentrale Methoden:
-
-- get_dashboard_summary(user_id: int, start_date: date, end_date: date) -> DashboardSummary
-- compute_total_balance(user_id: int) -> float
-- build_chart_data(user_id: int, start_date: date, end_date: date) -> list[ChartData]
-
-### BudgetService
-Verantwortung: Budgetlimits, Verbrauchsberechnung, Warnungen.
-
-Zentrale Methoden:
-
-- set_budget_limit(user_id: int, month: int, year: int, limit_amount: float, category_id: int | null) -> BudgetLimit
-- get_budget_status(user_id: int, month: int, year: int, category_id: int | null) -> BudgetStatus
-- evaluate_budget_after_transaction(transaction_id: int) -> BudgetAlert | null
-- list_active_alerts(user_id: int) -> list[BudgetAlert]
-
-### RecurringPaymentService
-Verantwortung: Verwaltung und Ausfuehrung wiederkehrender Zahlungen.
-
-Zentrale Methoden:
-
-- create_recurring_transaction(cmd: CreateRecurringTransactionCommand) -> RecurringTransaction
-- run_due_recurring_transactions(run_date: date) -> int
-- pause_recurring_transaction(recurring_id: int) -> bool
-- compute_next_run_date(recurring: RecurringTransaction) -> date
-
-### AccountService
-Verantwortung: Kontoeroeffnung/-schliessung und Kontoregeln.
-
-Zentrale Methoden:
-
-- open_account(user_id: int, account_type: str) -> Account
-- close_account(account_id: int) -> bool
-- get_accounts(user_id: int) -> list[Account]
-- assert_close_allowed(account_id: int) -> None  # balance == 0
-
-### CardService
-Verantwortung: Debitkarten und unabhaengige Kreditkarten verwalten.
-
-Zentrale Methoden:
-
-- order_debit_card(account_id: int) -> DebitCard
-- block_debit_card(card_id: int) -> bool
-- replace_debit_card(card_id: int) -> DebitCard
-- order_credit_card(user_id: int, desired_limit: float) -> CreditCard
-- block_credit_card(card_id: int) -> bool
-- replace_credit_card(card_id: int) -> CreditCard
-- authorize_credit_card_expense(card_id: int, amount: float) -> bool
-
-### PaymentService
-Verantwortung: Inlandszahlungen und Kontenumbuchungen.
-
-Zentrale Methoden:
-
-- create_domestic_payment(source_account_id: int, target_iban: str, amount: float, purpose: str) -> Payment
-- transfer_between_own_accounts(from_account_id: int, to_account_id: int, amount: float) -> Transfer
-- validate_iban(iban: str) -> bool
-- assert_sufficient_funds(account_id: int, amount: float) -> None
-
-### StatementService
-Verantwortung: Kontoauszugserstellung als PDF.
-
-Zentrale Methoden:
-
-- generate_statement(account_id: int, start_date: date, end_date: date) -> Statement
-- load_statement(statement_id: int) -> bytes
-
----
-
-## 5. UI-Komponenten (NiceGUI)
-
-### LoginView
-- Eingaben: contract_number, password
-- Aktionen: login
-- Ausgabe: Login-Fehler, Redirect zu Dashboard
-
-### DashboardView
-- Anzeige: total_balance, total_income, total_expenses
-- Diagramme: Balkendiagramm (Einnahmen/Ausgaben)
-- Filter: start_date, end_date
-
-### TransactionsView
-- Formular: neue Transaktion (inkl. Exactly-One-Source)
-- Tabelle: Liste, Filter (Datum/Kategorie)
-- Aktionen: edit, delete (mit Bestaetigung)
-
-### BudgetView
-- Formular: monatliche Limits (optional je Kategorie)
-- Anzeige: Budgetverbrauch, Warnungen bei >= Limit
-- Tabelle: aktive Budgets
-
-### RecurringPaymentsView
-- Formular: wiederkehrende Zahlung
-- Liste: aktive/pausierte Dauerauftraege
-- Aktionen: pausieren/reaktivieren
-
-### AccountsCardsView
-- Konten: eroeffnen/schliessen (nur bei balance == 0)
-- Karten: bestellen/sperren/ersetzen
-- Kreditkarten: Limit und verfuegbares Limit anzeigen
-
-### PaymentsView
-- Inlandszahlung: target_iban, amount, source_account, purpose
-- Umbuchung: from_account, to_account, amount
-
-### StatementsView
-- Eingabe: account_id, start_date, end_date
-- Ausgabe: PDF-Vorschau/Download
-
----
-
-## 6. Datenflussbeispiel: "Wie wird eine Transaktion gespeichert?"
-
-1. User erfasst in TransactionsView Betrag, Typ, Datum, Kategorie und genau eine Belastungsquelle.
-2. Controller erstellt CreateTransactionCommand und ruft TransactionService.create_transaction auf.
-3. TransactionService validiert:
-   - amount > 0
-   - gueltiges Datum
-   - gueltige category_id
-   - Exactly-One-Constraint fuer account_id/debit_card_id/credit_card_id
-4. Wenn credit_card_id gesetzt ist:
-   - CardService.authorize_credit_card_expense prueft verfuegbares Limit
-   - bei Erfolg wird used_balance aktualisiert
-5. Repository persistiert Transaction atomar in der DB.
-6. Nach erfolgreichem Save:
-   - BudgetService.evaluate_budget_after_transaction wird ausgelost
-   - DashboardService-Aggregate werden invalidiert/neu berechnet
-7. UI zeigt Erfolgsmeldung und aktualisierte Liste/Summen.
-
----
-
-## 7. UML Klassendiagramm (Mermaid)
+## 4. Software Design Reasoning
+
+### Warum diese Klassen
+
+1. Klassen orientieren sich direkt an den fachlichen Begriffen aus den Anforderungen.
+2. Das macht den Code fuer Lernzwecke leichter nachvollziehbar.
+3. Jede Klasse hat eine klare Rolle (Single Responsibility auf einfacher Ebene).
+
+### Wichtige Designregeln
+
+1. Exactly-one-Regel bei Transaktionen:
+   Genau eine Quelle muss gesetzt sein: account_id oder debit_card_id oder credit_card_id.
+2. Datenintegritaet:
+   Positiver Betrag, gueltige Statuswerte, gueltige Intervalle.
+3. Sicherheitsregeln:
+   Passwort nie im Klartext, Login-Sperre bei zu vielen Fehlversuchen.
+4. Fachregeln:
+   Konto schliessen nur bei Kontostand 0, Debitkarte nur fuer Privatkonto.
+5. Kreditkartenregel:
+   Ausgabe nur wenn amount kleiner/gleich verfuegbares Limit.
+6. Trennung von UI und Business Logic verhindert doppelte Logik und erhoeht Wartbarkeit.
+
+## 5. Software Design Specification
+
+### Datenmodelle (einfach)
+
+| Modell | Wichtige Attribute | Zweck |
+|---|---|---|
+| User | id, contract_number, password_hash, locked_until | Benutzer und Login |
+| Account | id, user_id, iban, account_type, status, balance | Giro-/Sparkonto |
+| Card | id, status, issued_at, card_type | Basiskarte |
+| DebitCard | id, account_id | Kontogebundene Karte |
+| CreditCard | id, user_id, credit_limit, used_balance | Unabhaengige Kreditkarte |
+| Category | id, name | Feste Kategorien 1-10 |
+| Transaction | id, amount, type, date, category_id, account_id/debit_card_id/credit_card_id | Einnahme/Ausgabe |
+| BudgetLimit | id, user_id, category_id, month, year, limit_amount | Monatsbudget |
+| BudgetAlert | id, budget_limit_id, spent_amount, is_exceeded | Budgetwarnung |
+| RecurringTransaction | id, amount, interval, next_run_date, status | Wiederkehrende Zahlung |
+| Payment | id, source_account_id, target_iban, amount, status | Inlandszahlung |
+| Transfer | id, from_account_id, to_account_id, amount | Kontenumbuchung |
+| Statement | id, account_id, start_date, end_date, file_path | Kontoauszug-PDF |
+| SessionToken | id, user_id, auth_token, expires_at | Sessionverwaltung |
+
+### Services (Methodenbeispiele)
+
+| Service | Kernmethoden |
+|---|---|
+| AuthService | login, create_session, record_failed_login |
+| TransactionService | create_transaction, update_transaction, delete_transaction, filter_transactions |
+| DashboardService | get_dashboard_summary, compute_total_balance |
+| BudgetService | set_budget_limit, evaluate_budget_after_transaction |
+| RecurringPaymentService | create_recurring_transaction, run_due_recurring_transactions |
+| AccountService | open_account, close_account |
+| CardService | order_debit_card, block_card, replace_card, order_credit_card |
+| PaymentService | create_domestic_payment, transfer_between_own_accounts |
+| StatementService | generate_statement |
+
+### UI-Komponenten (NiceGUI)
+
+1. Login-Seite: Vertragsnummer + Passwort.
+2. Dashboard-Seite: Bilanz, Einnahmen/Ausgaben, Balkendiagramm.
+3. Transaktions-Seite: Formular, Tabelle, Filter, Bearbeiten/Loeschen.
+4. Budget-Seite: Limits und Warnungen.
+5. Wiederkehrende Zahlungen-Seite: Serien verwalten.
+6. Konten/Karten-Seite: Konto- und Kartenaktionen.
+7. Zahlungen-Seite: IBAN-Zahlung und Umbuchung.
+8. Auszuege-Seite: PDF-Auszug fuer Zeitraum.
+
+### Einfaches Klassendiagramm
 
 ```mermaid
 classDiagram
-    class User {
-      +int id
-      +str contract_number
-      +str password_hash
-      +bool is_active
-      +int failed_login_attempts
-      +datetime locked_until
-    }
-
-    class Account {
-      +int id
-      +int user_id
-      +str iban
-      +str account_type
-      +str status
-      +float balance
-    }
-
-    class Card {
-      <<abstract>>
-      +int id
-      +str status
-      +date issued_at
-    }
-
-    class DebitCard {
-      +int id
-      +int account_id
-    }
-
-    class CreditCard {
-      +int id
-      +int user_id
-      +float credit_limit
-      +float used_balance
-    }
-
-    class Category {
-      +int id
-      +str name
-    }
-
-    class Transaction {
-      +int id
-      +float amount
-      +str type
-      +date date
-      +int category_id
-      +int? account_id
-      +int? debit_card_id
-      +int? credit_card_id
-    }
-
-    class BudgetLimit {
-      +int id
-      +int user_id
-      +int? category_id
-      +int month
-      +int year
-      +float limit_amount
-    }
-
-    class RecurringTransaction {
-      +int id
-      +int user_id
-      +float amount
-      +int category_id
-      +int account_id
-      +str interval
-      +date next_run_date
-      +str status
-    }
-
-    class Payment {
-      +int id
-      +int source_account_id
-      +str target_iban
-      +float amount
-      +str purpose
-      +str status
-    }
-
-    class Transfer {
-      +int id
-      +int from_account_id
-      +int to_account_id
-      +float amount
-      +str booking_reference
-    }
-
-    class Statement {
-      +int id
-      +int account_id
-      +date start_date
-      +date end_date
-      +str file_path
-    }
-
-    class SessionToken {
-      +int id
-      +int user_id
-      +str auth_token
-      +datetime expires_at
-    }
+    class User
+    class Account
+    class Card
+    class DebitCard
+    class CreditCard
+    class Category
+    class Transaction
+    class BudgetLimit
+    class BudgetAlert
+    class RecurringTransaction
+    class Payment
+    class Transfer
+    class Statement
+    class SessionToken
 
     Card <|-- DebitCard
     Card <|-- CreditCard
 
-    User "1" --> "many" Account
-    User "1" --> "many" CreditCard
-    User "1" --> "many" BudgetLimit
-    User "1" --> "many" RecurringTransaction
-    User "1" --> "many" SessionToken
+    User "1" --> "n" Account
+    User "1" --> "n" CreditCard
+    User "1" --> "n" BudgetLimit
+    User "1" --> "n" RecurringTransaction
+    User "1" --> "n" SessionToken
 
-    Account "1" --> "many" DebitCard
-    Category "1" --> "many" Transaction
-    Account "1" --> "many" Transaction
-    DebitCard "1" --> "many" Transaction
-    CreditCard "1" --> "many" Transaction
+    Category "1" --> "n" Transaction
+    Account "1" --> "n" Transaction
+    DebitCard "1" --> "n" Transaction
+    CreditCard "1" --> "n" Transaction
 
-    Account "1" --> "many" Payment
-    Account "1" --> "many" Statement
-    Account "1" --> "many" Transfer : from
-    Account "1" --> "many" Transfer : to
+    Account "1" --> "n" Payment
+    Account "1" --> "n" Statement
+    Account "1" --> "n" Transfer
 ```
 
----
+## 6. Assumptions, Open Questions, and Next Steps
 
-## 8. Nicht-funktionale Architekturentscheidungen
+### Annahmen
 
-- Konsistenz: Kritische Buchungen (Zahlungen, Umbuchungen, Kreditkartenbelastungen) laufen in DB-Transaktionen.
-- Sicherheit: Passwort-Hashing, Session-Token mit Ablauf, Account-Lock bei wiederholten Fehlversuchen.
-- Nachvollziehbarkeit: Fachlich wichtige Aktionen (Sperrung, Ersatzkarte, Schliessung) werden auditierbar geloggt.
-- Erweiterbarkeit: Services sind fachlich getrennt und koennen spaeter durch APIs oder Background Jobs erweitert werden.
+1. Einfache Rollenlage: nur normale Nutzer, kein separates Admin-Backend im MVP.
+2. Alle Daten liegen lokal in SQLite.
+3. Kategorien sind fix und werden initial geseedet.
+
+### Offene Fragen
+
+1. Wie viele Fehlversuche loesen genau die Login-Sperre aus.
+2. Wie lange soll die temporare Sperre dauern.
+3. Soll Budget auch global ohne Kategorie gesetzt werden koennen oder nur kategoriespezifisch.
+4. Wie lange Session-Token gueltig sind.
+
+### Naechste Schritte
+
+1. Projektstruktur nach Layern anlegen (ui, services, database).
+2. ORM-Modelle und DB-Initialisierung implementieren.
+3. Basis-Services mit Validierung erstellen.
+4. Einfache NiceGUI-Seiten fuer Login, Dashboard und Transaktionen bauen.
+5. Danach schrittweise Budget, Karten, Zahlungen und Auszuege ergaenzen.

@@ -119,7 +119,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 **Description:** Der User ändert den Status (aktiv/inaktiv) eines bestehenden Kontos oder legt ein neues Konto an.
 
 **Inputs:** * `account_type` as `str` ("private" | "savings")
-* `action` as `str` ("open" | "close")
+* `status` as `str` ("open" | "close")
 * `account_id` as `int` (nur relevant bei 'close')
 
 **Outputs:** * `success` as `bool`

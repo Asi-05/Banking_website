@@ -47,7 +47,7 @@
 
 4. FR-FIN-04
    - Herleitung: Bedürfnis 2 verlangt eine eindeutige, standardisierte Kategorienstruktur.
-   - Anforderung: Das System muss exakt folgende Kategorien bereitstellen: 1 Transport, 2 Einkäufe, 3 Versicherungen, 4 Miete, 5 Steuern, 6 Freizeit, 7 Sparen, 8 Well being, 9 Kontübertrag, 10 Sonstiges.
+   - Anforderung: Das System muss exakt folgende Kategorien bereitstellen: 1 Transport, 2 Einkäufe, 3 Versicherungen, 4 Miete, 5 Steuern, 6 Freizeit, 9 Well being, 10 Kontübertrag, 11 Sonstiges.
 
 5. FR-FIN-05
    - Herleitung: Bedürfnis 3 erfordert Korrektur- und Löschprozesse.
@@ -59,6 +59,5 @@
 
 ## Entscheidungen der Stakeholder
 - Kategorien sind nicht frei anlegbar; es gilt ausschließlich die feste Kategorienliste.
-- Feste Kategorienliste: 1 Transport, 2 Einkäufe, 3 Versicherungen, 4 Miete, 5 Steuern, 6 Freizeit, 7 Sparen, 8 Well being, 9 Kontübertrag, 10 Sonstiges.
 - Soft Delete wird nicht benötigt; vor jeder Löschung muss der User die Löschung explizit bestätigen.
 

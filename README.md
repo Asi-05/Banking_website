@@ -119,7 +119,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 **Description:** Der User ändert den Status (aktiv/inaktiv) eines bestehenden Kontos oder legt ein neues Konto an.
 
 **Inputs:** * `account_type` as `str` ("private" | "savings")
-* `action` as `str` ("open" | "close")
+* `status` as `str` ("open" | "close")
 * `account_id` as `int` (nur relevant bei 'close')
 
 **Outputs:** * `success` as `bool`
@@ -130,7 +130,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 ### 8. Karten verwalten
 **Als User möchte ich neue Karten bestellen sowie meine Karten im Verlustfall sperren oder ersetzen lassen.**
 
-**Description:** Der User kann eine neue Karte zu einem Konto bestellen oder den Status einer bestehenden Karte auf "gesperrt" setzen.
+**Description:** Der User kann eine neue Karte für sein Privatkonto bestellen oder den Status einer bestehenden Karte auf "gesperrt" setzen. 
 
 **Inputs:** * `account_id` as `int`
 * `card_id` as `int` (optional, bei Sperrung/Ersatz)

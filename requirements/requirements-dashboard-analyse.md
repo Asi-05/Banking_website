@@ -42,7 +42,7 @@
    - Anforderung: Das System muss Summen für auswählbare Zeiträume (z. B. aktueller Monat) berechnen und anzeigen.
 
 ## Entscheidungen der Stakeholder
-- Für die Darstellung der Bilanzen werden Balkendiagramme verwendet.
+- Für die Darstellung der Bilanzen werden Kreisdiagramm verwendet.
 
 ## Offene Punkte für Stakeholder
 - Keine.

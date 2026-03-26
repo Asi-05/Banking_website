@@ -10,7 +10,7 @@
 
 ## Analyse
 ### Bedürfnis 1: Visuelles Dashboard
-- Begründung: Diagramme reduzieren Interpretationsaufwand gegenüber Rohlisten.
+- Begründung: Kreisdiagramme reduzieren Interpretationsaufwand gegenüber Rohlisten.
 - Edge Cases: Keine Transaktionen vorhanden, sehr grosse Datenmengen.
 - Abhängigkeiten: Aggregationslogik, Chart-Komponenten.
 
@@ -30,8 +30,8 @@
    - Anforderung: Das System muss auf der Startseite ein Dashboard mit mindestens einer grafischen Darstellung von Einnahmen und Ausgaben bereitstellen.
 
 2. FR-DASH-01a
-   - Herleitung: Das ChartData-Objekt muss für die Diagrammdarstellung klar definiert sein.
-   - Anforderung: Das System muss für die Diagrammdarstellung ein ChartData-Objekt mit folgenden Feldern bereitstellen: label as str (z.B. Monatsname oder Kategorie), income as float, expenses as float. Die Liste der ChartData-Objekte wird nach Zeitraum aggregiert und an die UI-Komponente übergeben.
+   - Herleitung: Das ChartData-Objekt muss für die Kreisdiagrammdarstellung klar definiert sein.
+   - Anforderung: Das System muss für die Kreisdiagrammdarstellung ein ChartData-Objekt mit folgenden Feldern bereitstellen: label as str (z.B. Monatsname oder Kategorie), income as float, expenses as float. Die Liste der ChartData-Objekte wird nach Zeitraum aggregiert und an die UI-Komponente übergeben.
 
 3. FR-DASH-02
    - Herleitung: Bedürfnis 2 verlangt eine laufend aktuelle Bilanzanzeige.
@@ -42,7 +42,7 @@
    - Anforderung: Das System muss Summen für auswählbare Zeiträume (z. B. aktueller Monat) berechnen und anzeigen.
 
 ## Entscheidungen der Stakeholder
-- Für die Darstellung der Bilanzen werden Kreisdiagramme verwendet.
+- Für die Darstellung der Bilanzen werden KreisKreisdiagramme verwendet.
 
 ## Offene Punkte für Stakeholder
 - Keine.

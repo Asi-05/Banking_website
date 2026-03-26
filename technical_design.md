@@ -136,7 +136,7 @@ flowchart TD
 | Transaction | id, amount, type, date, category_id, account_id/debit_card_id/credit_card_id | Einnahme/Ausgabe |
 | BudgetLimit | id, user_id, category_id, month, year, limit_amount | Monatsbudget |
 | BudgetAlert | id, budget_limit_id, spent_amount, is_exceeded | Budgetwarnung |
-| RecurringTransaction | id, amount, interval, next_run_date, status | Wiederkehrende Zahlung |
+| RecurringTransaction | id, amount, account_id, target_iban, interval, next_run_date, status | Wiederkehrende Zahlung |
 | Payment | id, source_account_id, target_iban, amount, status | Inlandszahlung |
 | Transfer | id, from_account_id, to_account_id, amount | Kontenumbuchung |
 | Statement | id, account_id, start_date, end_date, file_path | Kontoauszug-PDF |

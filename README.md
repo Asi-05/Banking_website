@@ -101,11 +101,12 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 ### 6. Wiederkehrende Zahlungen erfassen
 **Als User möchte ich wiederkehrende Zahlungen für bestimmte Kategorien erstellen, um meine Fixkosten zu automatisieren.**
 
-**Description:** Das System plant eine Transaktion, die sich basierend auf dem gewählten Intervall automatisch wiederholt und das angegebene Konto belastet.
+**Description:** Das System plant eine Transaktion, die sich basierend auf dem gewählten Intervall automatisch wiederholt, das angegebene Konto belastet und den hinterlegten Zielempfänger per IBAN verwendet.
 
 **Inputs:** * `amount` as `float`
 * `category_id` as `int`
 * `account_id` as `int`
+* `target_iban` as `str`
 * `interval` as `str` ("monthly" | "yearly")
 * `start_date` as `date`
 

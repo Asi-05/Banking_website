@@ -23,7 +23,7 @@
 ### Bedürfnis 3: Wiederkehrende Zahlungen
 - Begründung: Fixkosten müssen nicht jedes Mal manuell erfasst werden.
 - Edge Cases: Monatsende bei kurzen Monaten, Pausieren einzelner Serien.
-- Abhängigkeiten: Scheduler-Logik oder periodische Generierung beim Login.
+- Abhängigkeiten: Scheduler-Logik oder periodische Generierung beim Login, IBAN-Validierung für den Zahlungsempfänger.
 
 ## Dokumentierte Anforderungen
 1. FR-BUD-01
@@ -44,7 +44,7 @@
 
 5. FR-BUD-04
    - Herleitung: Bedürfnis 3 verlangt planbare Erfassung von Fixkosten.
-   - Anforderung: Das System muss wiederkehrende Zahlungen mit amount, category_id, account_id, interval (monthly/yearly) und start_date speichern und automatisch in Transaktionen überführen können. Das System muss beim Login des Users automatisch prüfen, ob fällige Daueraufträge vorhanden sind, und diese sofort als reguläre Transaktionen in die Datenbank buchen.
+   - Anforderung: Das System muss wiederkehrende Zahlungen mit amount, category_id, account_id, target_iban, interval (monthly/yearly) und start_date speichern und automatisch in Transaktionen überführen können. Das System muss beim Login des Users automatisch prüfen, ob fällige Daueraufträge vorhanden sind, und diese sofort als reguläre Transaktionen in die Datenbank buchen. Vor dem Speichern und vor der Ausführung muss target_iban im zulässigen IBAN-Format validiert werden.
 
 ## Entscheidungen der Stakeholder
 - Bei 80 Prozent Budgetverbrauch wird keine Warnung ausgelöst.

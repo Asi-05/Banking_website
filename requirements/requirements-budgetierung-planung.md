@@ -30,18 +30,23 @@
    - Herleitung: Bedürfnis 1 verlangt konfigurierbare Monatsbudgets.
    - Anforderung: Das System muss das Anlegen und Ändern monatlicher Budgetlimits pro Kategorie ermöglichen.
 
-2. FR-BUD-02
+2. FR-BUD-01a
+   - Herleitung: Das Budget-Objekt muss für ORM und Validierung klar definiert sein.
+   - Anforderung: Das System muss ein Budget-Objekt mit folgenden Feldern speichern: budget_id as int, user_id as int, limit_amount as float, current_spending as float, month as int, year as int, category_id as int (optional – falls leer gilt das Budget global). Ein User darf pro Monat und Jahr und Kategorie nur ein aktives Budget haben.
+
+3. FR-BUD-02
    - Herleitung: Bedürfnis 2 verlangt automatische Überwachung der Limits.
    - Anforderung: Das System muss bei Erreichen oder Überschreiten eines Limits eine sichtbare Warnung erzeugen.
 
-3. FR-BUD-03
+4. FR-BUD-03
    - Herleitung: Bedürfnis 2 verlangt nachvollziehbare Warnbedingungen.
    - Anforderung: Das System muss den Auslöser jeder Budgetwarnung mit Kategorie, Zeitraum und Betrag anzeigen.
 
-4. FR-BUD-04
+5. FR-BUD-04
    - Herleitung: Bedürfnis 3 verlangt planbare Erfassung von Fixkosten.
-   - Anforderung: Das System muss wiederkehrende Zahlungen mit amount, category_id, account_id, interval (monthly/yearly) und start_date speichern und automatisch in Transaktionen überführen können.
+   - Anforderung: Das System muss wiederkehrende Zahlungen mit amount, category_id, account_id, interval (monthly/yearly) und start_date speichern und automatisch in Transaktionen überführen können. Das System muss beim Login des Users automatisch prüfen, ob fällige Daueraufträge vorhanden sind, und diese sofort als reguläre Transaktionen in die Datenbank buchen.
 
 ## Entscheidungen der Stakeholder
 - Bei 80 Prozent Budgetverbrauch wird keine Warnung ausgelöst.
 - Für wiederkehrende Zahlungen werden die Intervalle monatlich und jährlich benötigt.
+- Fällige Daueraufträge werden beim Login des Users automatisch gebucht (keine externe Scheduler-Infrastruktur notwendig).

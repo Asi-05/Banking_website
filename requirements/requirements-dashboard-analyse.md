@@ -29,11 +29,15 @@
    - Herleitung: Bedürfnis 1 verlangt eine sofort erfassbare Übersicht.
    - Anforderung: Das System muss auf der Startseite ein Dashboard mit mindestens einer grafischen Darstellung von Einnahmen und Ausgaben bereitstellen.
 
-2. FR-DASH-02
+2. FR-DASH-01a
+   - Herleitung: Das ChartData-Objekt muss für die Diagrammdarstellung klar definiert sein.
+   - Anforderung: Das System muss für die Diagrammdarstellung ein ChartData-Objekt mit folgenden Feldern bereitstellen: label as str (z.B. Monatsname oder Kategorie), income as float, expenses as float. Die Liste der ChartData-Objekte wird nach Zeitraum aggregiert und an die UI-Komponente übergeben.
+
+3. FR-DASH-02
    - Herleitung: Bedürfnis 2 verlangt eine laufend aktuelle Bilanzanzeige.
    - Anforderung: Das System muss die aktuelle Gesamtbilanz prominent anzeigen und nach jeder relevanten Datenänderung aktualisieren.
 
-3. FR-DASH-03
+4. FR-DASH-03
    - Herleitung: Bedürfnis 3 verlangt flexible Zeitraum-Analysen.
    - Anforderung: Das System muss Summen für auswählbare Zeiträume (z. B. aktueller Monat) berechnen und anzeigen.
 

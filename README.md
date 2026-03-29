@@ -228,6 +228,11 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 * **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
 * **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
 
+### Use Case Diagramm
+
+<img width="822" height="1007" alt="Use Case Diagram" src="https://github.com/user-attachments/assets/0c5d868f-a5eb-4cfb-ab1a-3a215e579f63" />
+
+
 ## Data Input & Output
 
 ### Dateneingabe

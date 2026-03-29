@@ -31,8 +31,8 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 * `date` as `date`
 * `category_id` as `int`
 * `account_id` as `int` (optional, falls über Konto bezahlt)
-* `debit_card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)
-* `credit_card_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
+* `card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)
+* `creditcard_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
 * `note` as `str` (optional)
 
 **Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `debit_card_id`, `credit_card_id`).
@@ -129,12 +129,12 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 ---
 
 ### 8. Karten verwalten
-**Als User möchte ich neue Karten bestellen sowie meine Karten im Verlustfall sperren oder ersetzen lassen.**
+**Als User möchte ich neue Karten bestellen sowie meine Debitkarten im Verlustfall sperren oder ersetzen lassen.**
 
-**Description:** Der User kann eine neue Karte für sein Privatkonto bestellen oder den Status einer bestehenden Karte auf "gesperrt" setzen. 
+**Description:** Der User kann eine neue Debitkarte für sein Privatkonto bestellen oder den Status einer bestehenden Debitkarte auf "gesperrt" setzen. 
 
 **Inputs:** * `account_id` as `int`
-* `card_id` as `int` (optional, bei Sperrung/Ersatz)
+* `card_id` as `int` (bei Sperrung/Ersatz)
 * `action` as `str` ("order" | "block" | "replace")
 
 **Outputs:** * `card_status` as `str`
@@ -149,7 +149,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 **Inputs:** * `user_id` as `int`
 * `desired_limit` as `float` (bei Neubestellung)
-* `card_id` as `int` (bei Sperrung/Ersatz)
+* `creditcard_id` as `int` (bei Sperrung/Ersatz)
 * `action` as `str` ("order" | "block" | "replace")
 
 **Outputs:** * `card_status` as `str`

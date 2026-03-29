@@ -35,7 +35,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 * `creditcard_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
 * `note` as `str` (optional)
 
-**Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `debit_card_id`, `credit_card_id`).
+**Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `card_id`, `creditcard_id`).
 
 **Outputs:** * gespeicherte Transaktion (internally: `Transaction`)
 

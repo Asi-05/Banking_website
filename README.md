@@ -295,7 +295,8 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 ### Software Architecture
 🚧 Insert your UML class diagram(s). Split into multiple diagrams if needed.
 
-[Klassendiagramm.pdf](https://github.com/user-attachments/files/26322857/Klassendiagramm.pdf)
+![Klassendiagramm](https://github.com/user-attachments/assets/4e192496-3f35-4784-9189-8f6d4bd9072b)
+
 
 #### Layers / components:
 

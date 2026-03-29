@@ -31,11 +31,11 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 * `date` as `date`
 * `category_id` as `int`
 * `account_id` as `int` (optional, falls über Konto bezahlt)
-* `debit_card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)
-* `credit_card_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
+* `card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)
+* `creditcard_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
 * `note` as `str` (optional)
 
-**Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `debit_card_id`, `credit_card_id`).
+**Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `card_id`, `creditcard_id`).
 
 **Outputs:** * gespeicherte Transaktion (internally: `Transaction`)
 
@@ -101,11 +101,12 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 ### 6. Wiederkehrende Zahlungen erfassen
 **Als User möchte ich wiederkehrende Zahlungen für bestimmte Kategorien erstellen, um meine Fixkosten zu automatisieren.**
 
-**Description:** Das System plant eine Transaktion, die sich basierend auf dem gewählten Intervall automatisch wiederholt und das angegebene Konto belastet.
+**Description:** Das System plant eine Transaktion, die sich basierend auf dem gewählten Intervall automatisch wiederholt, das angegebene Konto belastet und den hinterlegten Zielempfänger per IBAN verwendet.
 
 **Inputs:** * `amount` as `float`
 * `category_id` as `int`
 * `account_id` as `int`
+* `target_iban` as `str`
 * `interval` as `str` ("monthly" | "yearly")
 * `start_date` as `date`
 
@@ -127,13 +128,13 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 ---
 
-### 8. Karten verwalten
-**Als User möchte ich neue Karten bestellen sowie meine Karten im Verlustfall sperren oder ersetzen lassen.**
+### 8. Debitkarten verwalten
+**Als User möchte ich neue Debitkarten bestellen sowie meine Debitkarten im Verlustfall sperren oder ersetzen lassen.**
 
-**Description:** Der User kann eine neue Karte zu einem Konto bestellen oder den Status einer bestehenden Karte auf "gesperrt" setzen.
+**Description:** Der User kann eine neue Debitkarte für sein Privatkonto bestellen oder den Status einer bestehenden Debitkarte auf "gesperrt" setzen. 
 
 **Inputs:** * `account_id` as `int`
-* `card_id` as `int` (optional, bei Sperrung/Ersatz)
+* `card_id` as `int` (bei Sperrung/Ersatz)
 * `action` as `str` ("order" | "block" | "replace")
 
 **Outputs:** * `card_status` as `str`
@@ -148,7 +149,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 **Inputs:** * `user_id` as `int`
 * `desired_limit` as `float` (bei Neubestellung)
-* `card_id` as `int` (bei Sperrung/Ersatz)
+* `creditcard_id` as `int` (bei Sperrung/Ersatz)
 * `action` as `str` ("order" | "block" | "replace")
 
 **Outputs:** * `card_status` as `str`
@@ -227,6 +228,11 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 * **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
 * **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
 
+### Use Case Diagramm
+
+<img width="822" height="1007" alt="Use Case Diagram" src="https://github.com/user-attachments/assets/0c5d868f-a5eb-4cfb-ab1a-3a215e579f63" />
+
+
 ## Data Input & Output
 
 ### Dateneingabe
@@ -288,6 +294,8 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 ### Software Architecture
 🚧 Insert your UML class diagram(s). Split into multiple diagrams if needed.
+
+[Klassendiagramm.pdf](https://github.com/user-attachments/files/26322857/Klassendiagramm.pdf)
 
 #### Layers / components:
 

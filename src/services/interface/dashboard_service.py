@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import date
 
-from ..models import ChartData, DashboardSummary
+from ...models import ChartData, DashboardSummary
 
 
 class DashboardService(ABC):

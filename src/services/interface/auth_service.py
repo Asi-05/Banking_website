@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from ..models import Session
+from ...models import Session
 
 
 class AuthService(ABC):

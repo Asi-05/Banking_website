@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import date
 from typing import Optional
 
-from ..models import Transaction, TransactionType
+from ...models import Transaction, TransactionType
 
 
 class TransactionService(ABC):

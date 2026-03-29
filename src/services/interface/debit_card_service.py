@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from ..models import DebitCard
+from ...models import DebitCard
 
 
 class DebitCardService(ABC):

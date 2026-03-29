@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from .account_service import AccountService
-from .auth_service import AuthService
-from .budget_service import BudgetService
-from .credit_card_service import CreditCardService
-from .dashboard_service import DashboardService
-from .debit_card_service import DebitCardService
-from .payment_service import PaymentService
-from .recurring_payment_service import RecurringPaymentService
-from .transaction_service import TransactionService
+from .interface.account_service import AccountService
+from .interface.auth_service import AuthService
+from .interface.budget_service import BudgetService
+from .interface.credit_card_service import CreditCardService
+from .interface.dashboard_service import DashboardService
+from .interface.debit_card_service import DebitCardService
+from .interface.payment_service import PaymentService
+from .interface.recurring_payment_service import RecurringPaymentService
+from .interface.transaction_service import TransactionService
 
 
 class BankingApplication:

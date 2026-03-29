@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import date
 
-from ..models import Payment, StatementRequest
+from ...models import Payment, StatementRequest
 
 
 class PaymentService(ABC):

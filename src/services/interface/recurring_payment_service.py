@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import date
 
-from ..models import RecurrenceInterval, RecurringTransaction, Transaction
+from ...models import RecurrenceInterval, RecurringTransaction, Transaction
 
 
 class RecurringPaymentService(ABC):

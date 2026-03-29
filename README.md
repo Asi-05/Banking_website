@@ -128,7 +128,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 ---
 
-### 8. Karten verwalten
+### 8. Debitkarten verwalten
 **Als User möchte ich neue Debitkarten bestellen sowie meine Debitkarten im Verlustfall sperren oder ersetzen lassen.**
 
 **Description:** Der User kann eine neue Debitkarte für sein Privatkonto bestellen oder den Status einer bestehenden Debitkarte auf "gesperrt" setzen. 

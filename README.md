@@ -164,7 +164,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 **Inputs:** * `target_iban` as `str`
 * `amount` as `float`
-* `source_account_id` as `int`
+* `from_account_id` as `int`
 * `purpose` as `str`
 
 **Outputs:** * `payment_status` as `str` ("pending" | "success")

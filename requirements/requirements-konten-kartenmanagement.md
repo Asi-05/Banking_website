@@ -53,7 +53,7 @@
 
 7. FR-CC-02
    - Herleitung: Bedürfnis 3 verlangt nachvollziehbare Nutzung des Kreditrahmens.
-   - Anforderung: Das System muss eine Kreditkartenbuchung als normales Transaction-Objekt speichern (nicht als separates Buchungsobjekt). Für Kreditkartenbuchungen müssen die Felder transaction_id, credit_card_id, amount, type, date, category_id und note gespeichert werden; account_id und debit_card_id müssen dabei leer sein. Vor dem Buchen muss gelten: available_limit = credit_limit - used_balance. Eine Ausgabenbuchung darf nur ausgeführt werden, wenn amount <= available_limit. Nach erfolgreicher Buchung muss used_balance aktualisiert werden (bei Ausgabe: used_balance_neu = used_balance_alt + amount) und das verfügbare Limit neu berechnet werden.
+   - Anforderung: Das System muss eine Kreditkartenbuchung als normales Transaction-Objekt speichern (nicht als separates Buchungsobjekt). Für Kreditkartenbuchungen müssen die Felder transaction_id, creditcard_id, amount, type, date, category_id und note gespeichert werden; account_id und card_id müssen dabei leer sein. Vor dem Buchen muss gelten: available_limit = credit_limit - used_balance. Eine Ausgabenbuchung darf nur ausgeführt werden, wenn amount <= available_limit. Nach erfolgreicher Buchung muss used_balance aktualisiert werden (bei Ausgabe: used_balance_neu = used_balance_alt + amount) und das verfügbare Limit neu berechnet werden.
 
 8. FR-CC-03
    - Herleitung: Bedürfnis 3 verlangt Notfall- und Ersatzprozesse auch für unabhängige Kreditkarten.

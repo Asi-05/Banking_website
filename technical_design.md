@@ -73,6 +73,7 @@ Diese Architektur ermoeglicht eine klare Trennung der Verantwortlichkeiten und e
 
 ### 3.1 Zielstruktur (Normativ)
 
+```
 betterbank/
 ├── .github/                 # GitHub-Workflows
 ├── docs/                    # Projektdokumentation
@@ -139,6 +140,7 @@ betterbank/
             ├── account_view.py
             ├── card_view.py
             └── payment_view.py
+```
 
 ### 3.2 Abweichungen zur Vorgabe
 

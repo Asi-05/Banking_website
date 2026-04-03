@@ -115,7 +115,8 @@ betterbank/
     │   ├── account_service.py
     │   ├── card_service.py
     │   ├── recurring_service.py
-    │   └── payment_service.py
+    │   ├── payment_service.py
+    │   └── dashboard_service.py 
     │
     └── ui/                  # PRÄSENTATIONSSCHICHT: Der Thin Client im Browser
         ├── __init__.py

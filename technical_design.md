@@ -177,11 +177,17 @@ flowchart TD
 ```
 
 ### 3.5 Service-Schnittstellen (Vertrag fuer nicegui agent)
-
+ 
+**Fehlerbehandlungs-Kontrakt (gilt für alle Services):**
+- Bei Regelverletzungen wirft die Service-Methode eine `ValueError` mit lesbarer deutscher Message (z.B. `'Konto kann nicht geschlossen werden: Balance ist nicht 0'`)
+- Bei nicht gefundener Entität wird eine `KeyError` geworfen
+- Controller fangen alle Exceptions und übergeben die Message als String an die View
+- Views zeigen die Message als Fehlerdialog an — keine eigene Logik
+ 
 Der nicegui agent importiert aus services/* (nicht aus services.py):
-
+ 
 Der nicegui agent (Controller/Views) importiert aus `src/services/*`:
-
+ 
 1. **`auth_service.py`**:
    login(contract_number, password), session-bezogene Funktionen.
 2. **`transaction_service.py`**:
@@ -232,6 +238,40 @@ Transfer und Payment sind is_a Transaction, aber ohne Python-Vererbung:
 4. RecurringTransaction ist ebenfalls is_a Transaction: Tabelle recurring_transactions speichert wiederkehrende-spezifische Felder plus FK auf transaction_id (gleiche Umsetzung wie Transfer und Payment).
 
 Damit bleiben gemeinsame Daten zentral und Spezialisierungen sauber getrennt.
+
+### 4.4 Fehlerbehandlungs-Architektur
+ 
+```
+Repository  → fängt keine Exceptions, wirft DB-Fehler weiter
+Service     → wirft ValueError / KeyError bei Regelverletzungen
+Controller  → fängt alle Exceptions, extrahiert str(e) als Message
+View        → zeigt Message via ui.notify(..., type='negative') an
+```
+ 
+Beispiel-Flow:
+```python
+# Service
+def close_account(account_id):
+    account = account_repository.get(account_id)
+    if account is None:
+        raise KeyError(f'Konto {account_id} nicht gefunden')
+    if account.balance != 0:
+        raise ValueError('Konto kann nicht geschlossen werden: Balance ist nicht 0')
+    account_repository.close(account_id)
+ 
+# Controller
+def handle_close_account(account_id):
+    try:
+        account_service.close_account(account_id)
+    except (ValueError, KeyError) as e:
+        return str(e)
+    return None
+ 
+# View
+error = account_controller.handle_close_account(account_id)
+if error:
+    ui.notify(error, type='negative')
+```
 
 ## 5. Software Design Specification
 
@@ -426,14 +466,16 @@ Felder:
    Inlandzahlung, Umbuchung, Auszugserzeugung.
 
 ### 5.4 Validierung (utils/validators.py)
-
-1. validate_password_rules(password)
+ 
+**Regel fuer alle Validatoren:** Wirft bei ungültiger Eingabe eine `ValueError` mit lesbarer Message. Gibt bei Erfolg `None` zurück. Wird ausschliesslich von Services aufgerufen, nie direkt von Controllers oder Views.
+ 
+1. validate_password_rules(password) → `ValueError('Passwort ungueltig: min. 8 Zeichen und 1 Sonderzeichen erforderlich')`
 2. hash_password(password)
-3. validate_iban(target_iban)
-4. validate_transaction_type(type)
-5. validate_positive_amount(amount)
-6. validate_budget_month_year(month, year)
-7. validate_recurring_interval(interval)
+3. validate_iban(target_iban) → `ValueError('Ungueltige IBAN')`
+4. validate_transaction_type(type) → `ValueError('Ungueltiger Transaktionstyp: erlaubt sind income und expense')`
+5. validate_positive_amount(amount) → `ValueError('Betrag muss groesser als 0 sein')`
+6. validate_budget_month_year(month, year) → `ValueError('Ungültiger Monat oder Jahr')`
+7. validate_recurring_interval(interval) → `ValueError('Ungueltiges Intervall: erlaubt sind monthly und yearly')`
 
 ### 5.5 Erststart-Seed (seed.py)
 
@@ -466,4 +508,4 @@ Keine.
 3. nicegui agent:
    Baut main.py und views/* gegen services/*; keine Fachlogik in Views.
 4. test agent:
-   Erstellt Unit- und Integrationstests fuer Business-Regeln, Repositories und Controller-Flows.
+   Erstellt Unit- und Integrationstests fuer Business-Regeln, Repositories und Controller-Flows. Testet explizit, dass korrekte Exceptions bei Regelverletzungen geworfen werden.

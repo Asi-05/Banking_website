@@ -73,47 +73,71 @@ Diese Architektur ermoeglicht eine klare Trennung der Verantwortlichkeiten und e
 
 ### 3.1 Zielstruktur (Normativ)
 
-```text
 betterbank/
-├── main.py
-├── db.py
-├── models.py
-├── services/
-│   ├── auth_service.py
-│   ├── transaction_service.py
-│   ├── budget_service.py
-│   ├── account_service.py
-│   ├── card_service.py
-│   ├── recurring_service.py
-│   ├── payment_service.py
-│   └── dashboard_service.py
-├── repositories/
-│   ├── user_repository.py
-│   ├── transaction_repository.py
-│   ├── budget_repository.py
-│   ├── account_repository.py
-│   ├── card_repository.py
-│   ├── recurring_repository.py
-│   └── payment_repository.py
-├── controllers/
-│   ├── auth_controller.py
-│   ├── transaction_controller.py
-│   ├── budget_controller.py
-│   ├── account_controller.py
-│   ├── card_controller.py
-│   ├── recurring_controller.py
-│   └── payment_controller.py
-├── views/
-│   ├── login_view.py
-│   ├── dashboard_view.py
-│   ├── transaction_view.py
-│   ├── budget_view.py
-│   ├── account_view.py
-│   ├── card_view.py
-│   └── payment_view.py
-└── utils/
-    └── validators.py
-```
+├── .github/                 # GitHub-Workflows
+├── docs/                    # Projektdokumentation
+├── tests/                   # Pytest-Dateien zur Qualitätssicherung
+├── pyproject.toml           # Projekt-Konfiguration
+├── requirements.txt         # Verwendete Bibliotheken
+├── README.md                # Zentrale Projektdokumentation
+│
+└── src/                     # Der gesamte Quellcode der Anwendung
+    ├── __init__.py
+    ├── __main__.py          # STARTPUNKT: Initialisiert NiceGUI (ui.run())
+    │
+    ├── utils/               # HILFSFUNKTIONEN
+    │   ├── __init__.py
+    │   └── validators.py    # IBAN-, Passwort-, Datums- und Feldvalidierung
+    │
+    ├── domain/              # DOMÄNENSCHICHT: Business-Objekte (Models)
+    │   ├── __init__.py
+    │   └── models.py        # Alle SQLModel-Klassen (User, Account, Transaction, etc.)
+    │
+    ├── data_access/         # PERSISTENZSCHICHT: Datenbank & Repositories
+    │   ├── __init__.py
+    │   ├── db.py            # SQLite Engine & Session-Setup, Tabellenerstellung
+    │   ├── seed.py          # <--- HIER: Skript für Testdaten (Demo-User, Kategorien)
+    │   └── repositories/    # Reine CRUD/Query-Operationen pro Domäne
+    │       ├── __init__.py
+    │       ├── user_repository.py
+    │       ├── transaction_repository.py
+    │       ├── budget_repository.py
+    │       ├── account_repository.py
+    │       ├── card_repository.py
+    │       ├── recurring_repository.py
+    │       └── payment_repository.py
+    │
+    ├── services/            # ANWENDUNGSLOGIK: Die Service-Schicht (Business-Regeln)
+    │   ├── __init__.py      # Fungiert als zentrale API-Fassade nach außen
+    │   ├── auth_service.py
+    │   ├── transaction_service.py
+    │   ├── budget_service.py
+    │   ├── account_service.py
+    │   ├── card_service.py
+    │   ├── recurring_service.py
+    │   └── payment_service.py
+    │
+    └── ui/                  # PRÄSENTATIONSSCHICHT: Der Thin Client im Browser
+        ├── __init__.py
+        ├── controllers/     # Use-Case-Orchestrierung je Feature-Bereich
+        │   ├── __init__.py
+        │   ├── auth_controller.py
+        │   ├── transaction_controller.py
+        │   ├── budget_controller.py
+        │   ├── account_controller.py
+        │   ├── card_controller.py
+        │   ├── recurring_controller.py
+        │   └── payment_controller.py
+        │
+        └── views/           # NiceGUI-Seiten (Rein visuell, keine Fachlogik!)
+            ├── __init__.py
+            ├── login_view.py
+            ├── dashboard_view.py
+            ├── transaction_view.py
+            ├── budget_view.py
+            ├── account_view.py
+            ├── card_view.py
+            └── payment_view.py
 
 ### 3.2 Abweichungen zur Vorgabe
 
@@ -122,21 +146,21 @@ betterbank/
 
 ### 3.3 Komponenten und Verantwortungen
 
-1. main.py:
+1. **`src/__main__.py`**:
    Startpunkt der NiceGUI-App, Routing zu Views, App-Bootstrap.
-2. db.py:
-   SQLite Engine/Session, Tabellenerstellung, Erststart-Seed (Kategorien + 2 Testuser + Konten).
-3. models.py:
+2. **`src/data_access/db.py` & `src/data_access/seed.py`**:
+   SQLite Engine/Session, Tabellenerstellung (`db.py`). Erststart-Seed für Kategorien, 2 Testuser und Konten (`seed.py`).
+3. **`src/domain/models.py`**:
    Alle ORM-Modelle gemaess Abschnitt 5.
-4. repositories/*:
+4. **`src/data_access/repositories/*`**:
    Reine CRUD/Query-Operationen pro Domane.
-5. controllers/*:
+5. **`src/ui/controllers/*`**:
    Use-Case-Orchestrierung je Feature-Bereich.
-6. services/*:
-   Getrennte Service-Klassen/Module pro Feature-Bereich als Schnittstelle fuer UI/Controller.
-7. views/*:
-   NiceGUI-Seiten, keine Fachlogik.
-8. utils/validators.py:
+6. **`src/services/*`**:
+   Getrennte Service-Klassen/Module pro Feature-Bereich als API-Schnittstelle fuer UI/Controller.
+7. **`src/ui/views/*`**:
+   NiceGUI-Seiten, rein visuelle Darstellung, keine Fachlogik.
+8. **`src/utils/validators.py`**:
    IBAN-, Passwort-, Datums- und Feldvalidierung.
 
 ### 3.4 High-Level Diagramm
@@ -156,21 +180,23 @@ flowchart TD
 
 Der nicegui agent importiert aus services/* (nicht aus services.py):
 
-1. services/auth_service.py:
+Der nicegui agent (Controller/Views) importiert aus `src/services/*`:
+
+1. **`auth_service.py`**:
    login(contract_number, password), session-bezogene Funktionen.
-2. services/transaction_service.py:
+2. **`transaction_service.py`**:
    create_transaction(payload), edit_transaction(transaction_id, payload), delete_transaction(transaction_id, confirm), filter_transactions(...).
-3. services/budget_service.py:
+3. **`budget_service.py`**:
    set_budget(payload), check_budget_status(month, year, category_id=None).
-4. services/account_service.py:
+4. **`account_service.py`**:
    open_account(payload), close_account(account_id), balance-bezogene Funktionen.
-5. services/card_service.py:
+5. **`card_service.py`**:
    order_debit_card(account_id), block_debit_card(card_id), replace_debit_card(card_id), create_credit_card(payload), block_credit_card(creditcard_id), replace_credit_card(creditcard_id).
-6. services/recurring_service.py:
+6. **`recurring_service.py`**:
    create_recurring(payload), process_due_recurring_on_login(user_id, login_date).
-7. services/payment_service.py:
+7. **`payment_service.py`**:
    create_payment(payload), create_transfer(payload), generate_statement(account_id, start_date, end_date).
-8. services/dashboard_service.py:
+8. **`dashboard_service.py`**:
    dashboard(start_date, end_date), Aggregationen fuer Gesamtbilanz/Summen/ChartData.
 
 ## 4. Software Design Reasoning
@@ -219,9 +245,8 @@ Felder:
 1. user_id (PK)
 2. first_name
 3. last_name
-4. email
-5. passwort_hash
-6. contract_number
+4. password_hash
+5. contract_number
 
 Methode:
 1. login(password) -> bool
@@ -230,10 +255,11 @@ Methode:
 
 Felder:
 1. account_id (PK)
-2. account_type
+2. account_type (z. B. 'privat' oder 'spar')
 3. balance
 4. status
 5. iban
+6. user_id (FK)
 
 Methoden:
 1. open()
@@ -261,6 +287,7 @@ Felder:
 4. limit
 5. balance
 6. status
+7. user_id (FK)
 
 Methoden:
 1. create()
@@ -276,6 +303,9 @@ Felder:
 4. type (income/expense)
 5. note
 6. category_id (FK -> category.category_id)
+7. account_id (FK, nullable)
+8. card_id (FK, nullable)
+9. creditcard_id (FK, nullable)
 
 Methoden:
 1. create()
@@ -345,7 +375,9 @@ Felder:
 5. start_date
 6. end_date (optional)
 7. last_executed (date) - wird beim Login geprueft, ob eine Buchung faellig ist
-8. transaction_id (FK -> transactions.transaction_id)
+8. account_id (FK) - Quelle der Abbuchung
+9. category_id (FK)
+10. transaction_id (FK -> transactions.transaction_id)
 
 #### Dashboard
 
@@ -403,14 +435,14 @@ Felder:
 6. validate_budget_month_year(month, year)
 7. validate_recurring_interval(interval)
 
-### 5.5 Erststart-Seed (db.py)
+### 5.5 Erststart-Seed (seed.py)
 
 Beim ersten Start der Datenbank:
 
 1. Kategorien 1-10 anlegen, falls nicht vorhanden.
 2. Der database agent legt mindestens 2 Testuser an.
 3. Fuer jeden Testuser genau ein Privatkonto und ein Sparkonto anlegen.
-4. Die konkreten Testuser-Namen und Passwoerter werden erst beim Bau von db.py definiert.
+4. Die konkreten Testuser-Namen und Passwoerter werden erst beim Bau von seed.py definiert.
 
 ## 6. Assumptions, Open Questions, and Next Steps
 

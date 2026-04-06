@@ -233,7 +233,7 @@ Der nicegui agent (Controller/Views) importiert aus `src/services/*`:
 
 ### 4.3 SQLite-Vererbungsstrategie fuer is_a
 
-Transfer und Payment sind is_a Transaction, aber ohne Python-Vererbung:
+Transfer, Recurring Transaction und Payment sind is_a Transaction, aber ohne Python-Vererbung:
 
 1. Tabelle transactions speichert gemeinsame Felder.
 2. Tabelle transfers speichert transfer-spezifische Felder plus FK auf transaction_id.

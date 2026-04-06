@@ -35,7 +35,7 @@
 ### 1.3 Annahmen und Klaerungen
 
 1. Kategoriezuordnung wird fachlich fuer Transaktionen benoetigt; die konkrete Persistenz folgt dem Klassendiagramm/Feldvorgaben.
-2. Transfer und Payment sind spezialisierte Transaktionen und werden ueber FK auf transactions modelliert.
+2. Transfer, Recurring Transaction und Payment sind spezialisierte Transaktionen und werden ueber FK auf transactions modelliert.
 3. Fellige Dauerauftraege werden synchron im Login-Prozess geprueft und gebucht.
 4. Eindeutigkeit von Budget verwendet user_id + month + year + category_id.
 

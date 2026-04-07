@@ -11,7 +11,7 @@
 ## Analyse
 ### Bedürfnis 1: Login
 - Begründung: Ohne sichere Authentifizierung sind alle weiteren Funktionen nicht vertrauenswürdig.
-- Edge Cases: Falsche Zugangsdaten, gesperrte Konten, mehrfach fehlgeschlagene Anmeldungen.
+- Edge Cases: Falsche Zugangsdaten.
 - Abhängigkeiten: Benutzerverwaltung, Passwort-Hashing.
 
 ### Bedürfnis 2: Sicherheitsfeedback
@@ -33,19 +33,15 @@
    - Herleitung: Bedürfnis 1 und 2 verlangen sicheren Umgang mit Credentials.
    - Anforderung: Das System muss Passwörter gehasht speichern und darf niemals Klartext-Passwörter persistieren oder anzeigen.
 
-3. FR-AUTH-03
-   - Herleitung: Bedürfnis 1 verlangt Schutz vor Missbrauch.
-   - Anforderung: Das System muss nach wiederholten Fehlversuchen eine Schutzmaßnahme auslösen (z. B. temporäre Sperre).
-
-4. FR-AUTH-04
+3. FR-AUTH-04
    - Herleitung: Bedürfnis 1 und 2 verlangen klar definierte Passwortregeln.
    - Anforderung: Das System muss Passwörter mit mindestens 8 Zeichen und mindestens einem Sonderzeichen verlangen; eine Passwort-Rotationspflicht besteht nicht.
 
-5. FR-AUTH-05
+4. FR-AUTH-05
    - Herleitung: Bedürfnis 3 verlangt einen klaren Ausschluss der Selbstregistrierung.
    - Anforderung: Das System darf keine Selbstregistrierung anbieten und muss Login ausschließlich für vordefinierte Benutzerkonten erlauben.
 
-6. FR-AUTH-06
+5. FR-AUTH-06
    - Herleitung: Bedürfnis 3 verlangt persistente Verwaltung der vordefinierten User.
    - Anforderung: Das System muss vordefinierte Benutzer in einer zentralen Benutzerliste (Datenbanktabelle) mit eindeutiger User-ID, Vertragsnummer und Profildaten speichern.
 

@@ -12,7 +12,7 @@
 6. Budget pro Monat/Jahr (optional pro Kategorie) setzen und Ueberschreitung melden.
 7. Wiederkehrende Zahlungen speichern (monthly/yearly) und beim Login automatisch ausfuehren, falls faellig.
 8. Konten oeffnen/schliessen; Schliessen nur bei balance = 0.
-9. Debitkarten bestellen/sperren/ersetzen (nur fuer Privatkonten).
+9. Debitkarten bestellen/sperren/ersetzen (nur fuer Privatkonten). Pro Konto darf maximal eine aktive Debitkarte existieren.
 10. Unabhaengige Kreditkarten bestellen/sperren/ersetzen; limit darf nicht ueberschritten werden.
 11. Inlandzahlungen per target_iban und purpose.
 12. Umbuchungen zwischen eigenen Konten.
@@ -200,7 +200,7 @@ Der nicegui agent (Controller/Views) importiert aus `src/services/*`:
 4. **`account_service.py`**:
    open_account(payload), close_account(account_id), balance-bezogene Funktionen.
 5. **`card_service.py`**:
-   order_debit_card(account_id), block_debit_card(card_id), replace_debit_card(card_id), create_credit_card(payload), block_credit_card(creditcard_id), replace_credit_card(creditcard_id).
+   order_debit_card(account_id) -> wirft ValueError, falls bereits eine aktive Karte existiert, block_debit_card(card_id), replace_debit_card(card_id), create_credit_card(payload), block_credit_card(creditcard_id), replace_credit_card(creditcard_id).
 6. **`recurring_service.py`**:
    create_recurring(payload), process_due_recurring_on_login(user_id, login_date).
 7. **`payment_service.py`**:
@@ -230,6 +230,7 @@ Der nicegui agent (Controller/Views) importiert aus `src/services/*`:
 8. Keine externe Scheduler- oder API-Abhaengigkeit.
 9. Nach jedem Delete oder Edit einer Transaktion muessen alle betroffenen Bereiche sofort neu berechnet werden:
    Kontostand (balance) des betroffenen Kontos, Budgetstatus (isexceeded) der betroffenen Kategorie, Dashboard-Werte (Gesamtbilanz, Summen, ChartData) sowie wiederkehrende Zahlungen falls betroffen. Der finance logic agent ist verantwortlich, dass nach jedem create/edit/delete alles konsistent bleibt.
+10. Debitkarten-Limit: Ein Konto darf zeitgleich nur exakt eine Debitkarte mit dem Status "aktiv" besitzen. Bei der Bestellung einer neuen Karte (order_debit_card) muss dies geprüft werden.
 
 ### 4.3 SQLite-Vererbungsstrategie fuer is_a
 

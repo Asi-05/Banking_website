@@ -255,7 +255,7 @@ class RecurringTransaction(SQLModel, table=True):
 
 
 # Table exists as requested by design and can be used for persisted dashboard snapshots
-class Dashboard(SQLModel, table=True):
+class Dashboard(SQLModel, table=False):
 	__tablename__ = "dashboard"
 
 	dashboard_id: Optional[int] = Field(default=None, primary_key=True)

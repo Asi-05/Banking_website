@@ -141,7 +141,7 @@ class Transaction(SQLModel, table=True):
 	amount: float
 	date: date
 	type: str
-	note: str
+	note: Optional[str] = Field(default=None, nullable=True)
 	category_id: int = Field(foreign_key="categories.category_id")
 	account_id: Optional[int] = Field(default=None, foreign_key="accounts.account_id")
 	card_id: Optional[int] = Field(default=None, foreign_key="debit_cards.card_id")
@@ -255,7 +255,7 @@ class RecurringTransaction(SQLModel, table=True):
 
 
 # Table exists as requested by design and can be used for persisted dashboard snapshots
-class Dashboard(SQLModel, table=True):
+class Dashboard(SQLModel, table=False):
 	__tablename__ = "dashboard"
 
 	dashboard_id: Optional[int] = Field(default=None, primary_key=True)

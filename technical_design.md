@@ -504,10 +504,10 @@ Keine.
 
 ### 6.3 Naechste Schritte je Agent
 
-1. finance logic agent:
-   Implementiert models/services/controller-Logik strikt nach Abschnitt 5 und 3.5.
-2. database agent:
-   Erstellt ORM-Tabellen inklusive transactions/transfers/payments-FK-Strategie, Unique-Regeln und Seed.
+1. database agent:
+   Erstellt ORM-Tabellen,models.py, db.py und seed.py inklusive transactions/transfers/payments-FK-Strategie, Unique-Regeln.
+2. finance logic agent:
+   Liest models.py schreibt daraufhin services/controller-Logik strikt nach Abschnitt 5 und 3.5.
 3. nicegui agent:
    Baut main.py und views/* gegen services/*; keine Fachlogik in Views.
 4. test agent:

@@ -230,7 +230,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 ### Use Case Diagramm
 
-<img width="822" height="1007" alt="Use Case Diagram" src="https://github.com/user-attachments/assets/0c5d868f-a5eb-4cfb-ab1a-3a215e579f63" />
+<img width="818" height="936" alt="Bildschirmfoto 2026-04-09 um 23 54 29" src="https://github.com/user-attachments/assets/0afa94cf-0bd9-4aad-a06b-31e196b26aaf" />
 
 
 ## Data Input & Output

@@ -1,54 +1,29 @@
 
 
-"""SQLModel-Datenmodelle der Betterbank-Anwendung.
-
-Dieses Modul definiert alle persistenten Tabellen sowie DTO-Modelle,
-die vom Service- und UI-Layer für aggregierte Dashboard-Daten verwendet werden.
-"""
-
 from datetime import date
 from typing import Optional
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
+
+# DTO for chart values in dashboard views (not a database table)
 class ChartData(SQLModel, table=False):
-	"""Transportmodell fuer Balken-/Linienwerte im Dashboard.
-
-	Attributes:
-		label: Beschriftung der dargestellten Periode oder Kategorie.
-		income: Summierte Einnahmen im betrachteten Segment.
-		expenses: Summierte Ausgaben im betrachteten Segment.
-	"""
-
 	label: str
 	income: float
 	expenses: float
 
 
+# DTO for dashboard result summary (not a database table)
 class DashboardSummary(SQLModel, table=False):
-	"""DTO fuer aggregierte Kennzahlen des Dashboards.
-
-	Attributes:
-		total_balance: Gesamtbilanz ueber alle relevanten Konten/Karten.
-		total_income: Gesamteinnahmen im abgefragten Zeitraum.
-		total_expenses: Gesamtausgaben im abgefragten Zeitraum.
-		chart_data: Liste vorbereiteter Diagrammwerte.
-	"""
-
 	total_balance: float
 	total_income: float
 	total_expenses: float
 	chart_data: list[ChartData] = Field(default_factory=list)
 
 
+# Stores banking users for authentication and ownership of data
 class User(SQLModel, table=True):
-	"""Persistentes Benutzerkonto der Betterbank.
-
-	Der Benutzer ist Eigentuemer von Konten, Kreditkarten und Budgets und
-	wird fuer den Login ueber die Vertragsnummer identifiziert.
-	"""
-
 	__tablename__ = "users"
 
 	user_id: Optional[int] = Field(default=None, primary_key=True)
@@ -61,22 +36,13 @@ class User(SQLModel, table=True):
 	credit_cards: list["CreditCard"] = Relationship(back_populates="user")
 	budgets: list["Budget"] = Relationship(back_populates="user")
 
+	# This is a simple placeholder method and can be replaced by real hash checks.
 	def login(self, password: str) -> bool:
-		"""Prueft vereinfacht, ob ein Passwort zum gespeicherten Hash passt.
-
-		Args:
-			password: Eingegebenes Passwort im Login-Prozess.
-
-		Returns:
-			True, wenn ein nicht-leeres Passwort dem gespeicherten Wert entspricht.
-		"""
-
 		return bool(password) and self.password_hash == password
 
 
+# Stores user bank accounts like private or savings accounts
 class Account(SQLModel, table=True):
-	"""Bankkonto eines Benutzers (z. B. Privat- oder Sparkonto)."""
-
 	__tablename__ = "accounts"
 
 	account_id: Optional[int] = Field(default=None, primary_key=True)
@@ -102,19 +68,14 @@ class Account(SQLModel, table=True):
 	)
 
 	def open(self) -> None:
-		"""Setzt den Kontostatus auf aktiv."""
-
 		self.status = "aktiv"
 
 	def close(self) -> None:
-		"""Setzt den Kontostatus auf geschlossen."""
-
 		self.status = "geschlossen"
 
 
+# Stores debit cards that belong to one account
 class DebitCard(SQLModel, table=True):
-	"""Debitkarte, die einem Konto zugeordnet ist."""
-
 	__tablename__ = "debit_cards"
 
 	card_id: Optional[int] = Field(default=None, primary_key=True)
@@ -127,19 +88,14 @@ class DebitCard(SQLModel, table=True):
 	transactions: list["Transaction"] = Relationship(back_populates="card")
 
 	def block(self) -> None:
-		"""Markiert die Karte als gesperrt."""
-
 		self.status = "gesperrt"
 
 	def replace(self) -> None:
-		"""Markiert die Karte als ersetzt."""
-
 		self.status = "ersetzt"
 
 
+# Stores independent credit cards linked to a user
 class CreditCard(SQLModel, table=True):
-	"""Unabhaengige Kreditkarte, die direkt am Benutzer haengt."""
-
 	__tablename__ = "credit_cards"
 
 	creditcard_id: Optional[int] = Field(default=None, primary_key=True)
@@ -154,24 +110,17 @@ class CreditCard(SQLModel, table=True):
 	transactions: list["Transaction"] = Relationship(back_populates="creditcard")
 
 	def create(self) -> None:
-		"""Setzt den Kartenstatus auf aktiv nach Erstellung."""
-
 		self.status = "aktiv"
 
 	def block(self) -> None:
-		"""Markiert die Kreditkarte als gesperrt."""
-
 		self.status = "gesperrt"
 
 	def replace(self) -> None:
-		"""Markiert die Kreditkarte als ersetzt."""
-
 		self.status = "ersetzt"
 
 
+# Stores fixed categories used for transactions and budgets
 class Category(SQLModel, table=True):
-	"""Stammdatenkategorie fuer Transaktionen und Budgets."""
-
 	__tablename__ = "categories"
 
 	category_id: Optional[int] = Field(default=None, primary_key=True)
@@ -183,9 +132,9 @@ class Category(SQLModel, table=True):
 		back_populates="category"
 	)
 
-class Transaction(SQLModel, table=True):
-	"""Basistabelle fuer alle Buchungen (income/expense)."""
 
+# Stores all base transaction fields for income and expense records
+class Transaction(SQLModel, table=True):
 	__tablename__ = "transactions"
 
 	transaction_id: Optional[int] = Field(default=None, primary_key=True)
@@ -212,32 +161,20 @@ class Transaction(SQLModel, table=True):
 	)
 
 	def create(self) -> None:
-		"""Platzhalter fuer Erstellungslogik auf Service-Ebene."""
-
 		return None
 
 	def edit(self) -> None:
-		"""Platzhalter fuer Aenderungslogik auf Service-Ebene."""
-
 		return None
 
 	def filter(self) -> None:
-		"""Platzhalter fuer Filterlogik auf Service-/Repository-Ebene."""
-
 		return None
 
 	def delete(self) -> None:
-		"""Platzhalter fuer Loeschlogik auf Service-Ebene."""
-
 		return None
 
 
+# Stores transfer-specific fields and links back to one base transaction
 class Transfer(SQLModel, table=True):
-	"""Spezialisierung fuer Umbuchungen zwischen eigenen Konten.
-
-	Die Beziehung zur Basistabelle erfolgt ueber ``transaction_id``.
-	"""
-
 	__tablename__ = "transfers"
 
 	transfer_id: Optional[int] = Field(default=None, primary_key=True)
@@ -247,21 +184,18 @@ class Transfer(SQLModel, table=True):
 	transaction_id: int = Field(foreign_key="transactions.transaction_id")
 
 	transaction: "Transaction" = Relationship(back_populates="transfer")
-	# Zwei FKs zeigen auf dieselbe Tabelle, daher wird die FK-Spalte explizit angegeben.
 	from_account: "Account" = Relationship(
 		back_populates="outgoing_transfers",
 		sa_relationship_kwargs={"foreign_keys": "[Transfer.from_account_id]"},
 	)
-	# Zwei FKs zeigen auf dieselbe Tabelle, daher wird die FK-Spalte explizit angegeben.
 	to_account: "Account" = Relationship(
 		back_populates="incoming_transfers",
 		sa_relationship_kwargs={"foreign_keys": "[Transfer.to_account_id]"},
 	)
 
 
+# Stores domestic payment-specific fields and links back to one base transaction
 class Payment(SQLModel, table=True):
-	"""Spezialisierung fuer Inlandszahlungen mit Empfaenger-IBAN."""
-
 	__tablename__ = "payments"
 
 	payment_id: Optional[int] = Field(default=None, primary_key=True)
@@ -272,14 +206,9 @@ class Payment(SQLModel, table=True):
 
 	transaction: "Transaction" = Relationship(back_populates="payment")
 
+
+# Stores monthly/yearly budget settings, optionally per category
 class Budget(SQLModel, table=True):
-	"""Monats-/Jahresbudget eines Benutzers, optional je Kategorie.
-
-	Hinweis:
-		Die fachliche Eindeutigkeit wird ueber den Unique-Constraint auf
-		``(user_id, month, year, category_id)`` sichergestellt.
-	"""
-
 	__tablename__ = "budgets"
 	__table_args__ = (
 		UniqueConstraint(
@@ -302,18 +231,11 @@ class Budget(SQLModel, table=True):
 	category: Optional["Category"] = Relationship(back_populates="budgets")
 
 	def isexceeded(self) -> bool:
-		"""Platzhalter fuer Budgetpruefung gegen reale Ist-Ausgaben."""
-
 		return False
 
 
+# Stores recurring payment data linked to one base transaction record
 class RecurringTransaction(SQLModel, table=True):
-	"""Wiederkehrende Zahlung mit Intervall und Ausfuehrungsstand.
-
-	Die Entitaet ist eine eigene Tabelle und referenziert die
-	Transaktions-Basistabelle ueber ``transaction_id``.
-	"""
-
 	__tablename__ = "recurring_transactions"
 
 	recurring_id: Optional[int] = Field(default=None, primary_key=True)
@@ -331,24 +253,14 @@ class RecurringTransaction(SQLModel, table=True):
 	category: "Category" = Relationship(back_populates="recurring_transactions")
 	transaction: "Transaction" = Relationship(back_populates="recurring_transaction")
 
+
+# Table exists as requested by design and can be used for persisted dashboard snapshots
 class Dashboard(SQLModel, table=True):
-	"""Persistente Huelle fuer Dashboard-bezogene Datenpunkte.
-
-	Aktuell wird ein reines Summary-DTO zurueckgegeben; die eigentliche
-	Aggregation ist in der Service-Schicht vorgesehen.
-	"""
-
 	__tablename__ = "dashboard"
 
 	dashboard_id: Optional[int] = Field(default=None, primary_key=True)
 
 	def dashboard(self) -> DashboardSummary:
-		"""Erzeugt ein leeres DashboardSummary-Objekt als Ausgangswert.
-
-		Returns:
-			DashboardSummary: Nullsummen und leere Chart-Liste.
-		"""
-
 		return DashboardSummary(
 			total_balance=0.0,
 			total_income=0.0,

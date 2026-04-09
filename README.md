@@ -326,8 +326,6 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 ## 🗄️ Database and ORM
 🚧 Describe the database and your ORM entities. Ideally, a diagram documents the database and it is described together with the ORM entities.
 
-## 🗄️ Database and ORM
-
 Unsere Applikation nutzt eine **SQLite**-Datenbank in Kombination mit **SQLModel** als Object-Relational Mapper (ORM). SQLModel vereint SQLAlchemy (für die Datenbankinteraktion) und Pydantic (für die Datenvalidierung) und ermöglicht uns eine saubere, typensichere Python-Entwicklung.
 
 ![Use Case Diagramm](pfad/zu/deinem/diagramm.png) 
@@ -338,8 +336,11 @@ Unsere Applikation nutzt eine **SQLite**-Datenbank in Kombination mit **SQLModel
 Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten und nutzt relationale Muster, um Redundanzen zu vermeiden und die Datenintegrität sicherzustellen:
 
 * **User ↔ Account / Cards:** Kunden werden in der `users`-Tabelle gespeichert und auf die `User`-Entität gemappt. Die `User` ↔ `Account` Beziehung (sowie zu `CreditCard` und `DebitCard`) ist eine 1:n-Beziehung. Das stellt sicher, dass ein User mehrere Konten und Karten besitzen kann, ein Konto/eine Karte aber immer exakt einem User zugeordnet ist. 
+
 * **Bidirektionales Mapping:** In der Python-Logik nutzen wir das `back_populates`-Feature von SQLModel. Dadurch können wir bidirektional navigieren (z. B. von einem Konto direkt auf das `User`-Objekt zugreifen), während die Datenbankebene strikt bei einer Einbahnstraße über Foreign Keys (`user_id`) bleibt.
+
 * **Budget ↔ Category:** Budgets werden auf die `Budget`-Entität gemappt. Ein harter `UniqueConstraint` in der Datenbank auf die Kombination `(user_id, month, year, category_id)` stellt sicher, dass ein User für einen bestimmten Monat und eine bestimmte Kategorie nicht versehentlich doppelte Budgets anlegen kann.
+
 * **Die "is_a" Transaktions-Strategie:** Alle Geldbewegungen basieren auf der `Transaction`-Entität, welche die gemeinsamen Basisdaten (Betrag, Datum, Typ) speichert. Spezifische Zahlungsarten (wie `Transfer`, `Payment`, `RecurringTransaction`) erben *nicht* im Python-Code, sondern werden relational über Komposition abgebildet. Die `Transfer` ↔ `Transaction` Beziehung (1:1 über den Foreign Key `transaction_id`) stellt sicher, dass zielspezifische Daten (wie `target_iban`) sauber getrennt bleiben und die Haupttabelle keine leeren `NULL`-Spalten für nicht benötigte Felder ansammelt.
 
 ## ✅ Project Requirements

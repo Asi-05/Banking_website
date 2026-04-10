@@ -293,7 +293,7 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 🚧 Document the architecture components, relationships, and key design decisions.
 
 ### Software Architecture
-🚧 Insert your UML class diagram(s). Split into multiple diagrams if needed.
+## UML Klassendiagramm / ER Diagramm
 
 ![Klassediagramm updated](https://github.com/user-attachments/assets/3eb8d6c4-1b7b-40f9-a7a5-df589375feb0)
 

@@ -6,7 +6,7 @@ from src.domain import models  # noqa: F401
 
 
 # SQLite engine for the Betterbank application
-DATABASE_URL = "sqlite:///database.db"
+DATABASE_URL = "sqlite:///betterbank.db"
 engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
 
 

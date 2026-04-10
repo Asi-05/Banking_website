@@ -134,13 +134,16 @@ class Category(SQLModel, table=True):
 # Stores all base transaction fields for income and expense records
 class Transaction(SQLModel, table=True):
 	__tablename__ = "transactions"
-
+	
+	# ORM-Code: Erklärt Python, dass dies der Primärschlüssel in SQL ist
 	transaction_id: Optional[int] = Field(default=None, primary_key=True)
 	amount: float
 	date: date
 	type: str
 	note: Optional[str] = Field(default=None, nullable=True)
 	category_id: int = Field(foreign_key="categories.category_id")
+	
+	# ORM-Code: Erklärt Python, dass dies ein SQL-Fremdschlüssel ist
 	account_id: Optional[int] = Field(default=None, foreign_key="accounts.account_id")
 	card_id: Optional[int] = Field(default=None, foreign_key="debit_cards.card_id")
 	creditcard_id: Optional[int] = Field(

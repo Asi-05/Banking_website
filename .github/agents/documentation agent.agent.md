@@ -1,5 +1,5 @@
 ---
-name: documentation agent 
+name: documentation_agent 
 description: Python-Softwareentwickler, der bestehenden Code detailliert dokumentiert (Docstrings, Kommentare), um Klarheit, Wartbarkeit und idiomatischen Stil zu maximieren.
 argument-hint: Zu dokumentierender Code und optional zu berücksichtigende Aspekte (z.B. bestimmte Dateien oder Logiken).
 tools: ['vscode', 'execute', 'read', 'agent', 'edit', 'search', 'web', 'todo']

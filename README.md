@@ -230,7 +230,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 ### Use Case Diagramm
 
-<img width="822" height="1007" alt="Use Case Diagram" src="https://github.com/user-attachments/assets/0c5d868f-a5eb-4cfb-ab1a-3a215e579f63" />
+<img width="818" height="936" alt="Bildschirmfoto 2026-04-09 um 23 54 29" src="https://github.com/user-attachments/assets/0afa94cf-0bd9-4aad-a06b-31e196b26aaf" />
 
 
 ## Data Input & Output
@@ -295,7 +295,7 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 ### Software Architecture
 🚧 Insert your UML class diagram(s). Split into multiple diagrams if needed.
 
-![Klassendiagramm](https://github.com/user-attachments/assets/4e192496-3f35-4784-9189-8f6d4bd9072b)
+![Klassediagramm updated](https://github.com/user-attachments/assets/3eb8d6c4-1b7b-40f9-a7a5-df589375feb0)
 
 
 #### Layers / components:
@@ -326,7 +326,22 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 ## 🗄️ Database and ORM
 🚧 Describe the database and your ORM entities. Ideally, a diagram documents the database and it is described together with the ORM entities.
 
-ORM and Entities (example): In the database, order are stored in ... that are mapped an Order entity. The Order ↔ OrderItem relationship ... ensures that an Order has at least one OrderItem and an OrderItem always relates to an Order.
+Unsere Applikation nutzt eine **SQLite**-Datenbank in Kombination mit **SQLModel** als Object-Relational Mapper (ORM). SQLModel vereint SQLAlchemy (für die Datenbankinteraktion) und Pydantic (für die Datenvalidierung) und ermöglicht uns eine saubere, typensichere Python-Entwicklung.
+
+![Use Case Diagramm](pfad/zu/deinem/diagramm.png) 
+*(Hinweis: Füge hier den Pfad zu deinem ER-Diagramm ein)*
+
+### ORM und Entitäten
+
+Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten und nutzt relationale Muster, um Redundanzen zu vermeiden und die Datenintegrität sicherzustellen:
+
+* **User ↔ Account / Cards:** Kunden werden in der `users`-Tabelle gespeichert und auf die `User`-Entität gemappt. Die `User` ↔ `Account` Beziehung (sowie zu `CreditCard` und `DebitCard`) ist eine 1:n-Beziehung. Das stellt sicher, dass ein User mehrere Konten und Karten besitzen kann, ein Konto/eine Karte aber immer exakt einem User zugeordnet ist. 
+
+* **Bidirektionales Mapping:** In der Python-Logik nutzen wir das `back_populates`-Feature von SQLModel. Dadurch können wir bidirektional navigieren (z. B. von einem Konto direkt auf das `User`-Objekt zugreifen), während die Datenbankebene strikt bei einer Einbahnstraße über Foreign Keys (`user_id`) bleibt.
+
+* **Budget ↔ Category:** Budgets werden auf die `Budget`-Entität gemappt. Ein harter `UniqueConstraint` in der Datenbank auf die Kombination `(user_id, month, year, category_id)` stellt sicher, dass ein User für einen bestimmten Monat und eine bestimmte Kategorie nicht versehentlich doppelte Budgets anlegen kann.
+
+* **Die "is_a" Transaktions-Strategie:** Alle Geldbewegungen basieren auf der `Transaction`-Entität, welche die gemeinsamen Basisdaten (Betrag, Datum, Typ) speichert. Spezifische Zahlungsarten (wie `Transfer`, `Payment`, `RecurringTransaction`) erben *nicht* im Python-Code, sondern werden relational über Komposition abgebildet. Die `Transfer` ↔ `Transaction` Beziehung (1:1 über den Foreign Key `transaction_id`) stellt sicher, dass zielspezifische Daten (wie `target_iban`) sauber getrennt bleiben und die Haupttabelle keine leeren `NULL`-Spalten für nicht benötigte Felder ansammelt.
 
 ## ✅ Project Requirements
 🚧 Requirements act as a contract: implement and demonstrate each point below.

@@ -1,5 +1,3 @@
-
-
 from datetime import date
 from typing import Optional
 
@@ -255,7 +253,7 @@ class RecurringTransaction(SQLModel, table=True):
 
 
 # Table exists as requested by design and can be used for persisted dashboard snapshots
-class Dashboard(SQLModel, table=False):
+class Dashboard(SQLModel, table=True):
 	__tablename__ = "dashboard"
 
 	dashboard_id: Optional[int] = Field(default=None, primary_key=True)

@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+from src.services.card_service import card_service
+
+
+# Orchestriert Karten-Use-Cases und kapselt Fehlerbehandlung fuer die UI.
+class CardController:
+	# Bestellt eine Debitkarte.
+	def order_debit_card(self, account_id: int) -> str | None:
+		try:
+			card_service.order_debit_card(account_id)
+			return None
+		except Exception as error:
+			return str(error)
+
+	# Sperrt eine Debitkarte.
+	def block_debit_card(self, card_id: int) -> str | None:
+		try:
+			card_service.block_debit_card(card_id)
+			return None
+		except Exception as error:
+			return str(error)
+
+	# Ersetzt eine Debitkarte.
+	def replace_debit_card(self, card_id: int) -> str | None:
+		try:
+			card_service.replace_debit_card(card_id)
+			return None
+		except Exception as error:
+			return str(error)
+
+	# Bestellt eine Kreditkarte.
+	def create_credit_card(self, payload: dict) -> str | None:
+		try:
+			card_service.create_credit_card(payload)
+			return None
+		except Exception as error:
+			return str(error)
+
+	# Sperrt eine Kreditkarte.
+	def block_credit_card(self, creditcard_id: int) -> str | None:
+		try:
+			card_service.block_credit_card(creditcard_id)
+			return None
+		except Exception as error:
+			return str(error)
+
+	# Ersetzt eine Kreditkarte.
+	def replace_credit_card(self, creditcard_id: int) -> str | None:
+		try:
+			card_service.replace_credit_card(creditcard_id)
+			return None
+		except Exception as error:
+			return str(error)
+
+
+card_controller = CardController()

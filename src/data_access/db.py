@@ -2,9 +2,11 @@ from collections.abc import Generator
 
 from sqlmodel import SQLModel, Session, create_engine
 
+from src.domain import models  # noqa: F401
+
 
 # SQLite engine for the Betterbank application
-DATABASE_URL = "sqlite:///betterbank.db"
+DATABASE_URL = "sqlite:///database.db"
 engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
 
 
@@ -17,3 +19,7 @@ def create_db_and_tables() -> None:
 def get_session() -> Generator[Session, None, None]:
 	with Session(engine) as session:
 		yield session
+
+
+if __name__ == "__main__":
+	create_db_and_tables()

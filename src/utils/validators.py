@@ -43,18 +43,18 @@ def verify_password(password: str, stored_hash: str) -> bool:
 	return hmac.compare_digest(calculated_hex, expected_hex)
 
 
-# Validiert eine deutsche IBAN in einem pragmatischen, strengen Format.
+# Validiert eine Schweizer IBAN in einem pragmatischen, strengen Format.
 def validate_iban(target_iban: str) -> None:
 	normalized = target_iban.replace(" ", "").upper()
-	if re.fullmatch(r"DE\d{20}", normalized) is None:
-		raise ValueError("Ungueltige IBAN")
+	if re.fullmatch(r"CH\d{19}", normalized) is None:
+		raise ValueError("Ungültige IBAN")
 
 
 # Validiert den Transaktionstyp gegen die erlaubten Werte.
 def validate_transaction_type(transaction_type: str) -> None:
 	if transaction_type not in {"income", "expense"}:
 		raise ValueError(
-			"Ungueltiger Transaktionstyp: erlaubt sind income und expense"
+			"Ungültiger Transaktionstyp: erlaubt sind income und expense"
 		)
 
 

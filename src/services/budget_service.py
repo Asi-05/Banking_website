@@ -87,7 +87,7 @@ class BudgetService:
 				"budget_id": budget.budget_id,
 				"limit_amount": budget.limit_amount,
 				"current_spending": current_spending,
-				"is_exceeded": current_spending >= budget.limit_amount,
+				"is_exceeded": current_spending > budget.limit_amount,
 				"month": month,
 				"year": year,
 				"category_id": category_id,

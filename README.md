@@ -289,6 +289,14 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 ### Wireframes/ Mockups
 🚧 Add screenshots of the wireframe mockups you chose to implement.
 
+![IMG_0027](https://github.com/user-attachments/assets/72d3350d-d529-4a51-9c6d-41ba9c5af20a)
+![IMG_0026](https://github.com/user-attachments/assets/b14845a7-8c76-4f98-a227-ef7491b62e23)
+
+<img width="1058" height="1232" alt="Dashboard Übersicht  Vorlage" src="https://github.com/user-attachments/assets/329364dc-9c8f-4004-a8a7-319b1e3d00d7" />
+<img width="1058" height="1228" alt="Loginseite Übersicht Vorlage" src="https://github.com/user-attachments/assets/9595726a-eb0b-4fbf-8096-1cb519962654" />
+
+
+
 ## 🏛️ Architecture
 🚧 Document the architecture components, relationships, and key design decisions.
 

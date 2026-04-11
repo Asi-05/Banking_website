@@ -287,7 +287,6 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 
 ### Wireframes/ Mockups
-🚧 Add screenshots of the wireframe mockups you chose to implement.
 
 <img src="https://github.com/user-attachments/assets/72d3350d-d529-4a51-9c6d-41ba9c5af20a" width="300" />
 <img src="https://github.com/user-attachments/assets/9595726a-eb0b-4fbf-8096-1cb519962654" width="300" />

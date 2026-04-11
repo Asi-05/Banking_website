@@ -294,7 +294,7 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 <img width="1058" height="1232" alt="Dashboard Übersicht  Vorlage" src="https://github.com/user-attachments/assets/329364dc-9c8f-4004-a8a7-319b1e3d00d7" />
 <img width="1058" height="1228" alt="Loginseite Übersicht Vorlage" src="https://github.com/user-attachments/assets/9595726a-eb0b-4fbf-8096-1cb519962654" />
-<img src="https://github.com/user-attachments/assets/329364dc-9c8f-4004-a8a7-319b1e3d00d7" width="300" />
+<img src="https://github.com/user-attachments/assets/9595726a-eb0b-4fbf-8096-1cb519962654" width="300" />
 <img src="https://github.com/user-attachments/assets/329364dc-9c8f-4004-a8a7-319b1e3d00d7" width="300" />
 
 

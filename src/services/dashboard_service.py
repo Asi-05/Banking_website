@@ -29,7 +29,7 @@ class DashboardService:
 				user_id=user_id,
 			)
 			total_income = sum(t.amount for t in transactions if t.type == "income")
-			total_expenses = sum(t.amount for t in transactions if t.type == "expense")
+			total_expenses = sum(abs(t.amount) for t in transactions if t.type == "expense")
 
 			grouped: dict[str, dict[str, float]] = defaultdict(
 				lambda: {"income": 0.0, "expenses": 0.0}
@@ -39,7 +39,7 @@ class DashboardService:
 				if transaction.type == "income":
 					grouped[label]["income"] += transaction.amount
 				else:
-					grouped[label]["expenses"] += transaction.amount
+					grouped[label]["expenses"] += abs(transaction.amount)
 
 			chart_data = [
 				ChartData(

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from src.services.transaction_service import transaction_service
+from src.utils.formatters import format_date_dmy, format_transaction_type
 
 
 # Orchestriert Transaktions-Use-Cases und kapselt Fehlerbehandlung fuer die UI.
@@ -40,12 +41,26 @@ class TransactionController:
 		user_id: int | None = None,
 	) -> list | str:
 		try:
-			return transaction_service.filter_transactions(
+			transactions = transaction_service.filter_transactions(
 				start_date=start_date,
 				end_date=end_date,
 				category_id=category_id,
 				user_id=user_id,
 			)
+			return [
+				{
+					"transaction_id": transaction.transaction_id,
+					"amount": transaction.amount,
+					"date": format_date_dmy(transaction.date),
+					"type": format_transaction_type(transaction.type),
+					"note": transaction.note,
+					"category_id": transaction.category_id,
+					"account_id": transaction.account_id,
+					"card_id": transaction.card_id,
+					"creditcard_id": transaction.creditcard_id,
+				}
+				for transaction in transactions
+			]
 		except Exception as error:
 			return str(error)
 

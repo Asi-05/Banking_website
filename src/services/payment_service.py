@@ -10,7 +10,11 @@ from src.data_access.repositories.account_repository import AccountRepository
 from src.data_access.repositories.payment_repository import PaymentRepository
 from src.domain.models import Payment, Transfer
 from src.services.transaction_service import transaction_service
+from src.utils.formatters import format_date_dmy, format_transaction_type
 from src.utils.validators import validate_date_range, validate_iban, validate_positive_amount
+
+
+CURRENCY_CODE = "CHF"
 
 
 # Implementiert die Geschaeftslogik fuer Zahlungen, Umbuchungen und Auszuege.
@@ -128,12 +132,13 @@ class PaymentService:
 
 		lines = [
 			f"Kontoauszug Konto {account_id}",
-			f"Zeitraum: {start_date.isoformat()} bis {end_date.isoformat()}",
+			f"Zeitraum: {format_date_dmy(start_date)} bis {format_date_dmy(end_date)}",
+			f"Waehrung: {CURRENCY_CODE}",
 			"",
 		]
 		for transaction in transactions:
 			lines.append(
-				f"{transaction.date.isoformat()} | {transaction.type} | {transaction.amount:.2f} | {transaction.note or ''}"
+				f"{format_date_dmy(transaction.date)} | {format_transaction_type(transaction.type)} | {transaction.amount:.2f} {CURRENCY_CODE} | {transaction.note or ''}"
 			)
 
 		output_dir = Path("statements")

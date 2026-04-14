@@ -287,13 +287,20 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 
 ### Wireframes/ Mockups
-🚧 Add screenshots of the wireframe mockups you chose to implement.
+
+<img src="https://github.com/user-attachments/assets/72d3350d-d529-4a51-9c6d-41ba9c5af20a" width="300" />
+<img src="https://github.com/user-attachments/assets/b14845a7-8c76-4f98-a227-ef7491b62e23" width="300" />
+
+
+<img src="https://github.com/user-attachments/assets/9595726a-eb0b-4fbf-8096-1cb519962654" width="300" />
+<img src="https://github.com/user-attachments/assets/329364dc-9c8f-4004-a8a7-319b1e3d00d7" width="300" />
+
 
 ## 🏛️ Architecture
 🚧 Document the architecture components, relationships, and key design decisions.
 
 ### Software Architecture
-🚧 Insert your UML class diagram(s). Split into multiple diagrams if needed.
+## UML Klassendiagramm / ER Diagramm
 
 ![Klassediagramm updated](https://github.com/user-attachments/assets/3eb8d6c4-1b7b-40f9-a7a5-df589375feb0)
 

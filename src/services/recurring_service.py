@@ -138,4 +138,10 @@ class RecurringService:
 		return from_date
 
 
+	# Gibt alle Dauerauftraege eines Users zurueck.
+	def list_recurring(self, user_id: int) -> list[RecurringTransaction]:
+		with Session(engine) as session:
+			return RecurringRepository.list_by_user(session, user_id)
+
+
 recurring_service = RecurringService()

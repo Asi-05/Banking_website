@@ -48,6 +48,17 @@ class CardRepository:
 		session.refresh(card)
 		return card
 
+	# Gibt alle Debitkarten eines Users zurueck (via Account-Join).
+	@staticmethod
+	def list_debit_by_user(session: Session, user_id: int) -> list[DebitCard]:
+		from src.domain.models import Account
+		statement = (
+			select(DebitCard)
+			.join(Account, Account.account_id == DebitCard.account_id)
+			.where(Account.user_id == user_id)
+		)
+		return list(session.exec(statement).all())
+
 	# Gibt alle Kreditkarten eines Users zurueck.
 	@staticmethod
 	def list_credit_by_user(session: Session, user_id: int) -> list[CreditCard]:

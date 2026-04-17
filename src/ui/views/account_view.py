@@ -74,7 +74,7 @@ def _build_account_list(user_id: int) -> None:
 		accounts_table = ui.table(columns=[
 			{"name": "iban", "label": "IBAN", "field": "iban", "align": "left"},
 			{"name": "account_type", "label": "Typ", "field": "account_type", "align": "left"},
-			{"name": "balance", "label": "Saldo (€)", "field": "balance", "align": "right"},
+			{"name": "balance", "label": "Saldo (CHF)", "field": "balance", "align": "right"},
 			{"name": "status", "label": "Status", "field": "status", "align": "left"},
 			{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 		], rows=[]).props("dense")
@@ -201,7 +201,7 @@ def _build_transfer_form(user_id: int) -> None:
 		to_account_select.classes("w-full mb-4")
 
 		# Betrag
-		amount_input = ui.number(label="Betrag (€)", min=0.01, step=0.01).props("outlined")
+		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 		amount_input.classes("w-full mb-4")
 
 		error_label = ui.label("").classes("text-red-600 mb-4")

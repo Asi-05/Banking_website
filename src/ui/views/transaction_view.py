@@ -91,7 +91,7 @@ def _build_transaction_form(user_id: int) -> None:
 	with ui.card().classes("w-full max-w-md"):
 
 		# Betrag
-		amount_input = ui.number(label="Betrag (€)", min=0.01, step=0.01).props("outlined")
+		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 		amount_input.classes("w-full mb-4")
 
 		# Typ: Income / Expense
@@ -246,7 +246,7 @@ def _build_transaction_list(user_id: int) -> None:
 		transactions_table = ui.table(columns=[
 			{"name": "date", "label": "Datum", "field": "date", "align": "left"},
 			{"name": "type", "label": "Typ", "field": "type", "align": "left"},
-			{"name": "amount", "label": "Betrag (€)", "field": "amount", "align": "right"},
+			{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
 			{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
 			{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
 			{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},

@@ -165,7 +165,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 		with ui.expansion("Neue Kreditkarte beantragen").classes("w-full"):
 
 			# Gewünschtes Limit
-			limit_input = ui.number(label="Gewünschtes Limit (€)", min=100, step=100).props("outlined")
+			limit_input = ui.number(label="Gewünschtes Limit (CHF)", min=100, step=100).props("outlined")
 			limit_input.classes("w-full mb-4")
 
 			error_label = ui.label("").classes("text-red-600 mb-4")
@@ -204,9 +204,9 @@ def _build_credit_cards_section(user_id: int) -> None:
 				# Tabelle
 				credit_table = ui.table(columns=[
 					{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-					{"name": "limit", "label": "Limit (€)", "field": "limit", "align": "right"},
-					{"name": "balance", "label": "Genutzt (€)", "field": "balance", "align": "right"},
-					{"name": "available", "label": "Verfügbar (€)", "field": "available", "align": "right"},
+					{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+					{"name": "balance", "label": "Genutzt (CHF)", "field": "balance", "align": "right"},
+					{"name": "available", "label": "Verfügbar (CHF)", "field": "available", "align": "right"},
 					{"name": "status", "label": "Status", "field": "status", "align": "left"},
 					{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 				], rows=[]).props("dense")

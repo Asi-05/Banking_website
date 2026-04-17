@@ -43,6 +43,14 @@ def verify_password(password: str, stored_hash: str) -> bool:
 	return hmac.compare_digest(calculated_hex, expected_hex)
 
 
+# Generiert eine gueltige Schweizer IBAN aus Bankleitzahl (5 Stellen) und Kontonummer (12 Stellen).
+def generate_ch_iban(bank_code: str, account_num: str) -> str:
+	bban = f"{bank_code}{account_num}"
+	numeric = bban + "121700"  # CH=1217, Prüfziffern-Platzhalter 00
+	check = 98 - (int(numeric) % 97)
+	return f"CH{check:02d}{bban}"
+
+
 # Validiert eine Schweizer IBAN in einem pragmatischen, strengen Format.
 def validate_iban(target_iban: str) -> None:
 	normalized = target_iban.replace(" ", "").upper()

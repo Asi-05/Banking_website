@@ -86,7 +86,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		iban_input.classes("w-full mb-4")
 
 		# Betrag
-		amount_input = ui.number(label="Betrag (€)", min=0.01, step=0.01).props("outlined")
+		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 		amount_input.classes("w-full mb-4")
 
 		# Von-Konto
@@ -161,7 +161,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 			with ui.column().classes("w-full gap-4"):
 
-				amount_input = ui.number(label="Betrag (€)", min=0.01, step=0.01).props("outlined")
+				amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 				amount_input.classes("w-full")
 
 				category_select = ui.select(options=category_options, label="Kategorie").props("outlined")
@@ -221,7 +221,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 				# Tabelle
 				recurring_table = ui.table(columns=[
-					{"name": "amount", "label": "Betrag (€)", "field": "amount", "align": "right"},
+					{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
 					{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
 					{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
 					{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},

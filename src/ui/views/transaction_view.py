@@ -253,6 +253,72 @@ def _build_transaction_list(user_id: int) -> None:
 		], rows=[]).props("dense")
 		transactions_table.classes("w-full")
 
+		# Button-Slot für Aktionen
+		transactions_table.add_slot("body-cell-actions", """
+			<q-td :props="props">
+				<q-btn label="Ändern" color="primary" size="sm" flat
+					@click="$parent.$emit('edit_transaction', props.row)" />
+				<q-btn label="Löschen" color="negative" size="sm" flat
+					@click="$parent.$emit('delete_transaction', props.row)" />
+			</q-td>
+		""")
+
+		# Löschen mit Bestätigung (FR-FIN-05)
+		def handle_delete(e) -> None:
+			row = e.args
+			transaction_id = row.get("transaction_id")
+
+			with ui.dialog() as confirm_dialog, ui.card():
+				ui.label("Transaktion wirklich löschen?").classes("text-subtitle1 font-semibold")
+				ui.label(f"Datum: {row.get('date')}  |  Betrag: {row.get('amount')} €").classes("text-gray-600")
+				with ui.row().classes("gap-4 mt-4"):
+					ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
+					def do_delete(tid=transaction_id):
+						error = transaction_controller.delete_transaction(tid, confirm=True)
+						confirm_dialog.close()
+						if error:
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Transaktion gelöscht", type="positive")
+							_refresh_transaction_list(user_id, start_date_picker, end_date_picker, category_filter, transactions_table)
+					ui.button("Löschen", on_click=do_delete).props("color=negative unelevated")
+			confirm_dialog.open()
+
+		transactions_table.on("delete_transaction", handle_delete)
+
+		# Bearbeiten-Dialog (FR-FIN-05)
+		def handle_edit(e) -> None:
+			row = e.args
+			transaction_id = row.get("transaction_id")
+
+			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
+				ui.label("Transaktion bearbeiten").classes("text-subtitle1 font-semibold mb-4")
+
+				amount_edit = ui.number(label="Betrag (€)", value=float(row.get("amount", "0").replace(",", "").replace(".", ".")), min=0.01, step=0.01).props("outlined")
+				amount_edit.classes("w-full mb-4")
+
+				note_edit = ui.textarea(label="Notiz", value=row.get("note") if row.get("note") != "-" else "").props("outlined")
+				note_edit.classes("w-full mb-4")
+
+				with ui.row().classes("gap-4"):
+					ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
+					def do_edit(tid=transaction_id):
+						payload = {
+							"amount": amount_edit.value or 0,
+							"note": note_edit.value,
+						}
+						error = transaction_controller.edit_transaction(tid, payload)
+						edit_dialog.close()
+						if error:
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Transaktion gespeichert", type="positive")
+							_refresh_transaction_list(user_id, start_date_picker, end_date_picker, category_filter, transactions_table)
+					ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
+			edit_dialog.open()
+
+		transactions_table.on("edit_transaction", handle_edit)
+
 		# Initiales Laden
 		_refresh_transaction_list(user_id, start_date_picker, end_date_picker, category_filter, transactions_table)
 
@@ -305,7 +371,6 @@ def _refresh_transaction_list(
 			"amount": f"{txn['amount']:,.2f}",
 			"category": category_name,
 			"note": txn["note"] or "-",
-			"actions": "Ändern/Löschen",
 		})
 
 	if transactions_table:

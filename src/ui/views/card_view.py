@@ -123,13 +123,50 @@ def _build_debit_cards_section(user_id: int) -> None:
 				], rows=[]).props("dense")
 				debit_table.classes("w-full")
 
+				# Button-Slot: Sperren (bei aktiv) oder Ersetzen (bei gesperrt) — FR-CARD-01/02
+				debit_table.add_slot("body-cell-actions", """
+					<q-td :props="props">
+						<q-btn v-if="props.row.status === 'aktiv'"
+							label="Sperren" color="negative" size="sm" flat
+							@click="$parent.$emit('block_debit', props.row)" />
+						<q-btn v-else
+							label="Ersetzen" color="primary" size="sm" flat
+							@click="$parent.$emit('replace_debit', props.row)" />
+					</q-td>
+				""")
+
+				def handle_block_debit(e) -> None:
+					card_id = e.args.get("card_id")
+					error = card_controller.block_debit_card(card_id)
+					if error:
+						ui.notify(error, type="negative")
+					else:
+						ui.notify("Debitkarte gesperrt", type="positive")
+						debit_table.rows = [r for r in debit_table.rows if r["card_id"] != card_id or not True]
+						# Status in Tabelle aktualisieren
+						for row in debit_table.rows:
+							if row["card_id"] == card_id:
+								row["status"] = "gesperrt"
+						debit_table.update()
+
+				def handle_replace_debit(e) -> None:
+					card_id = e.args.get("card_id")
+					error = card_controller.replace_debit_card(card_id)
+					if error:
+						ui.notify(error, type="negative")
+					else:
+						ui.notify("Ersatzkarte bestellt", type="positive")
+
+				debit_table.on("block_debit", handle_block_debit)
+				debit_table.on("replace_debit", handle_replace_debit)
+
 				# Daten mit Konto-IBAN laden
 				from src.ui.controllers.account_controller import account_controller
 				accounts = account_controller.list_accounts(user_id)
 				account_map = {}
 				if not isinstance(accounts, str):
 					account_map = {
-						(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
+						(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
 						(a.iban if hasattr(a, "iban") else a.get("iban"))
 						for a in accounts
 					}
@@ -139,11 +176,10 @@ def _build_debit_cards_section(user_id: int) -> None:
 					account_iban = account_map.get(card.account_id if hasattr(card, "account_id") else card.get("account_id"), "N/A")
 					rows.append({
 						"card_id": card.card_id if hasattr(card, "card_id") else card.get("card_id"),
-						"card_number": (card.card_number if hasattr(card, "card_number") else card.get("card_number"))[-4:],  # Letzte 4 Ziffern
-						"expire_date": card.expire_date if hasattr(card, "expire_date") else card.get("expire_date"),
+						"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
+						"expire_date": str(card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")),
 						"account": account_iban,
 						"status": card.status if hasattr(card, "status") else card.get("status"),
-						"actions": "Sperren" if (card.status if hasattr(card, "status") else card.get("status")) == "aktiv" else "Ersetzen",
 					})
 
 				debit_table.rows = rows
@@ -212,6 +248,41 @@ def _build_credit_cards_section(user_id: int) -> None:
 				], rows=[]).props("dense")
 				credit_table.classes("w-full")
 
+				# Button-Slot: Sperren (bei aktiv) oder Ersetzen (bei gesperrt) — FR-CC-03
+				credit_table.add_slot("body-cell-actions", """
+					<q-td :props="props">
+						<q-btn v-if="props.row.status === 'aktiv'"
+							label="Sperren" color="negative" size="sm" flat
+							@click="$parent.$emit('block_credit', props.row)" />
+						<q-btn v-else
+							label="Ersetzen" color="primary" size="sm" flat
+							@click="$parent.$emit('replace_credit', props.row)" />
+					</q-td>
+				""")
+
+				def handle_block_credit(e) -> None:
+					creditcard_id = e.args.get("card_id")
+					error = card_controller.block_credit_card(creditcard_id)
+					if error:
+						ui.notify(error, type="negative")
+					else:
+						ui.notify("Kreditkarte gesperrt", type="positive")
+						for row in credit_table.rows:
+							if row["card_id"] == creditcard_id:
+								row["status"] = "gesperrt"
+						credit_table.update()
+
+				def handle_replace_credit(e) -> None:
+					creditcard_id = e.args.get("card_id")
+					error = card_controller.replace_credit_card(creditcard_id)
+					if error:
+						ui.notify(error, type="negative")
+					else:
+						ui.notify("Ersatzkreditkarte bestellt", type="positive")
+
+				credit_table.on("block_credit", handle_block_credit)
+				credit_table.on("replace_credit", handle_replace_credit)
+
 				# Daten
 				rows = []
 				for card in credit_cards:
@@ -221,12 +292,11 @@ def _build_credit_cards_section(user_id: int) -> None:
 
 					rows.append({
 						"card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
-						"card_number": (card.card_number if hasattr(card, "card_number") else card.get("card_number"))[-4:],  # Letzte 4 Ziffern
+						"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
 						"limit": f"{limit_val:,.2f}",
 						"balance": f"{balance_val:,.2f}",
 						"available": f"{available:,.2f}",
 						"status": card.status if hasattr(card, "status") else card.get("status"),
-						"actions": "Sperren" if (card.status if hasattr(card, "status") else card.get("status")) == "aktiv" else "Ersetzen",
 					})
 
 				credit_table.rows = rows

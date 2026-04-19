@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from datetime import date
-
 from sqlmodel import Session
 
 from src.data_access.db import engine
 from src.data_access.repositories.account_repository import AccountRepository
 from src.data_access.repositories.user_repository import UserRepository
 from src.domain.models import Account
+from src.utils.validators import generate_ch_iban
 
 
 # Implementiert die Geschaeftslogik fuer Konten.
@@ -55,10 +54,9 @@ class AccountService:
 		with Session(engine) as session:
 			return AccountRepository.list_by_user(session, user_id)
 
-	# Erzeugt eine eindeutige Demo-IBAN fuer neue Konten.
+	# Erzeugt eine Schweizer Demo-IBAN fuer neue Konten (Bankleitzahl 09000).
 	def _generate_iban(self, user_id: int) -> str:
-		today = date.today()
-		return f"DE{today.year % 100:02d}{today.month:02d}{user_id:016d}"
+		return generate_ch_iban("09000", f"{user_id:010d}01")
 
 
 account_service = AccountService()

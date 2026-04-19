@@ -2,6 +2,7 @@ from sqlmodel import Session, select
 
 from src.data_access.db import create_db_and_tables, engine
 from src.domain.models import Account, Category, User
+from src.utils.validators import generate_ch_iban
 
 
 # Fixed categories from the technical design (must be seeded on first start)
@@ -87,7 +88,7 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
 					account_type="privat",
 					balance=0.0,
 					status="aktiv",
-					iban=f"DE00{user.contract_number.replace('-', '')}01",
+					iban=generate_ch_iban("09000", f"{user.user_id:010d}01"),
 					user_id=user.user_id,
 				)
 			)
@@ -104,7 +105,7 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
 					account_type="spar",
 					balance=0.0,
 					status="aktiv",
-					iban=f"DE00{user.contract_number.replace('-', '')}02",
+					iban=generate_ch_iban("09000", f"{user.user_id:010d}02"),
 					user_id=user.user_id,
 				)
 			)

@@ -102,7 +102,8 @@ def _build_transaction_form(user_id: int) -> None:
 		type_select.classes("w-full mb-4")
 
 		# Datum
-		date_picker = ui.date(value=date.today().isoformat(), label="Datum").props("outlined")
+		ui.label("Datum").classes("text-sm text-gray-600")
+		date_picker = ui.date(value=date.today().isoformat()).props("outlined")
 		date_picker.classes("w-full mb-4")
 
 		# Kategorie
@@ -267,6 +268,10 @@ def _refresh_transaction_list(
 	Lädt Transaktionsliste neu und aktualisiert die Tabelle.
 	"""
 	from nicegui import ui
+
+	from src.data_access.repositories.category_repository import CategoryRepository
+	from src.data_access.db import engine
+	from sqlmodel import Session
 
 	start_date = date.fromisoformat(start_date_picker.value)
 	end_date = date.fromisoformat(end_date_picker.value)

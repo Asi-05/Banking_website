@@ -58,7 +58,7 @@ def show() -> None:
 def _build_account_list(user_id: int) -> None:
 	"""
 	Zeigt Übersicht aller Konten des Users.
-	Pro Zeile: IBAN, Typ, Saldo, Status + Schliessen-Button.
+	Pro Zeile: IBAN, Typ, Saldo, Status + Schliessen-Button (FR-ACC-02: nur bei Saldo 0).
 	"""
 	from nicegui import ui
 
@@ -71,7 +71,6 @@ def _build_account_list(user_id: int) -> None:
 			ui.notify(result, type="negative")
 			return
 
-		# Tabelle
 		accounts_table = ui.table(columns=[
 			{"name": "iban", "label": "IBAN", "field": "iban", "align": "left"},
 			{"name": "account_type", "label": "Typ", "field": "account_type", "align": "left"},
@@ -81,19 +80,51 @@ def _build_account_list(user_id: int) -> None:
 		], rows=[]).props("dense")
 		accounts_table.classes("w-full")
 
-		# Konten in Tabellenformat
-		rows = []
-		for account in result:
-			rows.append({
-				"account_id": account.account_id if hasattr(account, "account_id") else account.get("account_id"),
-				"iban": account.iban if hasattr(account, "iban") else account.get("iban"),
-				"account_type": account.account_type if hasattr(account, "account_type") else account.get("account_type"),
-				"balance": f"{(account.balance if hasattr(account, 'balance') else account.get('balance')):,.2f}",
-				"status": account.status if hasattr(account, "status") else account.get("status"),
-				"actions": "Schliessen" if (account.status if hasattr(account, "status") else account.get("status")) == "aktiv" else "Geschlossen",
-			})
+		# Button-Slot: Schliessen nur aktiv wenn status=aktiv (Saldo-Prüfung im Service)
+		accounts_table.add_slot("body-cell-actions", """
+			<q-td :props="props">
+				<q-btn
+					v-if="props.row.status === 'aktiv'"
+					label="Schliessen"
+					color="negative"
+					size="sm"
+					flat
+					@click="$parent.$emit('close_account', props.row)"
+				/>
+				<span v-else class="text-grey-6">Geschlossen</span>
+			</q-td>
+		""")
 
-		accounts_table.rows = rows
+		def handle_close(e) -> None:
+			account_id = e.args.get("account_id")
+			error = account_controller.close_account(account_id)
+			if error:
+				ui.notify(error, type="negative")
+			else:
+				ui.notify("Konto erfolgreich geschlossen", type="positive")
+				# Tabelle neu laden
+				_reload_account_rows(accounts_table, user_id)
+
+		accounts_table.on("close_account", handle_close)
+
+		_reload_account_rows(accounts_table, user_id)
+
+
+def _reload_account_rows(accounts_table, user_id: int) -> None:
+	result = account_controller.list_accounts(user_id)
+	if isinstance(result, str):
+		return
+	rows = []
+	for account in result:
+		balance_val = account.balance if hasattr(account, "balance") else account.get("balance")
+		rows.append({
+			"account_id": account.account_id if hasattr(account, "account_id") else account.get("account_id"),
+			"iban": account.iban if hasattr(account, "iban") else account.get("iban"),
+			"account_type": account.account_type if hasattr(account, "account_type") else account.get("account_type"),
+			"balance": f"{balance_val:,.2f}",
+			"status": account.status if hasattr(account, "status") else account.get("status"),
+		})
+	accounts_table.rows = rows
 
 
 def _build_open_account_form(user_id: int) -> None:

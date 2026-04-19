@@ -53,7 +53,11 @@ class TransactionRepository:
 		if category_id is not None:
 			statement = statement.where(Transaction.category_id == category_id)
 		if user_id is not None:
-			from src.domain.models import Account, CreditCard
+			from sqlalchemy.orm import aliased
+			from src.domain.models import Account, CreditCard, DebitCard
+
+			# Alias fuer Account-Join via DebitCard (zweiter Join auf gleiche Tabelle)
+			AccountViaCard = aliased(Account)
 
 			statement = statement.join(
 				Account,
@@ -63,9 +67,18 @@ class TransactionRepository:
 				CreditCard,
 				isouter=True,
 				onclause=CreditCard.creditcard_id == Transaction.creditcard_id,
+			).join(
+				DebitCard,
+				isouter=True,
+				onclause=DebitCard.card_id == Transaction.card_id,
+			).join(
+				AccountViaCard,
+				isouter=True,
+				onclause=AccountViaCard.account_id == DebitCard.account_id,
 			).where(
 				(Account.user_id == user_id)
 				| (CreditCard.user_id == user_id)
+				| (AccountViaCard.user_id == user_id)
 			)
 
 		statement = statement.order_by(Transaction.date.desc(), Transaction.transaction_id.desc())
@@ -89,18 +102,29 @@ class TransactionRepository:
 		if category_id is not None:
 			statement = statement.where(Transaction.category_id == category_id)
 
+		from sqlalchemy.orm import aliased
+		AccountViaCard = aliased(Account)
+
 		statement = statement.join(
 			Account,
 			isouter=True,
 			onclause=Account.account_id == Transaction.account_id,
 		).join(
+			CreditCard,
+			isouter=True,
+			onclause=CreditCard.creditcard_id == Transaction.creditcard_id,
+		).join(
 			DebitCard,
 			isouter=True,
 			onclause=DebitCard.card_id == Transaction.card_id,
 		).join(
-			CreditCard,
+			AccountViaCard,
 			isouter=True,
-			onclause=CreditCard.creditcard_id == Transaction.creditcard_id,
-		).where((Account.user_id == user_id) | (CreditCard.user_id == user_id))
+			onclause=AccountViaCard.account_id == DebitCard.account_id,
+		).where(
+			(Account.user_id == user_id)
+			| (CreditCard.user_id == user_id)
+			| (AccountViaCard.user_id == user_id)
+		)
 
 		return list(session.exec(statement).all())

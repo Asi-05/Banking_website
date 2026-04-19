@@ -48,9 +48,9 @@ class BudgetService:
 				)
 				return BudgetRepository.create(session, budget)
 
-			raise ValueError(
-				"Budget existiert bereits fuer diesen User, Monat, Jahr und Kategorie"
-			)
+			# Budget aktualisieren falls bereits vorhanden (Upsert)
+			existing.limit_amount = limit_amount
+			return BudgetRepository.save(session, existing)
 
 	# Prueft den aktuellen Budgetstatus fuer einen Scope.
 	def check_budget_status(
@@ -92,6 +92,12 @@ class BudgetService:
 				"year": year,
 				"category_id": category_id,
 			}
+
+
+	# Gibt alle Budgets eines Users zurueck.
+	def list_budgets(self, user_id: int) -> list[Budget]:
+		with Session(engine) as session:
+			return BudgetRepository.list_by_user(session, user_id)
 
 
 budget_service = BudgetService()

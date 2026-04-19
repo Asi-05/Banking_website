@@ -164,7 +164,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				amount_input = ui.number(label="Betrag (€)", min=0.01, step=0.01).props("outlined")
 				amount_input.classes("w-full")
 
-				category_select = ui.select(categories=category_options, label="Kategorie").props("outlined")
+				category_select = ui.select(options=category_options, label="Kategorie").props("outlined")
 				category_select.classes("w-full")
 
 				account_select = ui.select(account_options, label="Konto").props("outlined")
@@ -179,7 +179,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				).props("outlined")
 				interval_select.classes("w-full")
 
-				start_date_picker = ui.date(value=date.today().isoformat(), label="Startdatum").props("outlined")
+				ui.label("Startdatum").classes("text-sm text-gray-600")
+				start_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
 				start_date_picker.classes("w-full")
 
 				error_label = ui.label("").classes("text-red-600")

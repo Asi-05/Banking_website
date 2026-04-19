@@ -122,36 +122,39 @@ def _build_transaction_form(user_id: int) -> None:
 		)
 		source_radio.classes("mb-4")
 
+		_source_options = {
+			"account": account_options,
+			"card": debit_card_options,
+			"creditcard": credit_card_options,
+		}
+		_source_labels = {
+			"account": "Konto auswählen",
+			"card": "Debitkarte auswählen",
+			"creditcard": "Kreditkarte auswählen",
+		}
+
+		_active = {"widget": None}
+
+		# Stabiler Container – wird bei Wechsel geleert und neu befüllt
+		source_container = ui.column().classes("w-full")
+
+		def render_source_select(value: str) -> None:
+			source_container.clear()
+			with source_container:
+				opts = _source_options.get(value, {})
+				lbl = _source_labels.get(value, "")
+				if opts:
+					w = ui.select(options=opts, label=lbl).props("outlined").classes("w-full mb-4")
+					_active["widget"] = w
+				else:
+					_active["widget"] = None
+
+		render_source_select("account")
+
 		def on_source_change(value: str) -> None:
-			"""Aktualisiert sichtbarkeit der Dropdowns basierend auf Quelle."""
-			account_select.set_visibility(value == "account")
-			card_select.set_visibility(value == "card")
-			creditcard_select.set_visibility(value == "creditcard")
+			render_source_select(value)
 
 		source_radio.on_value_change(on_source_change)
-
-		# Konto-Dropdown (sichtbar bei source="account")
-		account_select = ui.select(
-			options=account_options,
-			label="Konto auswählen",
-		).props("outlined")
-		account_select.classes("w-full mb-4")
-
-		# Debitkarte-Dropdown (verborgen initial)
-		card_select = ui.select(
-			options=debit_card_options,
-			label="Debitkarte auswählen",
-		).props("outlined")
-		card_select.classes("w-full mb-4")
-		card_select.set_visibility(False)
-
-		# Kreditkarte-Dropdown (verborgen initial)
-		creditcard_select = ui.select(
-			options=credit_card_options,
-			label="Kreditkarte auswählen",
-		).props("outlined")
-		creditcard_select.classes("w-full mb-4")
-		creditcard_select.set_visibility(False)
 
 		# Notiz
 		note_input = ui.textarea(label="Notiz (optional)").props("outlined")
@@ -177,12 +180,13 @@ def _build_transaction_form(user_id: int) -> None:
 				"creditcard_id": None,
 			}
 
+			w = _active["widget"]
 			if source_type == "account":
-				payload["account_id"] = account_select.value
+				payload["account_id"] = w.value if w else None
 			elif source_type == "card":
-				payload["card_id"] = card_select.value
+				payload["card_id"] = w.value if w else None
 			elif source_type == "creditcard":
-				payload["creditcard_id"] = creditcard_select.value
+				payload["creditcard_id"] = w.value if w else None
 
 			# Controller aufrufen
 			error = transaction_controller.create_transaction(payload)
@@ -197,6 +201,8 @@ def _build_transaction_form(user_id: int) -> None:
 				type_select.value = None
 				date_picker.value = date.today().isoformat()
 				category_select.value = None
+				if _active["widget"]:
+					_active["widget"].value = None
 				note_input.value = ""
 				error_label.set_text("")
 

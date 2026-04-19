@@ -230,7 +230,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 
 ### Use Case Diagramm
 
-<img width="1000" height="936" alt="Bildschirmfoto 2026-04-09 um 23 54 29" src="https://github.com/user-attachments/assets/0afa94cf-0bd9-4aad-a06b-31e196b26aaf" />
+<img width="818" height="936" alt="Bildschirmfoto 2026-04-09 um 23 54 29" src="https://github.com/user-attachments/assets/0afa94cf-0bd9-4aad-a06b-31e196b26aaf" />
 
 
 ## Data Input & Output
@@ -302,7 +302,7 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 ### Software Architecture
 ## UML Klassendiagramm / ER Diagramm
 
-<img width="2787" height="1875" alt="Klassendiagramm (6)" src="https://github.com/user-attachments/assets/e7f266f4-ba1b-4600-9c12-231c3b93affd" />
+<img width="3000" height="1875" alt="Klassendiagramm (6)" src="https://github.com/user-attachments/assets/e7f266f4-ba1b-4600-9c12-231c3b93affd" />
 
 
 

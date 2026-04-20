@@ -4,7 +4,7 @@ Implementiert US4: Dashboard mit Gesamtbilanz, Summen und Diagrammen
 Route: /dashboard
 """
 
-from datetime import date, timedelta
+from datetime import date
 
 from src.ui.app_state import app_state
 
@@ -30,7 +30,11 @@ def show() -> None:
 
 	# ===== TOP-RIGHT: USERNAME + LOGOUT =====
 	with ui.header():
-		ui.button(icon="logout", on_click=lambda: _logout()).props("flat")
+		with ui.row().classes("w-full justify-end"):
+			ui.button("Logout", icon="logout", on_click=lambda: _logout()) \
+				.props("unelevated no-caps") \
+				.classes("bg-white font-semibold px-4 py-2 rounded") \
+				.style("color: #1d4ed8 !important;")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -38,36 +42,43 @@ def show() -> None:
 		# Titel
 		ui.label("Dashboard").classes("text-h4 font-bold")
 
-		# Datumsbereich-Filter
-		with ui.row().classes("gap-4"):
-			today = date.today()
-			first_day_of_month = date(today.year, today.month, 1)
-			default_end = today
+		# Bereich für Kennzahlen (oberhalb des Kalenders)
+		summary_container = ui.column().classes("w-full gap-6")
 
-			start_date_picker = ui.date(value=first_day_of_month.isoformat()).props("outlined")
-			start_date_picker.label = "Von"
+		# Datumsbereich-Filter (zwischen Kennzahlen und Histogramm)
+		with ui.card().classes("w-full"):
+			with ui.row().classes("gap-4 items-start"):
+				today = date.today()
+				first_day_of_month = date(today.year, today.month, 1)
+				default_end = today
 
-			end_date_picker = ui.date(value=default_end.isoformat()).props("outlined")
-			end_date_picker.label = "Bis"
+				start_date_picker = ui.date(value=first_day_of_month.isoformat()).props("outlined")
+				start_date_picker.label = "Von"
 
-			ui.button("Filter anwenden", on_click=lambda: _refresh_dashboard(
-				user_id,
-				start_date_picker,
-				end_date_picker,
-			)).props("unelevated color=primary")
+				end_date_picker = ui.date(value=default_end.isoformat()).props("outlined")
+				end_date_picker.label = "Bis"
 
-		# Placeholder für Dashboard-Daten
-		dashboard_container = ui.column().classes("w-full gap-6")
+				ui.button("Filter anwenden", on_click=lambda: _refresh_dashboard(
+					user_id,
+					start_date_picker,
+					end_date_picker,
+					summary_container,
+					chart_container,
+				)).props("unelevated color=primary")
+
+		# Bereich für Histogramm (unterhalb des Kalenders)
+		chart_container = ui.column().classes("w-full gap-6")
 
 		# Initiales Laden
-		_refresh_dashboard(user_id, start_date_picker, end_date_picker, dashboard_container)
+		_refresh_dashboard(user_id, start_date_picker, end_date_picker, summary_container, chart_container)
 
 
 def _refresh_dashboard(
 	user_id: int,
 	start_date_picker,
 	end_date_picker,
-	dashboard_container=None,
+	summary_container=None,
+	chart_container=None,
 ) -> None:
 	"""
 	Lädt Dashboard-Daten vom Service und aktualisiert die Anzeige.
@@ -85,16 +96,14 @@ def _refresh_dashboard(
 		# Dashboard-Daten laden
 		summary = dashboard_service.dashboard(user_id, start_date, end_date)
 
-		if dashboard_container is None:
-			# Falls kein Container übergeben (Refresh-Fall), Container finden
-			dashboard_container = ui.find_by_name("dashboard_container")[0] if hasattr(ui, "find_by_name") else None
-			if dashboard_container is None:
-				return
+		if summary_container is None or chart_container is None:
+			return
 
 		# Container leeren
-		dashboard_container.clear()
+		summary_container.clear()
+		chart_container.clear()
 
-		with dashboard_container:
+		with summary_container:
 			# === BILANZ-KARTEN ===
 			with ui.row().classes("gap-4 w-full"):
 
@@ -113,6 +122,7 @@ def _refresh_dashboard(
 					ui.label("Ausgaben").classes("text-subtitle2 font-semibold")
 					ui.label(f"CHF {summary.total_expenses:,.2f}").classes("text-h5 text-red-600 font-bold")
 
+		with chart_container:
 			# === DIAGRAMM ===
 			if summary.chart_data:
 				ui.label("Einnahmen & Ausgaben pro Monat").classes("text-subtitle2 font-semibold mt-6")
@@ -129,18 +139,21 @@ def _refresh_dashboard(
 					"series": [
 						{
 							"name": "Einnahmen",
-							"data": [d.income for d in summary.chart_data],
+							"data": [round(d.income, 2) for d in summary.chart_data],
 							"type": "bar",
 							"itemStyle": {"color": "#10b981"},
 						},
 						{
 							"name": "Ausgaben",
-							"data": [d.expenses for d in summary.chart_data],
+							"data": [round(d.expenses, 2) for d in summary.chart_data],
 							"type": "bar",
 							"itemStyle": {"color": "#ef4444"},
 						},
 					],
-					"tooltip": {"trigger": "axis"},
+					"tooltip": {
+						"trigger": "axis",
+						"valueFormatter": "function (value) { return Number(value).toFixed(2); }",
+					},
 				}
 
 				ui.echart(options=chart_option).classes("w-full h-96")

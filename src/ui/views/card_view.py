@@ -76,7 +76,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 					(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
 					(a.iban if hasattr(a, "iban") else a.get("iban"))
 					for a in result
-					if (a.account_type if hasattr(a, "account_type") else a.get("account_type")) == "private"
+					if (a.account_type if hasattr(a, "account_type") else a.get("account_type")) == "privat"
 				}
 
 			account_select = ui.select(

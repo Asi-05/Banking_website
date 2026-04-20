@@ -1,7 +1,8 @@
 import pytest
 from datetime import date
 from sqlmodel import Session, create_engine, SQLModel, select
-from src.domain.models import User, Account, Budget, Transaction
+from src.domain.models import User, Account, Budget, DebitCard, Transaction
+from src.data_access.seed import seed_accounts_for_users, seed_debit_cards_for_users, seed_users
 from sqlalchemy.exc import IntegrityError
 
 # Setup: Wir nutzen eine SQLite Datenbank im Arbeitsspeicher für die Tests
@@ -51,3 +52,26 @@ def test_transaction_sources(session: Session):
     
     assert t1.account_id is not None
     assert t1.card_id is None
+
+
+def test_seed_assigns_active_debit_card_to_each_predefined_user(session: Session):
+    users = seed_users(session)
+    seed_accounts_for_users(session, users)
+    seed_debit_cards_for_users(session, users)
+
+    for user in users:
+        private_account = session.exec(
+            select(Account).where(
+                Account.user_id == user.user_id,
+                Account.account_type == "privat",
+            )
+        ).one()
+
+        active_cards = session.exec(
+            select(DebitCard).where(
+                DebitCard.account_id == private_account.account_id,
+                DebitCard.status == "aktiv",
+            )
+        ).all()
+
+        assert len(active_cards) == 1

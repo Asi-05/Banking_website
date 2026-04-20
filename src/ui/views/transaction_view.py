@@ -40,6 +40,7 @@ def show() -> None:
 		with ui.tabs() as tabs:
 			tab_create = ui.tab("Neue Transaktion")
 			tab_list = ui.tab("Transaktionsliste")
+			tab_statement = ui.tab("Kontoauszug")
 
 		with ui.tab_panels(tabs):
 
@@ -51,16 +52,18 @@ def show() -> None:
 			with ui.tab_panel(tab_list):
 				_build_transaction_list(user_id)
 
+			# ===== TAB 3: KONTOAUSZUG =====
+			with ui.tab_panel(tab_statement):
+				_build_statement_section(user_id)
+
 
 def _build_transaction_form(user_id: int) -> None:
 	"""
 	Baut das Erfassungsformular für neue Transaktionen.
-	Enthält Exactly-One-Regel für Belastungsquelle (Radio-Button).
 	"""
 	from nicegui import ui
 
 	from src.services.account_service import account_service
-	from src.services.card_service import card_service
 	from src.data_access.repositories.category_repository import CategoryRepository
 	from src.data_access.db import engine
 	from sqlmodel import Session
@@ -77,29 +80,13 @@ def _build_transaction_form(user_id: int) -> None:
 		accounts = []
 	account_options = {a.account_id: f"{a.iban} ({a.account_type})" for a in accounts} if isinstance(accounts, list) else {}
 
-	# Debitkarten laden
-	from src.data_access.repositories.card_repository import CardRepository
-	with Session(engine) as session:
-		debit_cards = CardRepository.list_debit_by_user(session, user_id) if hasattr(CardRepository, 'list_debit_by_user') else []
-	debit_card_options = {c.card_id: f"**** {c.card_number[-4:]}" for c in debit_cards} if debit_cards else {}
-
-	# Kreditkarten laden
-	with Session(engine) as session:
-		credit_cards = CardRepository.list_credit_by_user(session, user_id)
-	credit_card_options = {c.creditcard_id: f"**** {c.card_number[-4:]}" for c in credit_cards} if credit_cards else {}
-
 	with ui.card().classes("w-full max-w-md"):
 
 		# Betrag
 		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 		amount_input.classes("w-full mb-4")
 
-		# Typ: Income / Expense
-		type_select = ui.select(
-			options={"income": "Einnahme", "expense": "Ausgabe"},
-			label="Typ",
-		).props("outlined")
-		type_select.classes("w-full mb-4")
+		ui.label("Typ: Ausgabe").classes("w-full mb-4 text-gray-700")
 
 		# Datum
 		ui.label("Datum").classes("text-sm text-gray-600")
@@ -113,48 +100,10 @@ def _build_transaction_form(user_id: int) -> None:
 		).props("outlined")
 		category_select.classes("w-full mb-4")
 
-		# === EXACTLY-ONE-REGEL: Radio-Buttons für Belastungsquelle ===
-		ui.label("Belastungsquelle").classes("font-semibold mb-2")
-
-		source_radio = ui.radio(
-			options={"account": "Konto", "card": "Debitkarte", "creditcard": "Kreditkarte"},
-			value="account",
-		)
-		source_radio.classes("mb-4")
-
-		_source_options = {
-			"account": account_options,
-			"card": debit_card_options,
-			"creditcard": credit_card_options,
-		}
-		_source_labels = {
-			"account": "Konto auswählen",
-			"card": "Debitkarte auswählen",
-			"creditcard": "Kreditkarte auswählen",
-		}
-
-		_active = {"widget": None}
-
-		# Stabiler Container – wird bei Wechsel geleert und neu befüllt
-		source_container = ui.column().classes("w-full")
-
-		def render_source_select(value: str) -> None:
-			source_container.clear()
-			with source_container:
-				opts = _source_options.get(value, {})
-				lbl = _source_labels.get(value, "")
-				if opts:
-					w = ui.select(options=opts, label=lbl).props("outlined").classes("w-full mb-4")
-					_active["widget"] = w
-				else:
-					_active["widget"] = None
-
-		render_source_select("account")
-
-		def on_source_change(value: str) -> None:
-			render_source_select(value)
-
-		source_radio.on_value_change(on_source_change)
+		ui.label("Belastetes Konto").classes("font-semibold mb-2")
+		account_select = ui.select(
+			options=account_options, label="Konto auswählen"
+		).props("outlined").classes("w-full mb-4")
 
 		# Notiz
 		note_input = ui.textarea(label="Notiz (optional)").props("outlined")
@@ -167,26 +116,16 @@ def _build_transaction_form(user_id: int) -> None:
 		async def handle_create_transaction() -> None:
 			"""Verarbeitet das Speichern einer neuen Transaktion."""
 
-			# Quelle bestimmen
-			source_type = source_radio.value
 			payload = {
 				"amount": amount_input.value or 0,
-				"type": type_select.value,
+				"type": "expense",
 				"date": date_picker.value,
 				"category_id": category_select.value,
 				"note": note_input.value,
-				"account_id": None,
+				"account_id": account_select.value,
 				"card_id": None,
 				"creditcard_id": None,
 			}
-
-			w = _active["widget"]
-			if source_type == "account":
-				payload["account_id"] = w.value if w else None
-			elif source_type == "card":
-				payload["card_id"] = w.value if w else None
-			elif source_type == "creditcard":
-				payload["creditcard_id"] = w.value if w else None
 
 			# Controller aufrufen
 			error = transaction_controller.create_transaction(payload)
@@ -198,11 +137,9 @@ def _build_transaction_form(user_id: int) -> None:
 				ui.notify("Transaktion gespeichert", type="positive")
 				# Formular zurücksetzen
 				amount_input.value = 0
-				type_select.value = None
 				date_picker.value = date.today().isoformat()
 				category_select.value = None
-				if _active["widget"]:
-					_active["widget"].value = None
+				account_select.value = None
 				note_input.value = ""
 				error_label.set_text("")
 
@@ -405,3 +342,66 @@ def _logout() -> None:
 	app_state["user_id"] = None
 	ui.navigate.to("/")
 	ui.notify("Erfolgreich abgemeldet", type="positive")
+
+
+def _build_statement_section(user_id: int) -> None:
+	"""
+	Kontoauszug-Generator (US12).
+	Konto-Auswahl, Zeitraum, PDF-Download.
+	"""
+	from nicegui import ui
+
+	from src.ui.controllers.account_controller import account_controller
+	from src.ui.controllers.payment_controller import payment_controller
+
+	# Konten laden
+	result = account_controller.list_accounts(user_id)
+	if isinstance(result, str):
+		ui.notify(result, type="negative")
+		account_options = {}
+	else:
+		account_options = {
+			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
+			(a.iban if hasattr(a, "iban") else a.get("iban"))
+			for a in result
+		}
+
+	with ui.card().classes("w-full max-w-md"):
+
+		# Konto-Auswahl
+		account_select = ui.select(
+			options=account_options,
+			label="Konto auswählen",
+		).props("outlined")
+		account_select.classes("w-full mb-4")
+
+		# Zeitraum
+		start_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+		start_date_picker.label = "Von"
+		start_date_picker.classes("w-full mb-4")
+
+		end_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+		end_date_picker.label = "Bis"
+		end_date_picker.classes("w-full mb-4")
+
+		error_label = ui.label("").classes("text-red-600 mb-4")
+
+		async def handle_generate_statement() -> None:
+			"""Generiert einen Kontoauszug als PDF und bietet Download an."""
+			start_date = date.fromisoformat(start_date_picker.value)
+			end_date = date.fromisoformat(end_date_picker.value)
+
+			result = payment_controller.generate_statement(
+				account_select.value,
+				start_date,
+				end_date,
+			)
+
+			if isinstance(result, str) and result.endswith(".pdf"):
+				ui.download(result, filename=f"kontoauszug_{start_date}_{end_date}.pdf")
+				ui.notify("Kontoauszug erfolgreich generiert", type="positive")
+			else:
+				error_label.set_text(result)
+				ui.notify(result, type="negative")
+
+		ui.button("Kontoauszug generieren", on_click=handle_generate_statement).classes("w-full")

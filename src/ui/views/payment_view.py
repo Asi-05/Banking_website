@@ -41,7 +41,6 @@ def show() -> None:
 		with ui.tabs() as tabs:
 			tab_domestic = ui.tab("Inlandszahlung")
 			tab_recurring = ui.tab("Daueraufträge")
-			tab_statement = ui.tab("Kontoauszug")
 
 		with ui.tab_panels(tabs):
 
@@ -52,10 +51,6 @@ def show() -> None:
 			# ===== TAB 2: DAUERAUFTRÄGE =====
 			with ui.tab_panel(tab_recurring):
 				_build_recurring_payments_section(user_id)
-
-			# ===== TAB 3: KONTOAUSZUG =====
-			with ui.tab_panel(tab_statement):
-				_build_statement_section(user_id)
 
 
 def _build_domestic_payment_form(user_id: int) -> None:
@@ -279,68 +274,6 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 			except Exception as e:
 				ui.notify(f"Fehler beim Laden der Daueraufträge: {str(e)}", type="negative")
-
-
-def _build_statement_section(user_id: int) -> None:
-	"""
-	Kontoauszug-Generator (US12).
-	Konto-Auswahl, Zeitraum, PDF-Download.
-	"""
-	from nicegui import ui
-
-	from src.ui.controllers.account_controller import account_controller
-
-	# Konten laden
-	result = account_controller.list_accounts(user_id)
-	if isinstance(result, str):
-		ui.notify(result, type="negative")
-		account_options = {}
-	else:
-		account_options = {
-			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
-			(a.iban if hasattr(a, "iban") else a.get("iban"))
-			for a in result
-		}
-
-	with ui.card().classes("w-full max-w-md"):
-
-		# Konto-Auswahl
-		account_select = ui.select(
-			options=account_options,
-			label="Konto auswählen",
-		).props("outlined")
-		account_select.classes("w-full mb-4")
-
-		# Zeitraum
-		start_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
-		start_date_picker.label = "Von"
-		start_date_picker.classes("w-full mb-4")
-
-		end_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
-		end_date_picker.label = "Bis"
-		end_date_picker.classes("w-full mb-4")
-
-		error_label = ui.label("").classes("text-red-600 mb-4")
-
-		async def handle_generate_statement() -> None:
-			"""Generiert einen Kontoauszug als PDF und bietet Download an."""
-			start_date = date.fromisoformat(start_date_picker.value)
-			end_date = date.fromisoformat(end_date_picker.value)
-
-			result = payment_controller.generate_statement(
-				account_select.value,
-				start_date,
-				end_date,
-			)
-
-			if isinstance(result, str) and result.endswith(".pdf"):
-				ui.download(result, filename=f"kontoauszug_{start_date}_{end_date}.pdf")
-				ui.notify("Kontoauszug erfolgreich generiert", type="positive")
-			else:
-				error_label.set_text(result)
-				ui.notify(result, type="negative")
-
-		ui.button("Kontoauszug generieren", on_click=handle_generate_statement).classes("w-full")
 
 
 def _build_sidebar() -> None:

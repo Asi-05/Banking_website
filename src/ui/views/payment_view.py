@@ -13,7 +13,7 @@ from src.ui.app_state import app_state
 
 def show() -> None:
 	"""
-	Zeigt Zahlungen, Daueraufträge und Kontoauszüge.
+	Zeigt Zahlungen, Daueraufträge 
 	"""
 	from nicegui import ui
 
@@ -195,6 +195,10 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				start_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
 				start_date_picker.classes("w-full")
 
+				ui.label("Enddatum (optional)").classes("text-sm text-gray-600")
+				end_date_picker = ui.date().props("outlined")
+				end_date_picker.classes("w-full")
+
 				error_label = ui.label("").classes("text-red-600")
 
 				async def handle_create_recurring() -> None:
@@ -207,6 +211,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						"target_iban": iban_input.value,
 						"interval": interval_select.value,
 						"start_date": start_date_picker.value,
+						"end_date": end_date_picker.value or None,
 					}
 
 					error = recurring_controller.create_recurring(payload)
@@ -216,6 +221,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						ui.notify(error, type="negative")
 					else:
 						ui.notify("Dauerauftrag erfolgreich erstellt", type="positive")
+						ui.navigate.to("/payments")
 
 				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring)
 
@@ -241,27 +247,21 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				recurring_table.classes("w-full")
 
 				# Daten mit berechneter nächster Ausführung
-				from datetime import timedelta
 				rows = []
 				for rec in recurring:
 					amount_val = rec.amount if hasattr(rec, 'amount') else rec.get('amount')
 					interval_val = rec.interval if hasattr(rec, 'interval') else rec.get('interval')
 					last_executed = rec.last_executed if hasattr(rec, 'last_executed') else rec.get('last_executed')
 					
-					# Nächste Ausführung berechnen
 					if isinstance(last_executed, str):
-						from datetime import datetime
-						last_executed = datetime.fromisoformat(last_executed).date()
+						last_executed = date.fromisoformat(last_executed)
 					
-					if interval_val == "monthly":
-						# Berechne nächsten Monat
-						next_exec = last_executed.replace(day=1) + timedelta(days=32)
-						next_exec = next_exec.replace(day=1)
-					elif interval_val == "yearly":
-						# Berechne nächstes Jahr
-						next_exec = last_executed.replace(year=last_executed.year + 1)
-					else:
-						next_exec = last_executed
+					# 1. Backend-Logik für korrekte Monatsenden/Schaltjahre nutzen
+					next_exec = recurring_service._next_due_date(last_executed, interval_val)
+
+					# 2. UI-Korrektur für frisch erstellte Daueraufträge (Anzeige in die Zukunft schieben)
+					if next_exec <= date.today():
+						next_exec = recurring_service._next_due_date(next_exec, interval_val)
 
 					rows.append({
 						"amount": f"{amount_val:,.2f}",

@@ -63,7 +63,10 @@ class RecurringService:
 				category_id=category_id,
 				transaction_id=template_transaction.transaction_id,
 			)
-			return RecurringRepository.create(session, recurring)
+			session.add(recurring)
+			session.commit()
+			session.refresh(recurring)
+			return recurring
 
 	# Verarbeitet alle faelligen Dauerauftraege eines Users beim Login.
 	def process_due_recurring_on_login(self, user_id: int, login_date: date) -> int:

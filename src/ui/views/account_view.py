@@ -38,7 +38,7 @@ def show() -> None:
 		with ui.tabs() as tabs:
 			tab_overview = ui.tab("Konten-Übersicht")
 			tab_open = ui.tab("Konto eröffnen")
-			tab_transfer = ui.tab("Umbuchung")
+			tab_transfer = ui.tab("Übertrag")
 
 		with ui.tab_panels(tabs):
 
@@ -50,7 +50,7 @@ def show() -> None:
 			with ui.tab_panel(tab_open):
 				_build_open_account_form(user_id)
 
-			# ===== TAB 3: UMBUCHUNG =====
+			# ===== TAB 3: ÜBERTRAG =====
 			with ui.tab_panel(tab_transfer):
 				_build_transfer_form(user_id)
 
@@ -166,7 +166,7 @@ def _build_open_account_form(user_id: int) -> None:
 
 def _build_transfer_form(user_id: int) -> None:
 	"""
-	Formular für Umbuchung zwischen eigenen Konten.
+	Formular für Übertrag zwischen eigenen Konten.
 	"""
 	from nicegui import ui
 
@@ -207,7 +207,7 @@ def _build_transfer_form(user_id: int) -> None:
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
 		async def handle_transfer() -> None:
-			"""Führt Umbuchung aus."""
+			"""Führt Übertrag aus."""
 			payload = {
 				"from_account_id": from_account_select.value,
 				"to_account_id": to_account_select.value,
@@ -220,7 +220,7 @@ def _build_transfer_form(user_id: int) -> None:
 				error_label.set_text(error)
 				ui.notify(error, type="negative")
 			else:
-				ui.notify("Umbuchung erfolgreich", type="positive")
+				ui.notify("Übertrag erfolgreich", type="positive")
 				amount_input.value = 0
 
 		ui.button("Umbuchen", on_click=handle_transfer).classes("w-full")

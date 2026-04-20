@@ -61,11 +61,14 @@ def show() -> None:
 def _build_domestic_payment_form(user_id: int) -> None:
 	"""
 	Formular für Inlandszahlung (US10).
-	Eingabe: Ziel-IBAN, Betrag, Von-Konto, Zweck.
+	Eingabe: Ziel-IBAN, Betrag, Von-Konto, Zweck, Kategorie.
 	"""
 	from nicegui import ui
 
 	from src.ui.controllers.account_controller import account_controller
+	from src.data_access.repositories.category_repository import CategoryRepository
+	from src.data_access.db import engine
+	from sqlmodel import Session
 
 	# Konten laden
 	result = account_controller.list_accounts(user_id)
@@ -74,10 +77,15 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		account_options = {}
 	else:
 		account_options = {
-			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
+			(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
 			(a.iban if hasattr(a, "iban") else a.get("iban"))
 			for a in result
 		}
+
+	# Kategorien laden
+	with Session(engine) as session:
+		categories = CategoryRepository.list_all(session)
+	category_options = {c.category_id: c.name for c in categories}
 
 	with ui.card().classes("w-full max-w-md"):
 
@@ -86,7 +94,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		iban_input.classes("w-full mb-4")
 
 		# Betrag
-		amount_input = ui.number(label="Betrag (€)", min=0.01, step=0.01).props("outlined")
+		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 		amount_input.classes("w-full mb-4")
 
 		# Von-Konto
@@ -96,6 +104,13 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		).props("outlined")
 		from_account_select.classes("w-full mb-4")
 
+		# Kategorie
+		category_select = ui.select(
+			options=category_options,
+			label="Kategorie",
+		).props("outlined")
+		category_select.classes("w-full mb-4")
+
 		# Zweck
 		purpose_input = ui.textarea(label="Verwendungszweck").props("outlined")
 		purpose_input.classes("w-full mb-4")
@@ -103,11 +118,12 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
 		async def handle_create_payment() -> None:
-			"""Füh rt die Zahlung aus."""
+			"""Führt die Zahlung aus."""
 			payload = {
 				"target_iban": iban_input.value,
 				"amount": amount_input.value or 0,
 				"from_account_id": from_account_select.value,
+				"category_id": category_select.value,
 				"purpose": purpose_input.value,
 			}
 
@@ -120,6 +136,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 				ui.notify("Zahlung erfolgreich ausgeführt", type="positive")
 				iban_input.value = ""
 				amount_input.value = 0
+				category_select.value = None
 				purpose_input.value = ""
 
 		ui.button("Zahlung ausführen", on_click=handle_create_payment).classes("w-full")
@@ -161,7 +178,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 			with ui.column().classes("w-full gap-4"):
 
-				amount_input = ui.number(label="Betrag (€)", min=0.01, step=0.01).props("outlined")
+				amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 				amount_input.classes("w-full")
 
 				category_select = ui.select(options=category_options, label="Kategorie").props("outlined")
@@ -221,7 +238,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 				# Tabelle
 				recurring_table = ui.table(columns=[
-					{"name": "amount", "label": "Betrag (€)", "field": "amount", "align": "right"},
+					{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
 					{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
 					{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
 					{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
@@ -316,13 +333,12 @@ def _build_statement_section(user_id: int) -> None:
 				end_date,
 			)
 
-			if isinstance(result, str) and result.startswith("fehler"):  # error case
-				error_label.set_text(result)
-				ui.notify(result, type="negative")
-			else:
-				# PDF-File-Pfad zurückgegeben
+			if isinstance(result, str) and result.endswith(".pdf"):
 				ui.download(result, filename=f"kontoauszug_{start_date}_{end_date}.pdf")
 				ui.notify("Kontoauszug erfolgreich generiert", type="positive")
+			else:
+				error_label.set_text(result)
+				ui.notify(result, type="negative")
 
 		ui.button("Kontoauszug generieren", on_click=handle_generate_statement).classes("w-full")
 

@@ -101,17 +101,17 @@ def _refresh_dashboard(
 				# Gesamtbilanz
 				with ui.card().classes("flex-1"):
 					ui.label("Gesamtbilanz").classes("text-subtitle2 font-semibold")
-					ui.label(f"€ {summary.total_balance:,.2f}").classes("text-h5 text-blue-600 font-bold")
+					ui.label(f"CHF {summary.total_balance:,.2f}").classes("text-h5 text-blue-600 font-bold")
 
 				# Einnahmen
 				with ui.card().classes("flex-1"):
 					ui.label("Einnahmen").classes("text-subtitle2 font-semibold")
-					ui.label(f"€ {summary.total_income:,.2f}").classes("text-h5 text-green-600 font-bold")
+					ui.label(f"CHF {summary.total_income:,.2f}").classes("text-h5 text-green-600 font-bold")
 
 				# Ausgaben
 				with ui.card().classes("flex-1"):
 					ui.label("Ausgaben").classes("text-subtitle2 font-semibold")
-					ui.label(f"€ {summary.total_expenses:,.2f}").classes("text-h5 text-red-600 font-bold")
+					ui.label(f"CHF {summary.total_expenses:,.2f}").classes("text-h5 text-red-600 font-bold")
 
 			# === DIAGRAMM ===
 			if summary.chart_data:

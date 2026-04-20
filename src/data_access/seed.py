@@ -2,6 +2,7 @@ from sqlmodel import Session, select
 
 from src.data_access.db import create_db_and_tables, engine
 from src.domain.models import Account, Category, User
+from src.utils.validators import generate_ch_iban
 
 
 # Fixed categories from the technical design (must be seeded on first start)
@@ -19,19 +20,23 @@ CATEGORY_NAMES = [
 ]
 
 
+INITIAL_USER_BALANCE = 5000.0
+INITIAL_SAVINGS_BALANCE = 10000.0
+
+
 # Exactly two predefined test users
 TEST_USERS = [
 	{
 		"first_name": "Hermann",
 		"last_name": "Grieder",
 		"contract_number": "BB-100001",
-		"password_hash": "dummy_hash_1",
+		"password_hash": "Dummy_hash_1",
 	},
 	{
 		"first_name": "Felix",
 		"last_name": "Haerer",
 		"contract_number": "BB-100002",
-		"password_hash": "dummy_hash_2",
+		"password_hash": "Dummy_hash_2",
 	},
 ]
 
@@ -85,9 +90,9 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
 			session.add(
 				Account(
 					account_type="privat",
-					balance=0.0,
+					balance=INITIAL_USER_BALANCE,
 					status="aktiv",
-					iban=f"DE00{user.contract_number.replace('-', '')}01",
+					iban=generate_ch_iban("09000", f"{user.user_id:010d}01"),
 					user_id=user.user_id,
 				)
 			)
@@ -102,9 +107,9 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
 			session.add(
 				Account(
 					account_type="spar",
-					balance=0.0,
+					balance=INITIAL_SAVINGS_BALANCE,
 					status="aktiv",
-					iban=f"DE00{user.contract_number.replace('-', '')}02",
+					iban=generate_ch_iban("09000", f"{user.user_id:010d}02"),
 					user_id=user.user_id,
 				)
 			)

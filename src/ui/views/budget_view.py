@@ -107,7 +107,7 @@ def _build_budget_form(user_id: int) -> None:
 		year_select.classes("w-full mb-4")
 
 		# Limit
-		limit_input = ui.number(label="Limit (€)", min=0.01, step=0.01).props("outlined")
+		limit_input = ui.number(label="Limit (CHF)", min=0.01, step=0.01).props("outlined")
 		limit_input.classes("w-full mb-4")
 
 		# Kategorie (optional)
@@ -158,8 +158,8 @@ def _build_budget_list(user_id: int) -> None:
 		budgets_table = ui.table(columns=[
 			{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left"},
 			{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
-			{"name": "limit", "label": "Limit (€)", "field": "limit", "align": "right"},
-			{"name": "used", "label": "Genutzt (€)", "field": "used", "align": "right"},
+			{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+			{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right"},
 			{"name": "status", "label": "Status", "field": "status", "align": "center"},
 		], rows=[]).props("dense")
 		budgets_table.classes("w-full")

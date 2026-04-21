@@ -141,6 +141,7 @@ def _build_budget_form(user_id: int) -> None:
 				ui.notify("Budget gespeichert", type="positive")
 				limit_input.value = 0
 				category_select.value = None
+				ui.navigate.to("/budget")
 
 		ui.button("Budget speichern", on_click=handle_set_budget).classes("w-full")
 

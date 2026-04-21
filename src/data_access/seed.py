@@ -1,7 +1,9 @@
+from datetime import date
+
 from sqlmodel import Session, select
 
 from src.data_access.db import create_db_and_tables, engine
-from src.domain.models import Account, Category, User
+from src.domain.models import Account, Category, DebitCard, User
 from src.utils.validators import generate_ch_iban
 
 
@@ -20,19 +22,23 @@ CATEGORY_NAMES = [
 ]
 
 
+INITIAL_USER_BALANCE = 5000.0
+INITIAL_SAVINGS_BALANCE = 10000.0
+
+
 # Exactly two predefined test users
 TEST_USERS = [
 	{
 		"first_name": "Hermann",
 		"last_name": "Grieder",
 		"contract_number": "BB-100001",
-		"password_hash": "dummy_hash_1",
+		"password_hash": "Dummy_hash_1",
 	},
 	{
 		"first_name": "Felix",
 		"last_name": "Haerer",
 		"contract_number": "BB-100002",
-		"password_hash": "dummy_hash_2",
+		"password_hash": "Dummy_hash_2",
 	},
 ]
 
@@ -86,7 +92,7 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
 			session.add(
 				Account(
 					account_type="privat",
-					balance=0.0,
+					balance=INITIAL_USER_BALANCE,
 					status="aktiv",
 					iban=generate_ch_iban("09000", f"{user.user_id:010d}01"),
 					user_id=user.user_id,
@@ -103,12 +109,50 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
 			session.add(
 				Account(
 					account_type="spar",
-					balance=0.0,
+					balance=INITIAL_SAVINGS_BALANCE,
 					status="aktiv",
 					iban=generate_ch_iban("09000", f"{user.user_id:010d}02"),
 					user_id=user.user_id,
 				)
 			)
+
+	session.commit()
+
+
+# For each predefined user, ensure exactly one active debit card exists
+def seed_debit_cards_for_users(session: Session, users: list[User]) -> None:
+	today = date.today()
+	for user in users:
+		has_active_debit = session.exec(
+			select(DebitCard)
+			.join(Account, Account.account_id == DebitCard.account_id)
+			.where(
+				Account.user_id == user.user_id,
+				DebitCard.status == "aktiv",
+			)
+		).first()
+
+		if has_active_debit is not None:
+			continue
+
+		private_account = session.exec(
+			select(Account).where(
+				Account.user_id == user.user_id,
+				Account.account_type == "privat",
+			)
+		).first()
+
+		if private_account is None:
+			continue
+
+		session.add(
+			DebitCard(
+				card_number=f"420000{user.user_id:010d}",
+				expire_date=date(today.year + 4, today.month, 1),
+				status="aktiv",
+				account_id=private_account.account_id,
+			)
+		)
 
 	session.commit()
 
@@ -120,6 +164,7 @@ def seed_database() -> None:
 		seed_categories(session)
 		users = seed_users(session)
 		seed_accounts_for_users(session, users)
+		seed_debit_cards_for_users(session, users)
 
 
 if __name__ == "__main__":

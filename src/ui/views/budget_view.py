@@ -141,7 +141,6 @@ def _build_budget_form(user_id: int) -> None:
 				ui.notify("Budget gespeichert", type="positive")
 				limit_input.value = 0
 				category_select.value = None
-				ui.navigate.to("/budget")
 
 		ui.button("Budget speichern", on_click=handle_set_budget).classes("w-full")
 
@@ -246,7 +245,6 @@ def _build_sidebar() -> None:
 		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("🏦 Konten", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("🎫 Karten", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💸 Zahlungen", on_click=lambda: ui.navigate.to("/payments")).props("flat unelevated").classes("w-full justify-start")
 
 
 def _logout() -> None:

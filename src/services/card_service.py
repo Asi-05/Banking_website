@@ -15,6 +15,16 @@ from src.utils.validators import validate_positive_amount
 
 # Implementiert die Geschaeftslogik fuer Debit- und Kreditkarten.
 class CardService:
+	# Listet alle Debitkarten eines Users.
+	def list_debit_cards(self, user_id: int) -> list[DebitCard]:
+		with Session(engine) as session:
+			return CardRepository.list_debit_by_user(session, user_id)
+
+	# Listet alle Kreditkarten eines Users.
+	def list_credit_cards(self, user_id: int) -> list[CreditCard]:
+		with Session(engine) as session:
+			return CardRepository.list_credit_by_user(session, user_id)
+
 	# Bestellt eine neue Debitkarte fuer ein Privatkonto.
 	def order_debit_card(self, account_id: int) -> DebitCard:
 		with Session(engine) as session:

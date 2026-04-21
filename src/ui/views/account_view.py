@@ -138,7 +138,7 @@ def _build_open_account_form(user_id: int) -> None:
 
 		# Kontotyp-Auswahl
 		type_select = ui.select(
-			options={"private": "Privatkonto", "savings": "Sparkonto"},
+			options={"privat": "Privatkonto", "spar": "Sparkonto"},
 			label="Kontotyp",
 		).props("outlined")
 		type_select.classes("w-full mb-4")
@@ -238,7 +238,6 @@ def _build_sidebar() -> None:
 		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("🏦 Konten", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("🎫 Karten", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💸 Zahlungen", on_click=lambda: ui.navigate.to("/payments")).props("flat unelevated").classes("w-full justify-start")
 
 
 def _logout() -> None:

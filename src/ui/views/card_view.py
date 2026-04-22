@@ -219,8 +219,12 @@ def _build_credit_cards_section(user_id: int) -> None:
 					error_label.set_text(error)
 					ui.notify(error, type="negative")
 				else:
-					ui.notify("Kreditkarte erfolgreich beantragt", type="positive")
-					limit_input.value = 0
+					ui.notify("Kreditkarte erfolgreich erstellt", type="positive")
+					dialog = ui.dialog()
+					with dialog, ui.card():
+						ui.label("Kreditkarte erfolgreich erstellt.")
+						ui.button("OK", on_click=dialog.close)
+					dialog.open()
 
 			ui.button("Beantragen", on_click=handle_create_credit_card).classes("w-full")
 
@@ -317,7 +321,6 @@ def _build_sidebar() -> None:
 		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("🏦 Konten", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("🎫 Karten", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💸 Zahlungen", on_click=lambda: ui.navigate.to("/payments")).props("flat unelevated").classes("w-full justify-start")
 
 
 def _logout() -> None:

@@ -95,17 +95,6 @@ def main() -> None:
 		from src.ui.views import card_view
 		card_view.show()
 
-	@ui.page("/payments")
-	def payments() -> None:
-		"""
-		Zahlungsverwaltung (US6, US10, US12)
-		Inlandszahlungen: Ziel-IBAN, Betrag, Konto, Zweck,
-		Daueraufträge: Erfassung und Übersicht,
-		Kontoauszüge: Zeitraum-Filter, PDF-Download.
-		"""
-		from src.ui.views import payment_view
-		payment_view.show()
-
 	# 6. App-Start
 	print("🚀 Starte Betterbank Banking App...")
 	print("   Öffne: http://localhost:8080/")

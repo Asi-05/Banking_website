@@ -4,7 +4,7 @@ Implementiert US1, US2, US3: Transaktionen erfassen, bearbeiten, löschen, filte
 Route: /transactions
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 from src.ui.controllers.transaction_controller import transaction_controller
 from src.ui.app_state import app_state
@@ -36,34 +36,46 @@ def show() -> None:
 
 		ui.label("Transaktionen").classes("text-h4 font-bold")
 
-		# Tab-Layout: Erfassung / Übersicht
+		# Tab-Layout
 		with ui.tabs() as tabs:
-			tab_create = ui.tab("Neue Transaktion")
-			tab_list = ui.tab("Transaktionsliste")
+			tab_domestic = ui.tab("Neue Inlandszahlung")
+			tab_list = ui.tab("Bewegungen")
+			tab_recurring = ui.tab("Daueraufträge")
+			tab_transfer = ui.tab("Übertrag")
 			tab_statement = ui.tab("Kontoauszug")
 
 		with ui.tab_panels(tabs):
 
-			# ===== TAB 1: ERFASSUNGSFORMULAR =====
-			with ui.tab_panel(tab_create):
-				_build_transaction_form(user_id)
+			# ===== TAB 1: NEUE INLANDSZAHLUNG =====
+			with ui.tab_panel(tab_domestic):
+				_build_domestic_payment_form(user_id)
 
-			# ===== TAB 2: TRANSAKTIONSLISTE =====
+			# ===== TAB 2: BEWEGUNGEN =====
 			with ui.tab_panel(tab_list):
 				_build_transaction_list(user_id)
 
-			# ===== TAB 3: KONTOAUSZUG =====
+			# ===== TAB 3: DAUERAUFTRÄGE =====
+			with ui.tab_panel(tab_recurring):
+				_build_recurring_payments_section(user_id)
+
+			# ===== TAB 4: ÜBERTRAG =====
+			with ui.tab_panel(tab_transfer):
+				_build_transfer_form(user_id)
+
+			# ===== TAB 5: KONTOAUSZUG =====
 			with ui.tab_panel(tab_statement):
 				_build_statement_section(user_id)
 
 
-def _build_transaction_form(user_id: int) -> None:
+def _build_domestic_payment_form(user_id: int) -> None:
 	"""
-	Baut das Erfassungsformular für neue Transaktionen.
+	Formular für Inlandszahlung (US10).
+	Eingabe: Ziel-IBAN, Betrag, Von-Konto, Zweck, Kategorie, Ausführungsdatum.
 	"""
 	from nicegui import ui
 
-	from src.services.account_service import account_service
+	from src.ui.controllers.account_controller import account_controller
+	from src.ui.controllers.payment_controller import payment_controller
 	from src.data_access.repositories.category_repository import CategoryRepository
 	from src.data_access.db import engine
 	from sqlmodel import Session
@@ -73,25 +85,33 @@ def _build_transaction_form(user_id: int) -> None:
 		categories = CategoryRepository.list_all(session)
 	category_options = {c.category_id: c.name for c in categories}
 
-	# Konten und Karten laden
-	accounts = account_service.list_accounts(user_id)
-	if isinstance(accounts, str):
-		ui.notify(accounts, type="negative")
-		accounts = []
-	account_options = {a.account_id: f"{a.iban} ({a.account_type})" for a in accounts} if isinstance(accounts, list) else {}
+	# Konten laden
+	result = account_controller.list_accounts(user_id)
+	if isinstance(result, str):
+		ui.notify(result, type="negative")
+		account_options = {}
+	else:
+		account_options = {
+			(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
+			(a.iban if hasattr(a, "iban") else a.get("iban"))
+			for a in result
+		}
 
 	with ui.card().classes("w-full max-w-md"):
+		# Ziel-IBAN
+		iban_input = ui.input(label="Ziel-IBAN").props("outlined")
+		iban_input.classes("w-full mb-4")
 
 		# Betrag
 		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 		amount_input.classes("w-full mb-4")
 
-		ui.label("Typ: Ausgabe").classes("w-full mb-4 text-gray-700")
-
-		# Datum
-		ui.label("Datum").classes("text-sm text-gray-600")
-		date_picker = ui.date(value=date.today().isoformat()).props("outlined")
-		date_picker.classes("w-full mb-4")
+		# Von-Konto
+		from_account_select = ui.select(
+			options=account_options,
+			label="Von-Konto",
+		).props("outlined")
+		from_account_select.classes("w-full mb-4")
 
 		# Kategorie
 		category_select = ui.select(
@@ -100,50 +120,258 @@ def _build_transaction_form(user_id: int) -> None:
 		).props("outlined")
 		category_select.classes("w-full mb-4")
 
-		ui.label("Belastetes Konto").classes("font-semibold mb-2")
-		account_select = ui.select(
-			options=account_options, label="Konto auswählen"
-		).props("outlined").classes("w-full mb-4")
+		# Zweck
+		purpose_input = ui.textarea(label="Verwendungszweck").props("outlined")
+		purpose_input.classes("w-full mb-4")
 
-		# Notiz
-		note_input = ui.textarea(label="Notiz (optional)").props("outlined")
-		note_input.classes("w-full mb-4")
+		# Ausführungsdatum
+		ui.label("Ausführungsdatum").classes("text-sm text-gray-600")
+		execution_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+		execution_date_picker.classes("w-full mb-4")
 
-		# Fehlerbehandlungs-Label
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
-		# Speichern-Button
-		async def handle_create_transaction() -> None:
-			"""Verarbeitet das Speichern einer neuen Transaktion."""
+		async def handle_create_payment() -> None:
+			"""Führt die Zahlung aus."""
+			execution_date = date.fromisoformat(execution_date_picker.value)
+			if execution_date < date.today():
+				error = "Ausführungsdatum darf nicht in der Vergangenheit liegen"
+				error_label.set_text(error)
+				ui.notify(error, type="negative")
+				return
 
 			payload = {
+				"target_iban": iban_input.value,
 				"amount": amount_input.value or 0,
-				"type": "expense",
-				"date": date_picker.value,
+				"from_account_id": from_account_select.value,
 				"category_id": category_select.value,
-				"note": note_input.value,
-				"account_id": account_select.value,
-				"card_id": None,
-				"creditcard_id": None,
+				"purpose": purpose_input.value,
+				"execution_date": execution_date_picker.value,
 			}
 
-			# Controller aufrufen
-			error = transaction_controller.create_transaction(payload)
+			error = payment_controller.create_payment(payload)
 
 			if error:
 				error_label.set_text(error)
 				ui.notify(error, type="negative")
 			else:
-				ui.notify("Transaktion gespeichert", type="positive")
-				# Formular zurücksetzen
+				ui.notify("Zahlung erfolgreich ausgeführt", type="positive")
+				iban_input.value = ""
 				amount_input.value = 0
-				date_picker.value = date.today().isoformat()
+				from_account_select.value = None
 				category_select.value = None
-				account_select.value = None
-				note_input.value = ""
+				purpose_input.value = ""
+				execution_date_picker.value = date.today().isoformat()
 				error_label.set_text("")
 
-		ui.button("Speichern", on_click=handle_create_transaction).classes("w-full")
+		ui.button("Zahlung ausführen", on_click=handle_create_payment).classes("w-full")
+
+
+def _build_recurring_payments_section(user_id: int) -> None:
+	"""
+	Daueraufträge (US6).
+	Liste aller Daueraufträge + Formular für neue.
+	"""
+	from nicegui import ui
+
+	from src.services.recurring_service import recurring_service
+	from src.data_access.repositories.category_repository import CategoryRepository
+	from src.data_access.db import engine
+	from src.ui.controllers.account_controller import account_controller
+	from src.ui.controllers.recurring_controller import recurring_controller
+	from sqlmodel import Session
+
+	with ui.column().classes("w-full gap-6"):
+
+		# === NEUE DAUERAUFTRAG ERSTELLEN ===
+		with ui.expansion("Neue Dauerauftrag erstellen").classes("w-full"):
+
+			# Kategorien laden
+			with Session(engine) as session:
+				categories = CategoryRepository.list_all(session)
+			category_options = {c.category_id: c.name for c in categories}
+
+			# Konten laden
+			result = account_controller.list_accounts(user_id)
+			if isinstance(result, str):
+				account_options = {}
+			else:
+				account_options = {
+					(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
+					(a.iban if hasattr(a, "iban") else a.get("iban"))
+					for a in result
+				}
+
+			with ui.column().classes("w-full gap-4"):
+
+				amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
+				amount_input.classes("w-full")
+
+				category_select = ui.select(options=category_options, label="Kategorie").props("outlined")
+				category_select.classes("w-full")
+
+				account_select = ui.select(account_options, label="Konto").props("outlined")
+				account_select.classes("w-full")
+
+				iban_input = ui.input(label="Ziel-IBAN").props("outlined")
+				iban_input.classes("w-full")
+
+				interval_select = ui.select(
+					options={"monthly": "Monatlich", "yearly": "Jährlich"},
+					label="Intervall",
+				).props("outlined")
+				interval_select.classes("w-full")
+
+				ui.label("Startdatum").classes("text-sm text-gray-600")
+				start_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+				start_date_picker.classes("w-full")
+
+				ui.label("Enddatum (optional)").classes("text-sm text-gray-600")
+				end_date_picker = ui.date().props("outlined")
+				end_date_picker.classes("w-full")
+
+				error_label = ui.label("").classes("text-red-600")
+
+				async def handle_create_recurring() -> None:
+					"""Erstellt einen neuen Dauerauftrag."""
+					if start_date_picker.value < date.today().isoformat():
+						ui.notify("Startdatum darf nicht in der Vergangenheit liegen", type="negative")
+						return
+
+					payload = {
+						"user_id": user_id,
+						"amount": amount_input.value or 0,
+						"category_id": category_select.value,
+						"account_id": account_select.value,
+						"target_iban": iban_input.value,
+						"interval": interval_select.value,
+						"start_date": start_date_picker.value,
+						"end_date": end_date_picker.value or None,
+					}
+
+					error = recurring_controller.create_recurring(payload)
+
+					if error:
+						error_label.set_text(error)
+						ui.notify(error, type="negative")
+					else:
+						ui.notify("Dauerauftrag erfolgreich erstellt", type="positive")
+						ui.navigate.to("/transactions")
+
+				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring)
+
+		# === DAUERAUFTRÄGE-LISTE ===
+		with ui.card().classes("w-full"):
+
+			ui.label("Meine Daueraufträge").classes("text-subtitle2 font-semibold")
+
+			try:
+				recurring = recurring_service.list_recurring(user_id)
+
+				if isinstance(recurring, str):
+					ui.notify(recurring, type="negative")
+					return
+
+				# Tabelle
+				recurring_table = ui.table(columns=[
+					{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
+					{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
+					{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
+					{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
+				], rows=[]).props("dense")
+				recurring_table.classes("w-full")
+
+				# Daten mit berechneter nächster Ausführung
+				rows = []
+				for rec in recurring:
+					amount_val = rec.amount if hasattr(rec, 'amount') else rec.get('amount')
+					interval_val = rec.interval if hasattr(rec, 'interval') else rec.get('interval')
+					last_executed = rec.last_executed if hasattr(rec, 'last_executed') else rec.get('last_executed')
+					
+					if isinstance(last_executed, str):
+						last_executed = date.fromisoformat(last_executed)
+					
+					# 1. Backend-Logik für korrekte Monatsenden/Schaltjahre nutzen
+					next_exec = recurring_service._next_due_date(last_executed, interval_val)
+
+					# 2. UI-Korrektur für frisch erstellte Daueraufträge (Anzeige in die Zukunft schieben)
+					if next_exec <= date.today():
+						next_exec = recurring_service._next_due_date(next_exec, interval_val)
+
+					rows.append({
+						"amount": f"{amount_val:,.2f}",
+						"target_iban": rec.target_iban if hasattr(rec, "target_iban") else rec.get("target_iban"),
+						"interval": "Monatlich" if interval_val == "monthly" else "Jährlich",
+						"next_execution": str(next_exec),
+					})
+
+				recurring_table.rows = rows
+
+			except Exception as e:
+				ui.notify(f"Fehler beim Laden der Daueraufträge: {str(e)}", type="negative")
+
+
+def _build_transfer_form(user_id: int) -> None:
+	"""
+	Formular für Übertrag zwischen eigenen Konten.
+	"""
+	from nicegui import ui
+
+	from src.ui.controllers.account_controller import account_controller
+	from src.ui.controllers.payment_controller import payment_controller
+
+	# Konten laden
+	result = account_controller.list_accounts(user_id)
+	if isinstance(result, str):
+		ui.notify(result, type="negative")
+		account_options = {}
+	else:
+		account_options = {
+			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
+			(a.iban if hasattr(a, "iban") else a.get("iban"))
+			for a in result
+		}
+
+	with ui.card().classes("w-full max-w-md"):
+
+		# Von-Konto
+		from_account_select = ui.select(
+			options=account_options,
+			label="Von-Konto",
+		).props("outlined")
+		from_account_select.classes("w-full mb-4")
+
+		# Zu-Konto
+		to_account_select = ui.select(
+			options=account_options,
+			label="Zu-Konto",
+		).props("outlined")
+		to_account_select.classes("w-full mb-4")
+
+		# Betrag
+		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
+		amount_input.classes("w-full mb-4")
+
+		error_label = ui.label("").classes("text-red-600 mb-4")
+
+		async def handle_transfer() -> None:
+			"""Führt Übertrag aus."""
+			payload = {
+				"from_account_id": from_account_select.value,
+				"to_account_id": to_account_select.value,
+				"amount": amount_input.value or 0,
+			}
+
+			error = payment_controller.create_transfer(payload)
+
+			if error:
+				error_label.set_text(error)
+				ui.notify(error, type="negative")
+			else:
+				ui.notify("Übertrag erfolgreich", type="positive")
+				amount_input.value = 0
+
+		ui.button("Umbuchen", on_click=handle_transfer).classes("w-full")
 
 
 def _build_transaction_list(user_id: int) -> None:
@@ -166,7 +394,7 @@ def _build_transaction_list(user_id: int) -> None:
 
 		# Filter-Bereich
 		with ui.row().classes("gap-4 mb-4"):
-			start_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+			start_date_picker = ui.date(value=(date.today() - timedelta(days=30)).isoformat()).props("outlined")
 			start_date_picker.label = "Von"
 
 			end_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
@@ -332,7 +560,6 @@ def _build_sidebar() -> None:
 		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("🏦 Konten", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("🎫 Karten", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💸 Zahlungen", on_click=lambda: ui.navigate.to("/payments")).props("flat unelevated").classes("w-full justify-start")
 
 
 def _logout() -> None:

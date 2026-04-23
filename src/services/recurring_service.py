@@ -187,13 +187,17 @@ class RecurringService:
 			if recurring is None:
 				raise KeyError(f"Dauerauftrag {recurring_id} nicht gefunden")
 
-			# Loescht die Template-Transaktion (falls vorhanden)
-			if recurring.transaction_id:
-				from src.data_access.repositories.transaction_repository import TransactionRepository
-				TransactionRepository.delete(session, recurring.transaction_id)
+			transaction_id = recurring.transaction_id
 
-			# Loescht den Dauerauftrag
+			# Zuerst Dauerauftrag löschen, dann Template-Transaktion
 			RecurringRepository.delete(session, recurring_id)
+
+			if transaction_id:
+				from src.data_access.repositories.transaction_repository import TransactionRepository
+				from src.domain.models import Transaction
+				transaction = session.get(Transaction, transaction_id)
+				if transaction is not None:
+					TransactionRepository.delete(session, transaction)
 
 
 recurring_service = RecurringService()

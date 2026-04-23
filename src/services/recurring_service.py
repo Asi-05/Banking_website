@@ -84,16 +84,19 @@ class RecurringService:
 			if not self._is_due(recurring, login_date):
 				continue
 
-			transaction_service.create_transaction(
-				{
-					"amount": recurring.amount,
-					"type": "expense",
-					"date": login_date,
-					"category_id": recurring.category_id,
-					"account_id": recurring.account_id,
-					"note": "Dauerauftrag Ausfuehrung",
-				}
-			)
+			try:
+				transaction_service.create_transaction(
+					{
+						"amount": recurring.amount,
+						"type": "expense",
+						"date": login_date,
+						"category_id": recurring.category_id,
+						"account_id": recurring.account_id,
+						"note": "Dauerauftrag Ausfuehrung",
+					}
+				)
+			except (ValueError, KeyError):
+				continue
 			with Session(engine) as session:
 				reloaded = RecurringRepository.get_by_id(session, recurring.recurring_id)
 				if reloaded is not None:

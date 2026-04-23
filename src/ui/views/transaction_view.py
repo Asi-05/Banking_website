@@ -405,14 +405,13 @@ def _build_transaction_list(user_id: int) -> None:
 				value=None,
 				label="Kategorie",
 			).props("outlined")
-
 			ui.button("Filter anwenden", on_click=lambda: _refresh_transaction_list(
 				user_id,
 				start_date_picker,
 				end_date_picker,
 				category_filter,
+				transactions_table,
 			))
-
 		# Transaktionsliste (Tabelle)
 		transactions_table = ui.table(columns=[
 			{"name": "date", "label": "Datum", "field": "date", "align": "left"},

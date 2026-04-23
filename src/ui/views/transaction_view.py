@@ -256,14 +256,17 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						ui.notify(error, type="negative")
 					else:
 						ui.notify("Dauerauftrag erfolgreich erstellt", type="positive")
-						ui.navigate.to("/transactions")
+					# Formular zurücksetzen
+					amount_input.value = 0
+					category_select.value = None
+					account_select.value = None
+					iban_input.value = ""
+					interval_select.value = None
+					start_date_picker.value = date.today().isoformat()
+					end_date_picker.value = ""
+					error_label.set_text("")
 
-				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring)
-
-		# === DAUERAUFTRÄGE-LISTE ===
-		with ui.card().classes("w-full"):
-
-			ui.label("Meine Daueraufträge").classes("text-subtitle2 font-semibold")
+				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring).classes("w-full")
 
 			try:
 				recurring = recurring_service.list_recurring(user_id)

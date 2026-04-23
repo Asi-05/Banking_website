@@ -84,16 +84,19 @@ class RecurringService:
 			if not self._is_due(recurring, login_date):
 				continue
 
-			transaction_service.create_transaction(
-				{
-					"amount": recurring.amount,
-					"type": "expense",
-					"date": login_date,
-					"category_id": recurring.category_id,
-					"account_id": recurring.account_id,
-					"note": "Dauerauftrag Ausfuehrung",
-				}
-			)
+			try:
+				transaction_service.create_transaction(
+					{
+						"amount": recurring.amount,
+						"type": "expense",
+						"date": login_date,
+						"category_id": recurring.category_id,
+						"account_id": recurring.account_id,
+						"note": "Dauerauftrag Ausfuehrung",
+					}
+				)
+			except (ValueError, KeyError):
+				continue
 			with Session(engine) as session:
 				reloaded = RecurringRepository.get_by_id(session, recurring.recurring_id)
 				if reloaded is not None:
@@ -145,6 +148,56 @@ class RecurringService:
 	def list_recurring(self, user_id: int) -> list[RecurringTransaction]:
 		with Session(engine) as session:
 			return RecurringRepository.list_by_user(session, user_id)
+
+	# Aktualisiert einen Dauerauftrag.
+	def update_recurring(self, recurring_id: int, payload: dict) -> RecurringTransaction:
+		with Session(engine) as session:
+			recurring = RecurringRepository.get_by_id(session, recurring_id)
+			if recurring is None:
+				raise KeyError(f"Dauerauftrag {recurring_id} nicht gefunden")
+
+			# Validiere und aktualisiere Felder
+			if "amount" in payload:
+				amount = float(payload["amount"])
+				validate_positive_amount(amount)
+				recurring.amount = amount
+
+			if "interval" in payload:
+				interval = str(payload["interval"])
+				validate_recurring_interval(interval)
+				recurring.interval = interval
+
+			if "target_iban" in payload:
+				target_iban = str(payload["target_iban"])
+				validate_iban(target_iban)
+				recurring.target_iban = target_iban
+
+			if "end_date" in payload:
+				end_date_val = payload["end_date"]
+				if isinstance(end_date_val, str):
+					end_date_val = date.fromisoformat(end_date_val) if end_date_val else None
+				recurring.end_date = end_date_val
+
+			return RecurringRepository.save(session, recurring)
+
+	# Loescht einen Dauerauftrag und die verknuepfte Template-Transaktion.
+	def delete_recurring(self, recurring_id: int) -> None:
+		with Session(engine) as session:
+			recurring = RecurringRepository.get_by_id(session, recurring_id)
+			if recurring is None:
+				raise KeyError(f"Dauerauftrag {recurring_id} nicht gefunden")
+
+			transaction_id = recurring.transaction_id
+
+			# Zuerst Dauerauftrag löschen, dann Template-Transaktion
+			RecurringRepository.delete(session, recurring_id)
+
+			if transaction_id:
+				from src.data_access.repositories.transaction_repository import TransactionRepository
+				from src.domain.models import Transaction
+				transaction = session.get(Transaction, transaction_id)
+				if transaction is not None:
+					TransactionRepository.delete(session, transaction)
 
 
 recurring_service = RecurringService()

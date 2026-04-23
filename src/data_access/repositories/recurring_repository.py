@@ -58,3 +58,11 @@ class RecurringRepository:
 		session.commit()
 		session.refresh(recurring)
 		return recurring
+
+	# Loescht einen Dauerauftrag per ID.
+	@staticmethod
+	def delete(session: Session, recurring_id: int) -> None:
+		recurring = session.get(RecurringTransaction, recurring_id)
+		if recurring is not None:
+			session.delete(recurring)
+			session.commit()

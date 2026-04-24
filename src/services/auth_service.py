@@ -16,7 +16,8 @@ from src.utils.validators import verify_password, hash_password
 class AuthService:
     def login(self, contract_number: str, password: str) -> dict:
         with Session(engine) as session:
-            user = UserRepository.get_by_contract_number(session, contract_number)
+            user_repository = UserRepository(session)
+            user = user_repository.get_by_contract_number(contract_number)
             if user is None:
                 raise ValueError("Ungueltige Anmeldedaten")
 

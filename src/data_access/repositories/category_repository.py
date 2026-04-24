@@ -7,13 +7,14 @@ from src.domain.models import Category
 
 # Kapselt reine Datenbankzugriffe fuer Kategorien.
 class CategoryRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
     # Gibt alle Kategorien zurueck.
-    @staticmethod
-    def list_all(session: Session) -> list[Category]:
+    def list_all(self) -> list[Category]:
         statement = select(Category).order_by(Category.category_id)
-        return list(session.exec(statement).all())
+        return list(self.session.exec(statement).all())
 
     # Laedt eine Kategorie per ID.
-    @staticmethod
-    def get_by_id(session: Session, category_id: int) -> Category | None:
-        return session.get(Category, category_id)
+    def get_by_id(self, category_id: int) -> Category | None:
+        return self.session.get(Category, category_id)

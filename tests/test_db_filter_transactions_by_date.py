@@ -25,8 +25,8 @@ def test_db_filter_transactions_by_date() -> None:
         session.add_all(transactions)
         session.commit()
 
-        filtered = TransactionRepository.filter_transactions(
-            session,
+        transaction_repository = TransactionRepository(session)
+        filtered = transaction_repository.filter_transactions(
             start_date=date(2026, 3, 1),
             end_date=date(2026, 3, 31),
         )

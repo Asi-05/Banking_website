@@ -7,10 +7,12 @@ from src.domain.models import Budget
 
 # Kapselt reine Datenbankzugriffe fuer Budgets.
 class BudgetRepository:
+	def __init__(self, session: Session):
+		self.session = session
+
 	# Laedt ein Budget eindeutig nach User, Monat, Jahr und optional Kategorie.
-	@staticmethod
 	def get_by_scope(
-		session: Session,
+		self,
 		user_id: int,
 		month: int,
 		year: int,
@@ -22,28 +24,25 @@ class BudgetRepository:
 			Budget.year == year,
 			Budget.category_id == category_id,
 		)
-		return session.exec(statement).first()
+		return self.session.exec(statement).first()
 
 	# Legt ein neues Budget an und persistiert es.
-	@staticmethod
-	def create(session: Session, budget: Budget) -> Budget:
-		session.add(budget)
-		session.commit()
-		session.refresh(budget)
+	def create(self, budget: Budget) -> Budget:
+		self.session.add(budget)
+		self.session.commit()
+		self.session.refresh(budget)
 		return budget
 
 	# Persistiert Aenderungen eines Budgets.
-	@staticmethod
-	def save(session: Session, budget: Budget) -> Budget:
-		session.add(budget)
-		session.commit()
-		session.refresh(budget)
+	def save(self, budget: Budget) -> Budget:
+		self.session.add(budget)
+		self.session.commit()
+		self.session.refresh(budget)
 		return budget
 
 	# Gibt Budgets eines Users optional gefiltert nach Monat/Jahr zurueck.
-	@staticmethod
 	def list_by_user(
-		session: Session,
+		self,
 		user_id: int,
 		month: int | None = None,
 		year: int | None = None,
@@ -53,4 +52,4 @@ class BudgetRepository:
 			statement = statement.where(Budget.month == month)
 		if year is not None:
 			statement = statement.where(Budget.year == year)
-		return list(session.exec(statement).all())
+		return list(self.session.exec(statement).all())

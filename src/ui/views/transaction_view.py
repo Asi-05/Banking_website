@@ -82,7 +82,8 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 	# Kategorien laden
 	with Session(engine) as session:
-		categories = CategoryRepository.list_all(session)
+		category_repository = CategoryRepository(session)
+		categories = category_repository.list_all()
 	category_options = {c.category_id: c.name for c in categories}
 
 	# Konten laden
@@ -188,7 +189,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 			# Kategorien laden
 			with Session(engine) as session:
-				categories = CategoryRepository.list_all(session)
+				category_repository = CategoryRepository(session)
+				categories = category_repository.list_all()
 			category_options = {c.category_id: c.name for c in categories}
 
 			# Konten laden
@@ -356,7 +358,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				# Lade den aktuellen Dauerauftrag
 				from src.data_access.repositories.recurring_repository import RecurringRepository
 				with Session(engine) as session:
-					current_recurring = RecurringRepository.get_by_id(session, recurring_id)
+					recurring_repository = RecurringRepository(session)
+					current_recurring = recurring_repository.get_by_id(recurring_id)
 					if current_recurring is None:
 						ui.notify("Dauerauftrag nicht gefunden", type="negative")
 						return
@@ -494,7 +497,8 @@ def _build_transaction_list(user_id: int) -> None:
 
 	# Kategorien laden für Filter
 	with Session(engine) as session:
-		categories = CategoryRepository.list_all(session)
+		category_repository = CategoryRepository(session)
+		categories = category_repository.list_all()
 	category_options = {c.category_id: c.name for c in categories}
 
 	with ui.card().classes("w-full"):
@@ -634,7 +638,8 @@ def _refresh_transaction_list(
 
 	# Kategorienamen-Mapping laden
 	with Session(engine) as session:
-		categories = CategoryRepository.list_all(session)
+		category_repository = CategoryRepository(session)
+		categories = category_repository.list_all()
 	category_names = {c.category_id: c.name for c in categories}
 
 	# Transaktionen in Tabellenformat konvertieren

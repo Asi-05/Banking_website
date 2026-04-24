@@ -38,6 +38,7 @@ class TransactionService:
 		self._validate_transaction_source_rule(account_id, card_id, creditcard_id)
 
 		with Session(engine, expire_on_commit=False) as session:
+			transaction_repository = TransactionRepository(session)
 			self._ensure_category_exists(session, category_id)
 			self._ensure_source_valid(session, account_id, card_id, creditcard_id)
 
@@ -51,14 +52,15 @@ class TransactionService:
 				card_id=card_id,
 				creditcard_id=creditcard_id,
 			)
-			created = TransactionRepository.create(session, transaction)
+			created = transaction_repository.create(transaction)
 			self._apply_source_effect(session, created, multiplier=1)
 			return created
 
 	# Bearbeitet eine bestehende Transaktion und aktualisiert alle betroffenen Salden.
 	def edit_transaction(self, transaction_id: int, payload: dict) -> Transaction:
 		with Session(engine, expire_on_commit=False) as session:
-			transaction = TransactionRepository.get_by_id(session, transaction_id)
+			transaction_repository = TransactionRepository(session)
+			transaction = transaction_repository.get_by_id(transaction_id)
 			if transaction is None:
 				raise KeyError(f"Transaktion {transaction_id} nicht gefunden")
 
@@ -103,7 +105,7 @@ class TransactionService:
 			transaction.creditcard_id = new_creditcard_id
 			transaction.note = new_note
 
-			updated = TransactionRepository.save(session, transaction)
+			updated = transaction_repository.save(transaction)
 			self._apply_source_effect(session, updated, multiplier=1)
 			return updated
 
@@ -113,12 +115,13 @@ class TransactionService:
 			raise ValueError("Loeschen abgebrochen: Bestaetigung erforderlich")
 
 		with Session(engine, expire_on_commit=False) as session:
-			transaction = TransactionRepository.get_by_id(session, transaction_id)
+			transaction_repository = TransactionRepository(session)
+			transaction = transaction_repository.get_by_id(transaction_id)
 			if transaction is None:
 				raise KeyError(f"Transaktion {transaction_id} nicht gefunden")
 
 			self._apply_source_effect(session, transaction, multiplier=-1)
-			TransactionRepository.delete(session, transaction)
+			transaction_repository.delete(transaction)
 			return True
 
 	# Filtert Transaktionen nach Zeitraum und/oder Kategorie.
@@ -133,8 +136,8 @@ class TransactionService:
 			validate_date_range(start_date, end_date)
 
 		with Session(engine, expire_on_commit=False) as session:
-			return TransactionRepository.filter_transactions(
-				session,
+			transaction_repository = TransactionRepository(session)
+			return transaction_repository.filter_transactions(
 				start_date=start_date,
 				end_date=end_date,
 				category_id=category_id,
@@ -174,22 +177,25 @@ class TransactionService:
 		card_id: int | None,
 		creditcard_id: int | None,
 	) -> None:
+		account_repository = AccountRepository(session)
+		card_repository = CardRepository(session)
+
 		if account_id is not None:
-			account = AccountRepository.get_by_id(session, account_id)
+			account = account_repository.get_by_id(account_id)
 			if account is None:
 				raise KeyError(f"Konto {account_id} nicht gefunden")
 			if account.status != "aktiv":
 				raise ValueError("Transaktion nicht erlaubt: Konto ist nicht aktiv")
 
 		if card_id is not None:
-			card = CardRepository.get_debit_by_id(session, card_id)
+			card = card_repository.get_debit_by_id(card_id)
 			if card is None:
 				raise KeyError(f"Debitkarte {card_id} nicht gefunden")
 			if card.status != "aktiv":
 				raise ValueError("Transaktion nicht erlaubt: Debitkarte ist nicht aktiv")
 
 		if creditcard_id is not None:
-			credit_card = CardRepository.get_credit_by_id(session, creditcard_id)
+			credit_card = card_repository.get_credit_by_id(creditcard_id)
 			if credit_card is None:
 				raise KeyError(f"Kreditkarte {creditcard_id} nicht gefunden")
 			if credit_card.status != "aktiv":
@@ -202,34 +208,37 @@ class TransactionService:
 		transaction: Transaction,
 		multiplier: int,
 	) -> None:
+		account_repository = AccountRepository(session)
+		card_repository = CardRepository(session)
+
 		signed_amount = transaction.amount if transaction.type == "income" else -transaction.amount
 		delta = signed_amount * multiplier
 
 		if transaction.account_id is not None:
-			account = AccountRepository.get_by_id(session, transaction.account_id)
+			account = account_repository.get_by_id(transaction.account_id)
 			if account is None:
 				raise KeyError(f"Konto {transaction.account_id} nicht gefunden")
 			if transaction.type == "expense" and multiplier == 1 and account.balance < transaction.amount:
 				raise ValueError("Unzureichender Kontosaldo")
 			account.balance += delta
-			AccountRepository.save(session, account)
+			account_repository.save(account)
 			return
 
 		if transaction.card_id is not None:
-			debit_card = CardRepository.get_debit_by_id(session, transaction.card_id)
+			debit_card = card_repository.get_debit_by_id(transaction.card_id)
 			if debit_card is None:
 				raise KeyError(f"Debitkarte {transaction.card_id} nicht gefunden")
-			account = AccountRepository.get_by_id(session, debit_card.account_id)
+			account = account_repository.get_by_id(debit_card.account_id)
 			if account is None:
 				raise KeyError(f"Konto {debit_card.account_id} nicht gefunden")
 			if transaction.type == "expense" and multiplier == 1 and account.balance < transaction.amount:
 				raise ValueError("Unzureichender Kontosaldo")
 			account.balance += delta
-			AccountRepository.save(session, account)
+			account_repository.save(account)
 			return
 
 		if transaction.creditcard_id is not None:
-			credit_card = CardRepository.get_credit_by_id(session, transaction.creditcard_id)
+			credit_card = card_repository.get_credit_by_id(transaction.creditcard_id)
 			if credit_card is None:
 				raise KeyError(f"Kreditkarte {transaction.creditcard_id} nicht gefunden")
 
@@ -244,7 +253,7 @@ class TransactionService:
 					credit_card.balance - (transaction.amount * multiplier),
 				)
 
-			CardRepository.save_credit(session, credit_card)
+			card_repository.save_credit(credit_card)
 
 
 transaction_service = TransactionService()

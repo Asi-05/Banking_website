@@ -64,7 +64,7 @@ class AccountService:
 	# Erzeugt eine Schweizer Demo-IBAN fuer neue Konten (Bankleitzahl 09000).
 	def _generate_iban(self, user_id: int) -> str:
 		for _ in range(100):
-			account_number = f"{random.randint(0, 9_999_999_999):010d}"
+			account_number = f"{random.randint(0, 999_999_999_999):012d}"
 			iban = generate_ch_iban("09000", account_number)
 			with Session(engine) as session:
 				account_repository = AccountRepository(session)

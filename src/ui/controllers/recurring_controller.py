@@ -36,5 +36,25 @@ class RecurringController:
         except Exception as error:
             return str(error)
 
+    # Aktualisiert einen bestehenden Dauerauftrag.
+    def update_recurring(self, recurring_id: int, payload: dict) -> str | None:
+        try:
+            # Umwandlung von Dateien in date-Objekte
+            if "end_date" in payload and isinstance(payload["end_date"], str):
+                payload["end_date"] = date.fromisoformat(payload["end_date"]) if payload["end_date"] else None
+
+            recurring_service.update_recurring(recurring_id, payload)
+            return None
+        except Exception as error:
+            return str(error)
+
+    # Loescht einen Dauerauftrag.
+    def delete_recurring(self, recurring_id: int) -> str | None:
+        try:
+            recurring_service.delete_recurring(recurring_id)
+            return None
+        except Exception as error:
+            return str(error)
+
 
 recurring_controller = RecurringController()

@@ -162,8 +162,72 @@ def _build_budget_list(user_id: int) -> None:
 			{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
 			{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right"},
 			{"name": "status", "label": "Status", "field": "status", "align": "center"},
+			{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 		], rows=[]).props("dense")
 		budgets_table.classes("w-full")
+
+		# Action-Slot für Bearbeiten/Löschen
+		budgets_table.add_slot("body-cell-actions", """
+			<q-td :props="props">
+				<q-btn label="Bearbeiten" color="primary" size="sm" flat
+					@click="$parent.$emit('edit_budget', props.row)" />
+				<q-btn label="Löschen" color="negative" size="sm" flat
+					@click="$parent.$emit('delete_budget', props.row)" />
+			</q-td>
+		""")
+
+		# Löschen mit Bestätigungsdialog
+		def handle_delete_budget(e) -> None:
+			row = e.args
+			budget_id = row.get("budget_id")
+
+			with ui.dialog() as confirm_dialog, ui.card():
+				ui.label("Budget wirklich löschen?").classes("text-subtitle1 font-semibold")
+				ui.label(f"Zeitraum: {row.get('month_year')} | Kategorie: {row.get('category')}").classes("text-gray-600")
+				with ui.row().classes("gap-4 mt-4"):
+					ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
+					def do_delete(bid=budget_id):
+						error = budget_controller.delete_budget(bid)
+						confirm_dialog.close()
+						if error:
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Budget gelöscht", type="positive")
+							_refresh_budget_list(user_id, budgets_table)
+					ui.button("Löschen", on_click=do_delete).props("color=negative unelevated")
+			confirm_dialog.open()
+
+		# Bearbeiten mit Dialog
+		def handle_edit_budget(e) -> None:
+			row = e.args
+			budget_id = row.get("budget_id")
+
+			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
+				ui.label("Budget bearbeiten").classes("text-subtitle1 font-semibold mb-4")
+
+				limit_edit = ui.number(
+					label="Limit (CHF)",
+					value=float(str(row.get("limit", "0")).replace(",", "")),
+					min=0.01,
+					step=0.01,
+				).props("outlined")
+				limit_edit.classes("w-full mb-4")
+
+				with ui.row().classes("gap-4"):
+					ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
+					def do_edit(bid=budget_id):
+						error = budget_controller.update_budget(bid, limit_edit.value or 0)
+						edit_dialog.close()
+						if error:
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Budget aktualisiert", type="positive")
+							_refresh_budget_list(user_id, budgets_table)
+					ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
+			edit_dialog.open()
+
+		budgets_table.on("delete_budget", handle_delete_budget)
+		budgets_table.on("edit_budget", handle_edit_budget)
 
 		# Laden
 		_refresh_budget_list(user_id, budgets_table)
@@ -221,6 +285,7 @@ def _refresh_budget_list(user_id: int, budgets_table=None) -> None:
 			category_display = "Alle" if budget.category_id is None else category_names.get(budget.category_id, f"ID {budget.category_id}")
 
 			rows.append({
+				"budget_id": budget.budget_id,
 				"month_year": month_year,
 				"category": category_display,
 				"limit": f"{budget.limit_amount:,.2f}",

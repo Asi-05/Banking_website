@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+
 from sqlmodel import Session
 
 from src.data_access.db import engine
@@ -61,7 +63,15 @@ class AccountService:
 
 	# Erzeugt eine Schweizer Demo-IBAN fuer neue Konten (Bankleitzahl 09000).
 	def _generate_iban(self, user_id: int) -> str:
-		return generate_ch_iban("09000", f"{user_id:010d}01")
+		for _ in range(100):
+			account_number = f"{random.randint(0, 9_999_999_999):010d}"
+			iban = generate_ch_iban("09000", account_number)
+			with Session(engine) as session:
+				account_repository = AccountRepository(session)
+				existing = account_repository.get_by_iban(iban)
+				if existing is None:
+					return iban
+		raise ValueError("Konnte keine eindeutige IBAN generieren")
 
 
 account_service = AccountService()

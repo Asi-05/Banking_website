@@ -119,7 +119,7 @@ def _reload_account_rows(accounts_table, user_id: int) -> None:
 		balance_val = account.balance if hasattr(account, "balance") else account.get("balance")
 		rows.append({
 			"account_id": account.account_id if hasattr(account, "account_id") else account.get("account_id"),
-			"iban": account.iban if hasattr(account, "iban") else account.get("iban"),
+			"iban": ((account.iban if hasattr(account, "iban") else account.get("iban")) or "").upper(),
 			"account_type": account.account_type if hasattr(account, "account_type") else account.get("account_type"),
 			"balance": f"{balance_val:,.2f}",
 			"status": account.status if hasattr(account, "status") else account.get("status"),
@@ -180,7 +180,7 @@ def _build_transfer_form(user_id: int) -> None:
 	else:
 		account_options = {
 			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
-			(a.iban if hasattr(a, "iban") else a.get("iban"))
+			((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 			for a in result
 		}
 

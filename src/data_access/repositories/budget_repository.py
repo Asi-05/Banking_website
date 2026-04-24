@@ -10,6 +10,10 @@ class BudgetRepository:
 	def __init__(self, session: Session):
 		self.session = session
 
+	# Laedt ein Budget eindeutig nach ID.
+	def get_by_id(self, budget_id: int) -> Budget | None:
+		return self.session.get(Budget, budget_id)
+
 	# Laedt ein Budget eindeutig nach User, Monat, Jahr und optional Kategorie.
 	def get_by_scope(
 		self,
@@ -53,3 +57,11 @@ class BudgetRepository:
 		if year is not None:
 			statement = statement.where(Budget.year == year)
 		return list(self.session.exec(statement).all())
+
+	# Loescht ein Budget anhand der ID.
+	def delete(self, budget_id: int) -> None:
+		budget = self.get_by_id(budget_id)
+		if budget is None:
+			return
+		self.session.delete(budget)
+		self.session.commit()

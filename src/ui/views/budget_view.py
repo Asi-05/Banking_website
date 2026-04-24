@@ -65,7 +65,8 @@ def _build_budget_form(user_id: int) -> None:
 
 	# Kategorien laden
 	with Session(engine) as session:
-		categories = CategoryRepository.list_all(session)
+		category_repository = CategoryRepository(session)
+		categories = category_repository.list_all()
 	category_options = {c.category_id: c.name for c in categories}
 
 	# Monats-Optionen (deutscher Name)
@@ -189,7 +190,8 @@ def _refresh_budget_list(user_id: int, budgets_table=None) -> None:
 
 		# Kategorienamen laden für Anzeige
 		with Session(engine) as session:
-			categories = CategoryRepository.list_all(session)
+			category_repository = CategoryRepository(session)
+			categories = category_repository.list_all()
 		category_names = {c.category_id: c.name for c in categories}
 
 		rows = []

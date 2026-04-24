@@ -34,7 +34,7 @@ class User(SQLModel, table=True):
 	credit_cards: list["CreditCard"] = Relationship(back_populates="user")
 	budgets: list["Budget"] = Relationship(back_populates="user")
 
-	# This is a simple placeholder method and can be replaced by real hash checks.
+	
 	def login(self, password: str) -> bool:
 		return bool(password) and self.password_hash == password
 

@@ -9,26 +9,26 @@ from src.domain.models import Payment, Transaction, Transfer
 
 # Kapselt reine Datenbankzugriffe fuer Zahlungsobjekte.
 class PaymentRepository:
+	def __init__(self, session: Session):
+		self.session = session
+
 	# Legt ein Payment-Objekt an und persistiert es.
-	@staticmethod
-	def create_payment(session: Session, payment: Payment) -> Payment:
-		session.add(payment)
-		session.commit()
-		session.refresh(payment)
+	def create_payment(self, payment: Payment) -> Payment:
+		self.session.add(payment)
+		self.session.commit()
+		self.session.refresh(payment)
 		return payment
 
 	# Legt ein Transfer-Objekt an und persistiert es.
-	@staticmethod
-	def create_transfer(session: Session, transfer: Transfer) -> Transfer:
-		session.add(transfer)
-		session.commit()
-		session.refresh(transfer)
+	def create_transfer(self, transfer: Transfer) -> Transfer:
+		self.session.add(transfer)
+		self.session.commit()
+		self.session.refresh(transfer)
 		return transfer
 
 	# Gibt alle kontobezogenen Transaktionen in einem Datumsbereich zurueck.
-	@staticmethod
 	def list_account_transactions_in_range(
-		session: Session,
+		self,
 		account_id: int,
 		start_date: date,
 		end_date: date,
@@ -40,4 +40,4 @@ class PaymentRepository:
 			.where(Transaction.date <= end_date)
 			.order_by(Transaction.date.asc(), Transaction.transaction_id.asc())
 		)
-		return list(session.exec(statement).all())
+		return list(self.session.exec(statement).all())

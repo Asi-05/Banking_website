@@ -31,7 +31,8 @@ class PaymentService:
 		validate_positive_amount(amount)
 
 		with Session(engine) as session:
-			from_account = AccountRepository.get_by_id(session, from_account_id)
+			account_repository = AccountRepository(session)
+			from_account = account_repository.get_by_id(from_account_id)
 			if from_account is None:
 				raise KeyError(f"Konto {from_account_id} nicht gefunden")
 			if from_account.balance < amount:
@@ -49,13 +50,14 @@ class PaymentService:
 		)
 
 		with Session(engine) as session:
+			payment_repository = PaymentRepository(session)
 			payment = Payment(
 				target_iban=target_iban,
 				purpose=purpose,
 				status="success",
 				transaction_id=transaction.transaction_id,
 			)
-			return PaymentRepository.create_payment(session, payment)
+			return payment_repository.create_payment(payment)
 
 	# Fuehrt eine Umbuchung zwischen zwei eigenen Konten aus.
 	def create_transfer(self, payload: dict) -> Transfer:
@@ -69,8 +71,9 @@ class PaymentService:
 			raise ValueError("Umbuchung ungueltig: Quell- und Zielkonto duerfen nicht identisch sein")
 
 		with Session(engine) as session:
-			from_account = AccountRepository.get_by_id(session, from_account_id)
-			to_account = AccountRepository.get_by_id(session, to_account_id)
+			account_repository = AccountRepository(session)
+			from_account = account_repository.get_by_id(from_account_id)
+			to_account = account_repository.get_by_id(to_account_id)
 			if from_account is None:
 				raise KeyError(f"Konto {from_account_id} nicht gefunden")
 			if to_account is None:
@@ -102,13 +105,14 @@ class PaymentService:
 		)
 
 		with Session(engine) as session:
+			payment_repository = PaymentRepository(session)
 			transfer = Transfer(
 				from_account_id=from_account_id,
 				to_account_id=to_account_id,
 				status="success",
 				transaction_id=expense_tx.transaction_id,
 			)
-			return PaymentRepository.create_transfer(session, transfer)
+			return payment_repository.create_transfer(transfer)
 
 	# Generiert einen einfachen PDF-Kontoauszug fuer einen Zeitraum.
 	def generate_statement(
@@ -120,11 +124,13 @@ class PaymentService:
 		validate_date_range(start_date, end_date)
 
 		with Session(engine) as session:
-			account = AccountRepository.get_by_id(session, account_id)
+			account_repository = AccountRepository(session)
+			payment_repository = PaymentRepository(session)
+
+			account = account_repository.get_by_id(account_id)
 			if account is None:
 				raise KeyError(f"Konto {account_id} nicht gefunden")
-			transactions = PaymentRepository.list_account_transactions_in_range(
-				session,
+			transactions = payment_repository.list_account_transactions_in_range(
 				account_id=account_id,
 				start_date=start_date,
 				end_date=end_date,

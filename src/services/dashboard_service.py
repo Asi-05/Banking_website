@@ -19,11 +19,13 @@ class DashboardService:
 		validate_date_range(start_date, end_date)
 
 		with Session(engine) as session:
-			accounts = AccountRepository.list_by_user(session, user_id)
+			account_repository = AccountRepository(session)
+			transaction_repository = TransactionRepository(session)
+
+			accounts = account_repository.list_by_user(user_id)
 			total_balance = sum(account.balance for account in accounts)
 
-			transactions = TransactionRepository.filter_transactions(
-				session,
+			transactions = transaction_repository.filter_transactions(
 				start_date=start_date,
 				end_date=end_date,
 				user_id=user_id,

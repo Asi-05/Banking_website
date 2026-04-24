@@ -244,20 +244,20 @@ Die Anwendung erhält Benutzereingaben über die Weboberfläche. Alle Eingaben w
 | Felder       | Code-Variable | Typ    | Pflicht | Beispiel       |
 |--------------|---------------|--------|---------|----------------|
 | Betrag       | `amount`      | float  | ja      | 45.50          |
-| Kategorie ID | `category_id` | int    | ja      | 4 (Food)       |
+| Kategorie ID | `category_id` | int    | ja      | 6 (Freizeit)   |
 | Konto ID     | `account_id`  | int    | ja      | 12             |
 | Datum        | `date`        | date   | ja      | 2026-03-10     |
-| Notiz        | `note`        | string | nein    | Mittagessen    |
+| Notiz        | `note`        | string | nein    | Ausgang        |
 
 ### Beispiel Eingabe (JSON)
 
 ```json
 {
   "amount": 45.50,
-  "category_id": 4,
+  "category_id": 6,
   "account_id": 12,
   "date": "2026-03-10",
-  "note": "Lunch"
+  "note": "Ausgang"
 }
 ```
 

@@ -26,6 +26,10 @@ class BudgetService:
 
 		validate_positive_amount(limit_amount)
 		validate_budget_month_year(month, year)
+		from datetime import date
+		today = date.today()
+		if date(year, month, 1) < date(today.year, today.month, 1):
+			raise ValueError("Budget kann nicht für vergangene Monate erstellt werden")
 
 		with Session(engine) as session:
 			user_repository = UserRepository(session)
@@ -102,6 +106,28 @@ class BudgetService:
 		with Session(engine) as session:
 			budget_repository = BudgetRepository(session)
 			return budget_repository.list_by_user(user_id)
+
+	# Aktualisiert den Budgetbetrag eines bestehenden Budgets.
+	def update_budget(self, budget_id: int, limit_amount: float) -> Budget:
+		validate_positive_amount(limit_amount)
+
+		with Session(engine) as session:
+			budget_repository = BudgetRepository(session)
+			budget = budget_repository.get_by_id(budget_id)
+			if budget is None:
+				raise KeyError(f"Budget {budget_id} nicht gefunden")
+
+			budget.limit_amount = float(limit_amount)
+			return budget_repository.save(budget)
+
+	# Loescht ein bestehendes Budget.
+	def delete_budget(self, budget_id: int) -> None:
+		with Session(engine) as session:
+			budget_repository = BudgetRepository(session)
+			budget = budget_repository.get_by_id(budget_id)
+			if budget is None:
+				raise KeyError(f"Budget {budget_id} nicht gefunden")
+			budget_repository.delete(budget_id)
 
 
 budget_service = BudgetService()

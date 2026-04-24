@@ -38,6 +38,8 @@ class RecurringService:
 			account = account_repository.get_by_id(account_id)
 			if account is None:
 				raise KeyError(f"Konto {account_id} nicht gefunden")
+			if account.status != "aktiv":
+				raise ValueError(f"Konto {account_id} ist nicht aktiv und kann nicht verwendet werden")
 			if session.get(Category, category_id) is None:
 				raise KeyError(f"Kategorie {category_id} nicht gefunden")
 

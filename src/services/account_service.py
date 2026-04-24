@@ -19,12 +19,15 @@ class AccountService:
 			raise ValueError("Ungueltiger Kontotyp: erlaubt sind privat und spar")
 
 		with Session(engine) as session:
-			user = UserRepository.get_by_id(session, user_id)
+			user_repository = UserRepository(session)
+			account_repository = AccountRepository(session)
+
+			user = user_repository.get_by_id(user_id)
 			if user is None:
 				raise KeyError(f"User {user_id} nicht gefunden")
 
 			iban = str(payload.get("iban") or self._generate_iban(user_id))
-			existing = AccountRepository.get_by_iban(session, iban)
+			existing = account_repository.get_by_iban(iban)
 			if existing is not None:
 				raise ValueError("IBAN ist bereits vergeben")
 
@@ -35,24 +38,26 @@ class AccountService:
 				iban=iban,
 				user_id=user_id,
 			)
-			return AccountRepository.create(session, account)
+			return account_repository.create(account)
 
 	# Schliesst ein Konto nur bei Saldo 0.0.
 	def close_account(self, account_id: int) -> Account:
 		with Session(engine) as session:
-			account = AccountRepository.get_by_id(session, account_id)
+			account_repository = AccountRepository(session)
+			account = account_repository.get_by_id(account_id)
 			if account is None:
 				raise KeyError(f"Konto {account_id} nicht gefunden")
 			if account.balance != 0.0:
 				raise ValueError("Konto kann nicht geschlossen werden: Balance ist nicht 0")
 
 			account.close()
-			return AccountRepository.save(session, account)
+			return account_repository.save(account)
 
 	# Gibt alle Konten eines Users zurueck.
 	def list_accounts(self, user_id: int) -> list[Account]:
 		with Session(engine) as session:
-			return AccountRepository.list_by_user(session, user_id)
+			account_repository = AccountRepository(session)
+			return account_repository.list_by_user(user_id)
 
 	# Erzeugt eine Schweizer Demo-IBAN fuer neue Konten (Bankleitzahl 09000).
 	def _generate_iban(self, user_id: int) -> str:

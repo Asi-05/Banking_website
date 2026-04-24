@@ -34,7 +34,8 @@ class RecurringService:
 		validate_recurring_interval(interval)
 
 		with Session(engine) as session:
-			account = AccountRepository.get_by_id(session, account_id)
+			account_repository = AccountRepository(session)
+			account = account_repository.get_by_id(account_id)
 			if account is None:
 				raise KeyError(f"Konto {account_id} nicht gefunden")
 			if session.get(Category, category_id) is None:
@@ -72,8 +73,8 @@ class RecurringService:
 	def process_due_recurring_on_login(self, user_id: int, login_date: date) -> int:
 		executed = 0
 		with Session(engine) as session:
-			due_candidates = RecurringRepository.list_due_by_user(
-				session,
+			recurring_repository = RecurringRepository(session)
+			due_candidates = recurring_repository.list_due_by_user(
 				user_id=user_id,
 				reference_date=login_date,
 			)
@@ -98,10 +99,11 @@ class RecurringService:
 			except (ValueError, KeyError):
 				continue
 			with Session(engine) as session:
-				reloaded = RecurringRepository.get_by_id(session, recurring.recurring_id)
+				recurring_repository = RecurringRepository(session)
+				reloaded = recurring_repository.get_by_id(recurring.recurring_id)
 				if reloaded is not None:
 					reloaded.last_executed = login_date
-					RecurringRepository.save(session, reloaded)
+					recurring_repository.save(reloaded)
 			executed += 1
 
 		return executed
@@ -147,12 +149,14 @@ class RecurringService:
 	# Gibt alle Dauerauftraege eines Users zurueck.
 	def list_recurring(self, user_id: int) -> list[RecurringTransaction]:
 		with Session(engine) as session:
-			return RecurringRepository.list_by_user(session, user_id)
+			recurring_repository = RecurringRepository(session)
+			return recurring_repository.list_by_user(user_id)
 
 	# Aktualisiert einen Dauerauftrag.
 	def update_recurring(self, recurring_id: int, payload: dict) -> RecurringTransaction:
 		with Session(engine) as session:
-			recurring = RecurringRepository.get_by_id(session, recurring_id)
+			recurring_repository = RecurringRepository(session)
+			recurring = recurring_repository.get_by_id(recurring_id)
 			if recurring is None:
 				raise KeyError(f"Dauerauftrag {recurring_id} nicht gefunden")
 
@@ -178,26 +182,28 @@ class RecurringService:
 					end_date_val = date.fromisoformat(end_date_val) if end_date_val else None
 				recurring.end_date = end_date_val
 
-			return RecurringRepository.save(session, recurring)
+			return recurring_repository.save(recurring)
 
 	# Loescht einen Dauerauftrag und die verknuepfte Template-Transaktion.
 	def delete_recurring(self, recurring_id: int) -> None:
 		with Session(engine) as session:
-			recurring = RecurringRepository.get_by_id(session, recurring_id)
+			recurring_repository = RecurringRepository(session)
+			recurring = recurring_repository.get_by_id(recurring_id)
 			if recurring is None:
 				raise KeyError(f"Dauerauftrag {recurring_id} nicht gefunden")
 
 			transaction_id = recurring.transaction_id
 
 			# Zuerst Dauerauftrag löschen, dann Template-Transaktion
-			RecurringRepository.delete(session, recurring_id)
+			recurring_repository.delete(recurring_id)
 
 			if transaction_id:
 				from src.data_access.repositories.transaction_repository import TransactionRepository
 				from src.domain.models import Transaction
+				transaction_repository = TransactionRepository(session)
 				transaction = session.get(Transaction, transaction_id)
 				if transaction is not None:
-					TransactionRepository.delete(session, transaction)
+					transaction_repository.delete(transaction)
 
 
 recurring_service = RecurringService()

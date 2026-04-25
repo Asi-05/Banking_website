@@ -190,6 +190,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 	"""
 	Kreditkarten-Verwaltung (US9).
 	Liste aller Kreditkarten, Beantragen, Sperren, Ersetzen.
+	Trennt aktive Kreditkarten von Anträgen.
 	"""
 	from nicegui import ui
 
@@ -219,94 +220,126 @@ def _build_credit_cards_section(user_id: int) -> None:
 					error_label.set_text(error)
 					ui.notify(error, type="negative")
 				else:
-					ui.notify("Kreditkarte erfolgreich erstellt", type="positive")
-					dialog = ui.dialog()
-					with dialog, ui.card():
-						ui.label("Kreditkarte erfolgreich erstellt.")
-						ui.button("OK", on_click=dialog.close)
-					dialog.open()
+					ui.notify("Kreditkartenantrag wurde erfolgreich eingereicht", type="positive")
 
 			ui.button("Beantragen", on_click=handle_create_credit_card).classes("w-full")
 
-		# === KREDITKARTEN-LISTE ===
-		with ui.card().classes("w-full"):
+		# === KREDITKARTEN LADEN ===
+		try:
+			credit_cards = card_service.list_credit_cards(user_id)
 
-			ui.label("Meine Kreditkarten").classes("text-subtitle2 font-semibold")
+			if isinstance(credit_cards, str):
+				ui.notify(credit_cards, type="negative")
+				return
 
-			# Kreditkarten laden
-			try:
-				credit_cards = card_service.list_credit_cards(user_id)
+			# Trennung: aktive Karten vs. Anträge/Pending
+			active_cards = [c for c in credit_cards if (c.status if hasattr(c, "status") else c.get("status")) in ["aktiv", "gesperrt"]]
+			pending_cards = [c for c in credit_cards if (c.status if hasattr(c, "status") else c.get("status")) not in ["aktiv", "gesperrt"]]
 
-				if isinstance(credit_cards, str):
-					ui.notify(credit_cards, type="negative")
-					return
+			# === AKTIVE KREDITKARTEN-LISTE ===
+			with ui.card().classes("w-full"):
 
-				# Tabelle
-				credit_table = ui.table(columns=[
-					{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-					{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
-					{"name": "balance", "label": "Genutzt (CHF)", "field": "balance", "align": "right"},
-					{"name": "available", "label": "Verfügbar (CHF)", "field": "available", "align": "right"},
-					{"name": "status", "label": "Status", "field": "status", "align": "left"},
-					{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-				], rows=[]).props("dense")
-				credit_table.classes("w-full")
+				ui.label("Meine aktiven Kreditkarten").classes("text-subtitle2 font-semibold")
 
-				# Button-Slot: Sperren (bei aktiv) oder Ersetzen (bei gesperrt) — FR-CC-03
-				credit_table.add_slot("body-cell-actions", """
-					<q-td :props="props">
-						<q-btn v-if="props.row.status === 'aktiv'"
-							label="Sperren" color="negative" size="sm" flat
-							@click="$parent.$emit('block_credit', props.row)" />
-						<q-btn v-else
-							label="Ersetzen" color="primary" size="sm" flat
-							@click="$parent.$emit('replace_credit', props.row)" />
-					</q-td>
-				""")
+				if not active_cards:
+					ui.label("Keine aktiven Kreditkarten.").classes("text-gray-500 italic")
+				else:
+					# Tabelle für aktive Karten
+					credit_table = ui.table(columns=[
+						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+						{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+						{"name": "balance", "label": "Genutzt (CHF)", "field": "balance", "align": "right"},
+						{"name": "available", "label": "Verfügbar (CHF)", "field": "available", "align": "right"},
+						{"name": "status", "label": "Status", "field": "status", "align": "left"},
+						{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
+					], rows=[]).props("dense")
+					credit_table.classes("w-full")
 
-				def handle_block_credit(e) -> None:
-					creditcard_id = e.args.get("card_id")
-					error = card_controller.block_credit_card(creditcard_id)
-					if error:
-						ui.notify(error, type="negative")
-					else:
-						ui.notify("Kreditkarte gesperrt", type="positive")
-						for row in credit_table.rows:
-							if row["card_id"] == creditcard_id:
-								row["status"] = "gesperrt"
-						credit_table.update()
+					# Button-Slot: Sperren (bei aktiv) oder Ersetzen (bei gesperrt) — FR-CC-03
+					credit_table.add_slot("body-cell-actions", """
+						<q-td :props="props">
+							<q-btn v-if="props.row.status === 'aktiv'"
+								label="Sperren" color="negative" size="sm" flat
+								@click="$parent.$emit('block_credit', props.row)" />
+							<q-btn v-else
+								label="Ersetzen" color="primary" size="sm" flat
+								@click="$parent.$emit('replace_credit', props.row)" />
+						</q-td>
+					""")
 
-				def handle_replace_credit(e) -> None:
-					creditcard_id = e.args.get("card_id")
-					error = card_controller.replace_credit_card(creditcard_id)
-					if error:
-						ui.notify(error, type="negative")
-					else:
-						ui.notify("Ersatzkreditkarte bestellt", type="positive")
+					def handle_block_credit(e) -> None:
+						creditcard_id = e.args.get("card_id")
+						error = card_controller.block_credit_card(creditcard_id)
+						if error:
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Kreditkarte gesperrt", type="positive")
+							for row in credit_table.rows:
+								if row["card_id"] == creditcard_id:
+									row["status"] = "gesperrt"
+							credit_table.update()
 
-				credit_table.on("block_credit", handle_block_credit)
-				credit_table.on("replace_credit", handle_replace_credit)
+					def handle_replace_credit(e) -> None:
+						creditcard_id = e.args.get("card_id")
+						error = card_controller.replace_credit_card(creditcard_id)
+						if error:
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Ersatzkreditkarte bestellt", type="positive")
 
-				# Daten
-				rows = []
-				for card in credit_cards:
-					limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
-					balance_val = card.balance if hasattr(card, "balance") else card.get("balance")
-					available = limit_val - balance_val
+					credit_table.on("block_credit", handle_block_credit)
+					credit_table.on("replace_credit", handle_replace_credit)
 
-					rows.append({
-						"card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
-						"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
-						"limit": f"{limit_val:,.2f}",
-						"balance": f"{balance_val:,.2f}",
-						"available": f"{available:,.2f}",
-						"status": card.status if hasattr(card, "status") else card.get("status"),
-					})
+					# Daten: aktive Karten
+					rows = []
+					for card in active_cards:
+						limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
+						balance_val = card.balance if hasattr(card, "balance") else card.get("balance")
+						available = limit_val - balance_val
 
-				credit_table.rows = rows
+						rows.append({
+							"card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
+							"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
+							"limit": f"{limit_val:,.2f}",
+							"balance": f"{balance_val:,.2f}",
+							"available": f"{available:,.2f}",
+							"status": card.status if hasattr(card, "status") else card.get("status"),
+						})
 
-			except Exception as e:
-				ui.notify(f"Fehler beim Laden der Kreditkarten: {str(e)}", type="negative")
+					credit_table.rows = rows
+
+			# === KREDITKARTENANTRÄGE-LISTE ===
+			with ui.card().classes("w-full"):
+
+				ui.label("Meine Kreditkartenanträge").classes("text-subtitle2 font-semibold")
+
+				if not pending_cards:
+					ui.label("Keine offenen Anträge.").classes("text-gray-500 italic")
+				else:
+					# Tabelle für beantragte Karten
+					pending_table = ui.table(columns=[
+						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+						{"name": "limit", "label": "Gewünschtes Limit (CHF)", "field": "limit", "align": "right"},
+						{"name": "status", "label": "Status", "field": "status", "align": "left"},
+					], rows=[]).props("dense")
+					pending_table.classes("w-full")
+
+					# Daten: beantragte Karten
+					pending_rows = []
+					for card in pending_cards:
+						limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
+
+						pending_rows.append({
+							"card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
+							"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
+							"limit": f"{limit_val:,.2f}",
+							"status": card.status if hasattr(card, "status") else card.get("status"),
+						})
+
+					pending_table.rows = pending_rows
+
+		except Exception as e:
+			ui.notify(f"Fehler beim Laden der Kreditkarten: {str(e)}", type="negative")
 
 
 def _build_sidebar() -> None:

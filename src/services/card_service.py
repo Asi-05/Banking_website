@@ -101,7 +101,7 @@ class CardService:
 				expire_date=date(date.today().year + 4, date.today().month, 1),
 				limit=desired_limit,
 				balance=0.0,
-				status="aktiv",
+				status="beantragt",
 				user_id=user_id,
 			)
 			return card_repository.create_credit(credit_card)

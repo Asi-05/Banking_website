@@ -142,7 +142,6 @@ def _build_debit_cards_section(user_id: int) -> None:
 						ui.notify(error, type="negative")
 					else:
 						ui.notify("Debitkarte gesperrt", type="positive")
-						debit_table.rows = [r for r in debit_table.rows if r["card_id"] != card_id or not True]
 						# Status in Tabelle aktualisieren
 						for row in debit_table.rows:
 							if row["card_id"] == card_id:
@@ -202,7 +201,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 		with ui.expansion("Neue Kreditkarte beantragen").classes("w-full"):
 
 			# Gewünschtes Limit
-			limit_input = ui.number(label="Gewünschtes Limit (CHF)", min=100, step=100).props("outlined")
+			limit_input = ui.number(label="Gewünschtes Limit (CHF)", min=100, max=10000, step=100).props("outlined")
 			limit_input.classes("w-full mb-4")
 
 			error_label = ui.label("").classes("text-red-600 mb-4")

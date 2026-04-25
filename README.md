@@ -117,10 +117,9 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 ### 7. Konten eröffnen und schliessen
 **Als User möchte ich Privat- und Sparkonten selbstständig eröffnen oder schliessen.**
 
-**Description:** Der User ändert den Status (aktiv/inaktiv) eines bestehenden Kontos oder legt ein neues Konto an.
+**Description:** Der User legt ein neues Konto an oder schliesst ein bestehendes Konto. Geschlossene Konten erhalten den Status `geschlossen`.
 
-**Inputs:** * `account_type` as `str` ("private" | "savings")
-* `status` as `str` ("open" | "close")
+**Inputs:** * `account_type` as `str` ("privat" | "spar")
 * `account_id` as `int` (nur relevant bei 'close')
 
 **Outputs:** * `success` as `bool`
@@ -167,7 +166,7 @@ Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User
 * `from_account_id` as `int`
 * `purpose` as `str`
 
-**Outputs:** * `payment_status` as `str` ("pending" | "success")
+**Outputs:** * `payment_status` as `str` ("success")
 * Zahlungsbeleg (internally: `Payment`)
 
 ---
@@ -244,20 +243,20 @@ Die Anwendung erhält Benutzereingaben über die Weboberfläche. Alle Eingaben w
 | Felder       | Code-Variable | Typ    | Pflicht | Beispiel       |
 |--------------|---------------|--------|---------|----------------|
 | Betrag       | `amount`      | float  | ja      | 45.50          |
-| Kategorie ID | `category_id` | int    | ja      | 4 (Food)       |
+| Kategorie ID | `category_id` | int    | ja      | 6 (Freizeit)   |
 | Konto ID     | `account_id`  | int    | ja      | 12             |
 | Datum        | `date`        | date   | ja      | 2026-03-10     |
-| Notiz        | `note`        | string | nein    | Mittagessen    |
+| Notiz        | `note`        | string | nein    | Ausgang        |
 
 ### Beispiel Eingabe (JSON)
 
 ```json
 {
   "amount": 45.50,
-  "category_id": 4,
+  "category_id": 6,
   "account_id": 12,
   "date": "2026-03-10",
-  "note": "Lunch"
+  "note": "Ausgang"
 }
 ```
 
@@ -297,8 +296,6 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 
 ## 🏛️ Architecture
-🚧 Document the architecture components, relationships, and key design decisions.
-
 ### Software Architecture
 ## UML Klassendiagramm / ER Diagramm
 
@@ -306,38 +303,32 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 
 
-#### Layers / components:
+#### Layers / Components
 
  * UI (NiceGUI pages/components, browser as thin client)
  * Application logic (controllers + domain/services)
- * Persistence (SQLite + ORM entities + repositories/queries)
+ * Persistence (SQLite + SQLModel entities + repositories)
 
-#### Design decisions (examples):
+#### Design Decisions
 
  * Organize code using MVC:
-   * Model: domain + ORM entities (e.g. models.py)
+   * Model: domain + ORM entities (e.g. `src/domain/models.py`)
    * View: NiceGUI UI components/pages
-   * Controller: event handlers and coordination logic between UI, services, and       persistence
+   * Controller: event handlers and coordination logic between UI, services, and persistence
  
- * Separate UI (app/main.py) from domain logic (e.g. pricing.py) and persistence     (e.g. models.py, db.py)
- * Use and interaction of modules to minimize dependencies, by minimizing            cohesion and maximizing coupling
+ * Separate entrypoint/UI routing (`main.py`, `src/__main__.py`) from domain logic (`src/services`) and persistence (`src/data_access`)
+ * Use modules with clear responsibilities to reduce coupling and keep business logic testable
  * Keep business rules testable without starting the UI
 
-#### Design patterns used (examples):
+#### Design Patterns
 
  * MVC (Model–View–Controller)
- * Repository/DAO for database access (e.g. queries.py)
- * Strategy for business rules (e.g. discount calculation)
- * Adapter for external services (e.g. invoice generation backend)
+ * Repository/DAO for database access (see `src/data_access/repositories`)
+ * Service layer for business rules (see `src/services`)
 
 
 ## 🗄️ Database and ORM
-🚧 Describe the database and your ORM entities. Ideally, a diagram documents the database and it is described together with the ORM entities.
-
 Unsere Applikation nutzt eine **SQLite**-Datenbank in Kombination mit **SQLModel** als Object-Relational Mapper (ORM). SQLModel vereint SQLAlchemy (für die Datenbankinteraktion) und Pydantic (für die Datenvalidierung) und ermöglicht uns eine saubere, typensichere Python-Entwicklung.
-
-![Use Case Diagramm](pfad/zu/deinem/diagramm.png) 
-*(Hinweis: Füge hier den Pfad zu deinem ER-Diagramm ein)*
 
 ### ORM und Entitäten
 
@@ -352,34 +343,55 @@ Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten u
 * **Die "is_a" Transaktions-Strategie:** Alle Geldbewegungen basieren auf der `Transaction`-Entität, welche die gemeinsamen Basisdaten (Betrag, Datum, Typ) speichert. Spezifische Zahlungsarten (wie `Transfer`, `Payment`, `RecurringTransaction`) erben *nicht* im Python-Code, sondern werden relational über Komposition abgebildet. Die `Transfer` ↔ `Transaction` Beziehung (1:1 über den Foreign Key `transaction_id`) stellt sicher, dass zielspezifische Daten (wie `target_iban`) sauber getrennt bleiben und die Haupttabelle keine leeren `NULL`-Spalten für nicht benötigte Felder ansammelt.
 
 ## ✅ Project Requirements
-🚧 Requirements act as a contract: implement and demonstrate each point below.
-
-Each app must meet the following criteria in order to be accepted (see also the official project guidelines PDF on Moodle):
+Dieses Projekt erfüllt die Kernanforderungen wie folgt:
 
 1. Using NiceGUI for building an interactive web app
 2. Data validation in the app
 3. Using an ORM for database management
 
 ### 1. Browser-based App (NiceGUI)
-🚧 In this section, document how your project fulfills each criterion.
-
-Architecture note (per SS26 guidelines): the browser is a thin client; UI state + business logic live on the server-side NiceGUI app.
+Die Anwendung ist eine serverseitige NiceGUI-Webapp mit Browser als Thin Client. Routen und Seiten sind zentral im App-Entrypoint definiert.
 
 ### 2. Data Validation
-The application validates all user input to ensure data integrity and a smooth user experience. These checks prevent crashes and guide the user to provide correct input, matching the validation requirements described in the project guidelines.
+Die Anwendung validiert Eingaben u. a. für:
+* Beträge (`validate_positive_amount`)
+* IBAN-Format (`validate_iban`)
+* Datumsbereiche (`validate_date_range`)
+* Exactly-one-Regel für Transaktionsquellen (`validate_exactly_one_source`)
 
 ### 3. Database Management
-All relevant data is managed via an ORM (e.g. SQLModel or SQLAlchemy). For the pizza example this includes users, pizzas, and orders.
+Alle fachlichen Daten werden über SQLModel/SQLAlchemy verwaltet (u. a. User, Konten, Karten, Transaktionen, Budgets, Zahlungen, Umbuchungen).
 
 ## ⚙️ Implementation
 ### Technology
  * Python 3.x
- * Environment: GitHub Codespaces
- * External libraries (e.g. NiceGUI, SQLAlchemy, Pydantic)
+ * NiceGUI
+ * SQLModel / SQLAlchemy
+ * SQLite
+ * pytest
 
 ### 📂 Repository Structure
 
+* `main.py`: Startdatei
+* `src/__main__.py`: App-Entrypoint, Routing, Serverstart
+* `src/domain`: ORM-Modelle
+* `src/services`: Business-Logik
+* `src/data_access/repositories`: Datenzugriff
+* `src/ui/views` und `src/ui/controllers`: UI-Seiten und Controller
+* `tests`: Unit- und Integrationstests
+
 ### How to run
+
+1. Abhängigkeiten installieren:
+  `python3 -m pip install -r requirements.txt`
+2. Anwendung starten:
+  `python3 main.py`
+3. Im Browser öffnen:
+  `http://localhost:8080/`
+
+### Tests ausführen
+
+`python3 -m pytest -q`
 
 
 

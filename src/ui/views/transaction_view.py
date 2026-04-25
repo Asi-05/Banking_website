@@ -82,7 +82,8 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 	# Kategorien laden
 	with Session(engine) as session:
-		categories = CategoryRepository.list_all(session)
+		category_repository = CategoryRepository(session)
+		categories = category_repository.list_all()
 	category_options = {c.category_id: c.name for c in categories}
 
 	# Konten laden
@@ -93,7 +94,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 	else:
 		account_options = {
 			(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
-			(a.iban if hasattr(a, "iban") else a.get("iban"))
+			((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 			for a in result
 		}
 
@@ -188,7 +189,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 			# Kategorien laden
 			with Session(engine) as session:
-				categories = CategoryRepository.list_all(session)
+				category_repository = CategoryRepository(session)
+				categories = category_repository.list_all()
 			category_options = {c.category_id: c.name for c in categories}
 
 			# Konten laden
@@ -198,8 +200,9 @@ def _build_recurring_payments_section(user_id: int) -> None:
 			else:
 				account_options = {
 					(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
-					(a.iban if hasattr(a, "iban") else a.get("iban"))
+					((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 					for a in result
+					if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"
 				}
 
 			with ui.column().classes("w-full gap-4"):
@@ -299,11 +302,19 @@ def _build_recurring_payments_section(user_id: int) -> None:
 					rows.append({
 						"recurring_id": rec.recurring_id if hasattr(rec, 'recurring_id') else rec.get('recurring_id'),
 						"amount": f"{amount_val:,.2f}",
-						"target_iban": rec.target_iban if hasattr(rec, "target_iban") else rec.get("target_iban"),
+						"target_iban": ((rec.target_iban if hasattr(rec, "target_iban") else rec.get("target_iban")) or "").upper(),
+						"account_iban": account_map.get(rec.account_id if hasattr(rec, "account_id") else rec.get("account_id"), "N/A"),
 						"interval": "Monatlich" if interval_val == "monthly" else "Jährlich",
 						"next_execution": str(next_exec),
 					})
 				recurring_table.rows = rows
+
+			accounts = account_controller.list_accounts(user_id)
+			account_map = {
+				(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
+				((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
+				for a in (accounts if isinstance(accounts, list) else [])
+			}
 
 			# Tabelle mit actions-Spalte
 			recurring_table = ui.table(columns=[
@@ -311,6 +322,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
 				{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
 				{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
+				{"name": "account_iban", "label": "Belastungskonto", "field": "account_iban", "align": "left"},
 				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 			], rows=[]).props("dense")
 			recurring_table.classes("w-full")
@@ -332,7 +344,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 				with ui.dialog() as confirm_dialog, ui.card():
 					ui.label("Dauerauftrag wirklich löschen?").classes("text-subtitle1 font-semibold")
-					ui.label(f"Betrag: {row.get('amount')} CHF | IBAN: {row.get('target_iban')}").classes("text-gray-600")
+					ui.label(f"Betrag: {row.get('amount')} CHF | IBAN: {(row.get('target_iban') or '').upper()}").classes("text-gray-600")
 					with ui.row().classes("gap-4 mt-4"):
 						ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
 						def do_delete(rid=recurring_id):
@@ -356,7 +368,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				# Lade den aktuellen Dauerauftrag
 				from src.data_access.repositories.recurring_repository import RecurringRepository
 				with Session(engine) as session:
-					current_recurring = RecurringRepository.get_by_id(session, recurring_id)
+					recurring_repository = RecurringRepository(session)
+					current_recurring = recurring_repository.get_by_id(recurring_id)
 					if current_recurring is None:
 						ui.notify("Dauerauftrag nicht gefunden", type="negative")
 						return
@@ -435,8 +448,9 @@ def _build_transfer_form(user_id: int) -> None:
 	else:
 		account_options = {
 			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
-			(a.iban if hasattr(a, "iban") else a.get("iban"))
+			((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 			for a in result
+			if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"
 		}
 
 	with ui.card().classes("w-full max-w-md"):
@@ -494,7 +508,8 @@ def _build_transaction_list(user_id: int) -> None:
 
 	# Kategorien laden für Filter
 	with Session(engine) as session:
-		categories = CategoryRepository.list_all(session)
+		category_repository = CategoryRepository(session)
+		categories = category_repository.list_all()
 	category_options = {c.category_id: c.name for c in categories}
 
 	with ui.card().classes("w-full"):
@@ -634,7 +649,8 @@ def _refresh_transaction_list(
 
 	# Kategorienamen-Mapping laden
 	with Session(engine) as session:
-		categories = CategoryRepository.list_all(session)
+		category_repository = CategoryRepository(session)
+		categories = category_repository.list_all()
 	category_names = {c.category_id: c.name for c in categories}
 
 	# Transaktionen in Tabellenformat konvertieren
@@ -695,7 +711,7 @@ def _build_statement_section(user_id: int) -> None:
 	else:
 		account_options = {
 			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
-			(a.iban if hasattr(a, "iban") else a.get("iban"))
+			((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 			for a in result
 		}
 

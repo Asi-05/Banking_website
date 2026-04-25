@@ -55,8 +55,9 @@ def test_integration_create_recurring_payment(monkeypatch) -> None:
     )
 
     with Session(engine) as session:
-        reloaded = RecurringRepository.get_by_id(session, int(recurring.recurring_id))
-        by_user = RecurringRepository.list_by_user(session, user_id)
+        recurring_repository = RecurringRepository(session)
+        reloaded = recurring_repository.get_by_id(int(recurring.recurring_id))
+        by_user = recurring_repository.list_by_user(user_id)
 
         assert reloaded is not None
         assert reloaded.account_id == account_id

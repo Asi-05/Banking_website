@@ -7,35 +7,33 @@ from src.domain.models import Account
 
 # Kapselt reine Datenbankzugriffe fuer Konten.
 class AccountRepository:
+	def __init__(self, session: Session):
+		self.session = session
+
 	# Legt ein neues Konto an und persistiert es.
-	@staticmethod
-	def create(session: Session, account: Account) -> Account:
-		session.add(account)
-		session.commit()
-		session.refresh(account)
+	def create(self, account: Account) -> Account:
+		self.session.add(account)
+		self.session.commit()
+		self.session.refresh(account)
 		return account
 
 	# Laedt ein Konto anhand der ID.
-	@staticmethod
-	def get_by_id(session: Session, account_id: int) -> Account | None:
-		return session.get(Account, account_id)
+	def get_by_id(self, account_id: int) -> Account | None:
+		return self.session.get(Account, account_id)
 
 	# Laedt ein Konto anhand der IBAN.
-	@staticmethod
-	def get_by_iban(session: Session, iban: str) -> Account | None:
+	def get_by_iban(self, iban: str) -> Account | None:
 		statement = select(Account).where(Account.iban == iban)
-		return session.exec(statement).first()
+		return self.session.exec(statement).first()
 
 	# Gibt alle Konten eines Users zurueck.
-	@staticmethod
-	def list_by_user(session: Session, user_id: int) -> list[Account]:
+	def list_by_user(self, user_id: int) -> list[Account]:
 		statement = select(Account).where(Account.user_id == user_id)
-		return list(session.exec(statement).all())
+		return list(self.session.exec(statement).all())
 
 	# Persistiert Aenderungen eines Kontos.
-	@staticmethod
-	def save(session: Session, account: Account) -> Account:
-		session.add(account)
-		session.commit()
-		session.refresh(account)
+	def save(self, account: Account) -> Account:
+		self.session.add(account)
+		self.session.commit()
+		self.session.refresh(account)
 		return account

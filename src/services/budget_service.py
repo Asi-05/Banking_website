@@ -26,13 +26,19 @@ class BudgetService:
 
 		validate_positive_amount(limit_amount)
 		validate_budget_month_year(month, year)
+		from datetime import date
+		today = date.today()
+		if date(year, month, 1) < date(today.year, today.month, 1):
+			raise ValueError("Budget kann nicht für vergangene Monate erstellt werden")
 
 		with Session(engine) as session:
-			if UserRepository.get_by_id(session, user_id) is None:
+			user_repository = UserRepository(session)
+			budget_repository = BudgetRepository(session)
+
+			if user_repository.get_by_id(user_id) is None:
 				raise KeyError(f"User {user_id} nicht gefunden")
 
-			existing = BudgetRepository.get_by_scope(
-				session,
+			existing = budget_repository.get_by_scope(
 				user_id=user_id,
 				month=month,
 				year=year,
@@ -46,11 +52,11 @@ class BudgetService:
 					year=year,
 					category_id=category_id,
 				)
-				return BudgetRepository.create(session, budget)
+				return budget_repository.create(budget)
 
 			# Budget aktualisieren falls bereits vorhanden (Upsert)
 			existing.limit_amount = limit_amount
-			return BudgetRepository.save(session, existing)
+			return budget_repository.save(existing)
 
 	# Prueft den aktuellen Budgetstatus fuer einen Scope.
 	def check_budget_status(
@@ -63,8 +69,10 @@ class BudgetService:
 		validate_budget_month_year(month, year)
 
 		with Session(engine) as session:
-			budget = BudgetRepository.get_by_scope(
-				session,
+			budget_repository = BudgetRepository(session)
+			transaction_repository = TransactionRepository(session)
+
+			budget = budget_repository.get_by_scope(
 				user_id=user_id,
 				month=month,
 				year=year,
@@ -73,8 +81,7 @@ class BudgetService:
 			if budget is None:
 				raise KeyError("Budget nicht gefunden")
 
-			transactions = TransactionRepository.list_for_month(
-				session,
+			transactions = transaction_repository.list_for_month(
 				user_id=user_id,
 				month=month,
 				year=year,
@@ -97,7 +104,30 @@ class BudgetService:
 	# Gibt alle Budgets eines Users zurueck.
 	def list_budgets(self, user_id: int) -> list[Budget]:
 		with Session(engine) as session:
-			return BudgetRepository.list_by_user(session, user_id)
+			budget_repository = BudgetRepository(session)
+			return budget_repository.list_by_user(user_id)
+
+	# Aktualisiert den Budgetbetrag eines bestehenden Budgets.
+	def update_budget(self, budget_id: int, limit_amount: float) -> Budget:
+		validate_positive_amount(limit_amount)
+
+		with Session(engine) as session:
+			budget_repository = BudgetRepository(session)
+			budget = budget_repository.get_by_id(budget_id)
+			if budget is None:
+				raise KeyError(f"Budget {budget_id} nicht gefunden")
+
+			budget.limit_amount = float(limit_amount)
+			return budget_repository.save(budget)
+
+	# Loescht ein bestehendes Budget.
+	def delete_budget(self, budget_id: int) -> None:
+		with Session(engine) as session:
+			budget_repository = BudgetRepository(session)
+			budget = budget_repository.get_by_id(budget_id)
+			if budget is None:
+				raise KeyError(f"Budget {budget_id} nicht gefunden")
+			budget_repository.delete(budget_id)
 
 
 budget_service = BudgetService()

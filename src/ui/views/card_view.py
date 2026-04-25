@@ -74,7 +74,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 				# Nur Privatkonten filtern
 				account_options = {
 					(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
-					(a.iban if hasattr(a, "iban") else a.get("iban"))
+					((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 					for a in result
 					if (a.account_type if hasattr(a, "account_type") else a.get("account_type")) == "privat"
 				}
@@ -167,7 +167,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 				if not isinstance(accounts, str):
 					account_map = {
 						(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
-						(a.iban if hasattr(a, "iban") else a.get("iban"))
+						((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 						for a in accounts
 					}
 

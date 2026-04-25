@@ -9,37 +9,35 @@ from src.domain.models import Transaction
 
 # Kapselt reine Datenbankzugriffe fuer Transaktionen.
 class TransactionRepository:
+	def __init__(self, session: Session):
+		self.session = session
+
 	# Legt eine Transaktion an und persistiert sie.
-	@staticmethod
-	def create(session: Session, transaction: Transaction) -> Transaction:
-		session.add(transaction)
-		session.commit()
-		session.refresh(transaction)
+	def create(self, transaction: Transaction) -> Transaction:
+		self.session.add(transaction)
+		self.session.commit()
+		self.session.refresh(transaction)
 		return transaction
 
 	# Laedt eine Transaktion per ID.
-	@staticmethod
-	def get_by_id(session: Session, transaction_id: int) -> Transaction | None:
-		return session.get(Transaction, transaction_id)
+	def get_by_id(self, transaction_id: int) -> Transaction | None:
+		return self.session.get(Transaction, transaction_id)
 
 	# Persistiert Aenderungen an einer Transaktion.
-	@staticmethod
-	def save(session: Session, transaction: Transaction) -> Transaction:
-		session.add(transaction)
-		session.commit()
-		session.refresh(transaction)
+	def save(self, transaction: Transaction) -> Transaction:
+		self.session.add(transaction)
+		self.session.commit()
+		self.session.refresh(transaction)
 		return transaction
 
 	# Loescht eine Transaktion endgueltig.
-	@staticmethod
-	def delete(session: Session, transaction: Transaction) -> None:
-		session.delete(transaction)
-		session.commit()
+	def delete(self, transaction: Transaction) -> None:
+		self.session.delete(transaction)
+		self.session.commit()
 
 	# Filtert Transaktionen optional nach Zeitraum, Kategorie und User-Zuordnung.
-	@staticmethod
 	def filter_transactions(
-		session: Session,
+		self,
 		start_date: date | None = None,
 		end_date: date | None = None,
 		category_id: int | None = None,
@@ -82,12 +80,11 @@ class TransactionRepository:
 			)
 
 		statement = statement.order_by(Transaction.date.desc(), Transaction.transaction_id.desc())
-		return list(session.exec(statement).all())
+		return list(self.session.exec(statement).all())
 
 	# Gibt alle Transaktionen eines Monats optional je Kategorie zurueck.
-	@staticmethod
 	def list_for_month(
-		session: Session,
+		self,
 		user_id: int,
 		month: int,
 		year: int,
@@ -127,4 +124,4 @@ class TransactionRepository:
 			| (AccountViaCard.user_id == user_id)
 		)
 
-		return list(session.exec(statement).all())
+		return list(self.session.exec(statement).all())

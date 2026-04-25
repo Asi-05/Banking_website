@@ -18,7 +18,7 @@ def create_db_and_tables() -> None:
 # Session provider used by repositories and services
 def get_session() -> Generator[Session, None, None]:
 	with Session(engine) as session:
-		yield session
+		yield session 
 
 
 if __name__ == "__main__":

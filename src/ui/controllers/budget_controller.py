@@ -31,5 +31,21 @@ class BudgetController:
 		except Exception as error:
 			return str(error)
 
+	# Aktualisiert ein bestehendes Budget.
+	def update_budget(self, budget_id: int, limit_amount: float) -> str | None:
+		try:
+			budget_service.update_budget(budget_id, limit_amount)
+			return None
+		except Exception as error:
+			return str(error)
+
+	# Loescht ein bestehendes Budget.
+	def delete_budget(self, budget_id: int) -> str | None:
+		try:
+			budget_service.delete_budget(budget_id)
+			return None
+		except Exception as error:
+			return str(error)
+
 
 budget_controller = BudgetController()

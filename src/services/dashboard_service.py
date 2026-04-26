@@ -30,13 +30,21 @@ class DashboardService:
 				end_date=end_date,
 				user_id=user_id,
 			)
-			total_income = sum(t.amount for t in transactions if t.type == "income")
-			total_expenses = sum(abs(t.amount) for t in transactions if t.type == "expense")
+			
+			# Filter out internal transfers (Kontoumbuchungen) from income/expense calculations
+			# but keep them for balance calculation
+			non_transfer_transactions = [
+				t for t in transactions 
+				if not (t.note and "Kontoumbuchung" in t.note)
+			]
+			
+			total_income = sum(t.amount for t in non_transfer_transactions if t.type == "income")
+			total_expenses = sum(abs(t.amount) for t in non_transfer_transactions if t.type == "expense")
 
 			grouped: dict[str, dict[str, float]] = defaultdict(
 				lambda: {"income": 0.0, "expenses": 0.0}
 			)
-			for transaction in transactions:
+			for transaction in non_transfer_transactions:
 				label = transaction.date.strftime("%Y-%m")
 				if transaction.type == "income":
 					grouped[label]["income"] += transaction.amount

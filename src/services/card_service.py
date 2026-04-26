@@ -85,9 +85,12 @@ class CardService:
 
 	# Erstellt eine unabhaengige Kreditkarte mit Limit.
 	def create_credit_card(self, payload: dict) -> CreditCard:
+		MAX_CREDIT_LIMIT = 10_000.0
 		user_id = int(payload["user_id"])
 		desired_limit = float(payload["desired_limit"])
 		validate_positive_amount(desired_limit)
+		if desired_limit > MAX_CREDIT_LIMIT:
+			raise ValueError(f"Maximales Kreditlimit beträgt CHF {MAX_CREDIT_LIMIT:,.0f}")
 
 		with Session(engine) as session:
 			user_repository = UserRepository(session)
@@ -101,7 +104,7 @@ class CardService:
 				expire_date=date(date.today().year + 4, date.today().month, 1),
 				limit=desired_limit,
 				balance=0.0,
-				status="aktiv",
+				status="beantragt",
 				user_id=user_id,
 			)
 			return card_repository.create_credit(credit_card)

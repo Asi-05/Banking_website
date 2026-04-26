@@ -78,6 +78,10 @@ class PaymentService:
 				raise KeyError(f"Konto {from_account_id} nicht gefunden")
 			if to_account is None:
 				raise KeyError(f"Konto {to_account_id} nicht gefunden")
+			if from_account.status != "aktiv":
+				raise ValueError("Quellkonto ist nicht aktiv")
+			if to_account.status != "aktiv":
+				raise ValueError("Zielkonto ist nicht aktiv")
 			if from_account.user_id != to_account.user_id:
 				raise ValueError("Umbuchung nur zwischen eigenen Konten erlaubt")
 			if from_account.balance < amount:

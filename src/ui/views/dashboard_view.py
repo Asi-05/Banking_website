@@ -107,10 +107,10 @@ def _refresh_dashboard(
 			# === BILANZ-KARTEN ===
 			with ui.row().classes("gap-4 w-full"):
 
-				# Gesamtbilanz
+				# Gesamtvermögen
 				with ui.card().classes("flex-1"):
-					ui.label("Gesamtbilanz").classes("text-subtitle2 font-semibold")
-					ui.label(f"CHF {summary.total_balance:,.2f}").classes("text-h5 text-blue-600 font-bold")
+					ui.label("Gesamtvermögen").classes("text-subtitle2 font-semibold")
+					ui.label(f"CHF {summary.total_balance:,.2f}").classes("text-h4 text-blue-600 font-bold")
 
 				# Einnahmen
 				with ui.card().classes("flex-1"):

@@ -450,6 +450,7 @@ def _build_transfer_form(user_id: int) -> None:
 			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
 			((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 			for a in result
+			if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"
 		}
 
 	with ui.card().classes("w-full max-w-md"):

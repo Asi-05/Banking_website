@@ -44,10 +44,10 @@ class RecurringService:
 				raise KeyError(f"Kategorie {category_id} nicht gefunden")
 
 			template_transaction = Transaction(
-				amount=0.0,
+				amount=amount,
 				date=start_date,
 				type="expense",
-				note="Dauerauftrag Vorlage",
+				note="Dauerauftrag",
 				category_id=category_id,
 				account_id=account_id,
 			)
@@ -183,6 +183,12 @@ class RecurringService:
 				if isinstance(end_date_val, str):
 					end_date_val = date.fromisoformat(end_date_val) if end_date_val else None
 				recurring.end_date = end_date_val
+
+			if "category_id" in payload and payload["category_id"] is not None:
+				recurring.category_id = int(payload["category_id"])
+
+			if "account_id" in payload and payload["account_id"] is not None:
+				recurring.account_id = int(payload["account_id"])
 
 			return recurring_repository.save(recurring)
 

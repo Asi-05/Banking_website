@@ -134,6 +134,11 @@ class PaymentService:
 			account = account_repository.get_by_id(account_id)
 			if account is None:
 				raise KeyError(f"Konto {account_id} nicht gefunden")
+			from src.domain.models import User
+			user = session.get(User, account.user_id)
+			user_name = f"{user.first_name} {user.last_name}" if user else "Unbekannt"
+			account_type_label = "Sparkonto" if account.account_type == "spar" else "Privatkonto"
+			account_iban = (account.iban or "").upper()
 			transactions = payment_repository.list_account_transactions_in_range(
 				account_id=account_id,
 				start_date=start_date,
@@ -141,7 +146,11 @@ class PaymentService:
 			)
 
 		lines = [
-			f"Kontoauszug Konto {account_id}",
+			"Betterbank",
+			"",
+			f"Kontoinhaber: {user_name}",
+			f"IBAN: {account_iban}",
+			f"Kontotyp: {account_type_label}",
 			f"Zeitraum: {format_date_dmy(start_date)} bis {format_date_dmy(end_date)}",
 			f"Waehrung: {CURRENCY_CODE}",
 			"",
@@ -167,7 +176,7 @@ class PaymentService:
 			text_commands.append(f"({line}) Tj")
 			text_commands.append("0 -14 Td")
 		text_commands.append("ET")
-		stream_data = "\n".join(text_commands).encode("latin-1", errors="replace")
+		stream_data = "\n".join(text_commands).encode("cp1252", errors="replace")
 
 		objects: list[bytes] = []
 		objects.append(b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n")
@@ -175,7 +184,7 @@ class PaymentService:
 		objects.append(
 			b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj\n"
 		)
-		objects.append(b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n")
+		objects.append(b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> endobj\n")
 		objects.append(
 			f"5 0 obj << /Length {len(stream_data)} >> stream\n".encode("ascii")
 			+ stream_data

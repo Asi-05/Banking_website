@@ -39,7 +39,7 @@ def show() -> None:
 			tab_debit = ui.tab("Debitkarten")
 			tab_credit = ui.tab("Kreditkarten")
 
-		with ui.tab_panels(tabs):
+		with ui.tab_panels(tabs, value=tab_debit):
 
 			# ===== TAB 1: DEBITKARTEN =====
 			with ui.tab_panel(tab_debit):
@@ -101,90 +101,91 @@ def _build_debit_cards_section(user_id: int) -> None:
 			ui.button("Bestellen", on_click=handle_order_debit_card).classes("w-full")
 
 		# === DEBITKARTEN-LISTE ===
-		with ui.card().classes("w-full"):
+		# Daten laden
+		try:
+			debit_cards = card_service.list_debit_cards(user_id)
+			if isinstance(debit_cards, str):
+				ui.notify(debit_cards, type="negative")
+				return
 
-			ui.label("Meine Debitkarten").classes("text-subtitle2 font-semibold")
+			from src.ui.controllers.account_controller import account_controller
+			accounts = account_controller.list_accounts(user_id)
+			account_map = {}
+			if not isinstance(accounts, str):
+				account_map = {
+					(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
+					((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
+					for a in accounts
+				}
 
-			# Debitkarten laden
-			try:
-				debit_cards = card_service.list_debit_cards(user_id)
+			def make_row(card):
+				account_iban = account_map.get(
+					card.account_id if hasattr(card, "account_id") else card.get("account_id"), "N/A"
+				)
+				return {
+					"card_id": card.card_id if hasattr(card, "card_id") else card.get("card_id"),
+					"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
+					"expire_date": str(card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")),
+					"account": account_iban,
+					"status": card.status if hasattr(card, "status") else card.get("status"),
+				}
 
-				if isinstance(debit_cards, str):
-					ui.notify(debit_cards, type="negative")
-					return
+			COLUMNS = [
+				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+				{"name": "expire_date", "label": "Ablaufdatum", "field": "expire_date", "align": "left"},
+				{"name": "account", "label": "Konto", "field": "account", "align": "left"},
+				{"name": "status", "label": "Status", "field": "status", "align": "left"},
+				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
+			]
 
-				# Tabelle
-				debit_table = ui.table(columns=[
-					{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-					{"name": "expire_date", "label": "Ablaufdatum", "field": "expire_date", "align": "left"},
-					{"name": "account", "label": "Konto", "field": "account", "align": "left"},
-					{"name": "status", "label": "Status", "field": "status", "align": "left"},
-					{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-				], rows=[]).props("dense")
-				debit_table.classes("w-full")
+			INACTIVE_COLUMNS = [
+				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+				{"name": "expire_date", "label": "Ablaufdatum", "field": "expire_date", "align": "left"},
+				{"name": "account", "label": "Konto", "field": "account", "align": "left"},
+				{"name": "status", "label": "Status", "field": "status", "align": "left"},
+			]
 
-				# Button-Slot: Sperren (bei aktiv) oder Ersetzen (bei gesperrt) — FR-CARD-01/02
-				debit_table.add_slot("body-cell-actions", """
-					<q-td :props="props">
-						<q-btn v-if="props.row.status === 'aktiv'"
-							label="Sperren" color="negative" size="sm" flat
-							@click="$parent.$emit('block_debit', props.row)" />
-						<q-btn v-else
-							label="Ersetzen" color="primary" size="sm" flat
-							@click="$parent.$emit('replace_debit', props.row)" />
-					</q-td>
-				""")
+			active_cards = [c for c in debit_cards if (c.status if hasattr(c, "status") else c.get("status")) == "aktiv"]
+			inactive_cards = [c for c in debit_cards if (c.status if hasattr(c, "status") else c.get("status")) != "aktiv"]
 
-				def handle_block_debit(e) -> None:
-					card_id = e.args.get("card_id")
-					error = card_controller.block_debit_card(card_id)
-					if error:
-						ui.notify(error, type="negative")
-					else:
-						ui.notify("Debitkarte gesperrt", type="positive")
-						# Status in Tabelle aktualisieren
-						for row in debit_table.rows:
-							if row["card_id"] == card_id:
-								row["status"] = "gesperrt"
-						debit_table.update()
+			# === KASTEN 1: AKTIVE DEBITKARTE ===
+			with ui.card().classes("w-full"):
+				ui.label("Aktive Debitkarte").classes("text-subtitle2 font-semibold mb-2")
+				if not active_cards:
+					ui.label("Keine aktive Debitkarte.").classes("text-gray-500 italic")
+				else:
+					active_table = ui.table(columns=COLUMNS, rows=[make_row(c) for c in active_cards]).props("dense")
+					active_table.classes("w-full")
+					active_table.add_slot("body-cell-actions", """
+						<q-td :props="props">
+							<q-btn label="Sperren & Ersetzen" color="negative" size="sm" unelevated
+								@click="$parent.$emit('block_and_replace_debit', props.row)" />
+						</q-td>
+					""")
+					def handle_block_and_replace_debit(e) -> None:
+						card_id = e.args.get("card_id")
+						error = card_controller.block_debit_card(card_id)
+						if error:
+							ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
+							return
+						error = card_controller.replace_debit_card(card_id)
+						if error:
+							ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
+						else:
+							ui.notify("Karte gesperrt und Ersatzkarte bestellt", type="positive")
+					active_table.on("block_and_replace_debit", handle_block_and_replace_debit)
 
-				def handle_replace_debit(e) -> None:
-					card_id = e.args.get("card_id")
-					error = card_controller.replace_debit_card(card_id)
-					if error:
-						ui.notify(error, type="negative")
-					else:
-						ui.notify("Ersatzkarte bestellt", type="positive")
+			# === KASTEN 2: GESPERRTE / ERSETZTE DEBITKARTEN ===
+			with ui.card().classes("w-full mt-4"):
+				ui.label("Gesperrte / Ersetzte Debitkarten").classes("text-subtitle2 font-semibold mb-2")
+				if not inactive_cards:
+					ui.label("Keine gesperrten oder ersetzten Karten.").classes("text-gray-500 italic")
+				else:
+					inactive_table = ui.table(columns=INACTIVE_COLUMNS, rows=[{**make_row(c), "status": "inaktiv"} for c in inactive_cards]).props("dense")
+					inactive_table.classes("w-full")
 
-				debit_table.on("block_debit", handle_block_debit)
-				debit_table.on("replace_debit", handle_replace_debit)
-
-				# Daten mit Konto-IBAN laden
-				from src.ui.controllers.account_controller import account_controller
-				accounts = account_controller.list_accounts(user_id)
-				account_map = {}
-				if not isinstance(accounts, str):
-					account_map = {
-						(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
-						((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
-						for a in accounts
-					}
-
-				rows = []
-				for card in debit_cards:
-					account_iban = account_map.get(card.account_id if hasattr(card, "account_id") else card.get("account_id"), "N/A")
-					rows.append({
-						"card_id": card.card_id if hasattr(card, "card_id") else card.get("card_id"),
-						"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
-						"expire_date": str(card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")),
-						"account": account_iban,
-						"status": card.status if hasattr(card, "status") else card.get("status"),
-					})
-
-				debit_table.rows = rows
-
-			except Exception as e:
-				ui.notify(f"Fehler beim Laden der Debitkarten: {str(e)}", type="negative")
+		except Exception as e:
+			ui.notify(f"Fehler beim Laden der Debitkarten: {str(e)}", type="negative")
 def _build_credit_cards_section(user_id: int) -> None:
 	"""
 	Kreditkarten-Verwaltung (US9).
@@ -201,13 +202,17 @@ def _build_credit_cards_section(user_id: int) -> None:
 		with ui.expansion("Neue Kreditkarte beantragen").classes("w-full"):
 
 			# Gewünschtes Limit
-			limit_input = ui.number(label="Gewünschtes Limit (CHF)", min=100, max=10000, step=100).props("outlined")
+			limit_input = ui.number(label="Gewünschtes Limit (CHF)", min=100, step=100).props("outlined")
 			limit_input.classes("w-full mb-4")
 
 			error_label = ui.label("").classes("text-red-600 mb-4")
 
 			async def handle_create_credit_card() -> None:
 				"""Beantragt eine neue Kreditkarte."""
+				if (limit_input.value or 0) > 10000:
+					error_label.set_text("Das maximale Kreditlimit beträgt CHF 10'000.")
+					return
+
 				payload = {
 					"user_id": user_id,
 					"desired_limit": limit_input.value or 1000,
@@ -260,9 +265,10 @@ def _build_credit_cards_section(user_id: int) -> None:
 							<q-btn v-if="props.row.status === 'aktiv'"
 								label="Sperren" color="negative" size="sm" flat
 								@click="$parent.$emit('block_credit', props.row)" />
-							<q-btn v-else
+							<q-btn v-else-if="props.row.status === 'gesperrt'"
 								label="Ersetzen" color="primary" size="sm" flat
 								@click="$parent.$emit('replace_credit', props.row)" />
+							<span v-else class="text-grey-6 text-sm">{{ props.row.status }}</span>
 						</q-td>
 					""")
 

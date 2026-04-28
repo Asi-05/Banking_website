@@ -38,18 +38,18 @@ def show() -> None:
 
 		# Tab-Layout
 		with ui.tabs() as tabs:
-			tab_create = ui.tab("Neues Budget")
 			tab_list = ui.tab("Budget-Übersicht")
+			tab_create = ui.tab("Neues Budget")
 
-		with ui.tab_panels(tabs):
+		with ui.tab_panels(tabs, value=tab_list):
 
-			# ===== TAB 1: BUDGET SETZEN =====
-			with ui.tab_panel(tab_create):
-				_build_budget_form(user_id)
-
-			# ===== TAB 2: BUDGET-LISTE =====
+			# ===== TAB 1: BUDGET-LISTE =====
 			with ui.tab_panel(tab_list):
 				_build_budget_list(user_id)
+
+			# ===== TAB 2: BUDGET SETZEN =====
+			with ui.tab_panel(tab_create):
+				_build_budget_form(user_id)
 
 
 def _build_budget_form(user_id: int) -> None:

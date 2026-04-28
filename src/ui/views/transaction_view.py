@@ -44,7 +44,7 @@ def show() -> None:
 			tab_transfer = ui.tab("Übertrag")
 			tab_statement = ui.tab("Kontoauszug")
 
-		with ui.tab_panels(tabs):
+		with ui.tab_panels(tabs, value=tab_domestic):
 
 			# ===== TAB 1: NEUE INLANDSZAHLUNG =====
 			with ui.tab_panel(tab_domestic):
@@ -96,6 +96,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 			(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
 			((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 			for a in result
+			if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"
 		}
 
 	with ui.card().classes("w-full max-w-md"):
@@ -127,7 +128,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 		# Ausführungsdatum
 		ui.label("Ausführungsdatum").classes("text-sm text-gray-600")
-		execution_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+		execution_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
 		execution_date_picker.classes("w-full mb-4")
 
 		error_label = ui.label("").classes("text-red-600 mb-4")
@@ -184,249 +185,222 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 	with ui.column().classes("w-full gap-6"):
 
-		# === NEUE DAUERAUFTRAG ERSTELLEN ===
-		with ui.expansion("Neue Dauerauftrag erstellen").classes("w-full"):
+		# Kategorien-Mapping für Tabelle und Edit-Dialog
+		with Session(engine) as session:
+			cat_repo = CategoryRepository(session)
+			cats = cat_repo.list_all()
+		category_map_names = {c.category_id: c.name for c in cats}
 
-			# Kategorien laden
+		# Konto-Mapping für Tabelle und Edit-Dialog
+		accounts_result = account_controller.list_accounts(user_id)
+		account_map = {
+			int(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
+			((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
+			for a in (accounts_result if isinstance(accounts_result, list) else [])
+			if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"
+		}
+
+		# === TABELLE: DAUERAUFTRÄGE (direkt sichtbar, kein Klick nötig) ===
+
+		def refresh_recurring_table():
+			try:
+				recurring_list = recurring_service.list_recurring(user_id)
+			except Exception as ex:
+				ui.notify(f"Fehler: {str(ex)}", type="negative")
+				return
+			if isinstance(recurring_list, str):
+				ui.notify(recurring_list, type="negative")
+				return
+			rows = []
+			for rec in recurring_list:
+				amount_val = rec.amount if hasattr(rec, 'amount') else rec.get('amount')
+				interval_val = rec.interval if hasattr(rec, 'interval') else rec.get('interval')
+				last_executed = rec.last_executed if hasattr(rec, 'last_executed') else rec.get('last_executed')
+				if isinstance(last_executed, str):
+					last_executed = date.fromisoformat(last_executed)
+				next_exec = recurring_service._next_due_date(last_executed, interval_val)
+				if next_exec <= date.today():
+					next_exec = recurring_service._next_due_date(next_exec, interval_val)
+				rows.append({
+					"recurring_id": rec.recurring_id if hasattr(rec, 'recurring_id') else rec.get('recurring_id'),
+					"amount": f"{amount_val:,.2f}",
+					"target_iban": ((rec.target_iban if hasattr(rec, "target_iban") else rec.get("target_iban")) or "").upper(),
+					"category": category_map_names.get(
+						rec.category_id if hasattr(rec, 'category_id') else rec.get('category_id'), "—"
+					),
+					"account_iban": account_map.get(
+						int(rec.account_id if hasattr(rec, "account_id") else rec.get("account_id")), "N/A"
+					),
+					"interval": "Monatlich" if interval_val == "monthly" else "Jährlich",
+					"next_execution": next_exec.strftime("%d.%m.%Y"),
+				})
+			recurring_table.rows = rows
+
+		recurring_table = ui.table(columns=[
+			{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
+			{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
+			{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
+			{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
+			{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
+			{"name": "account_iban", "label": "Belastungskonto", "field": "account_iban", "align": "left"},
+			{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
+		], rows=[]).props("dense")
+		recurring_table.classes("w-full")
+
+		recurring_table.add_slot("body-cell-actions", """
+			<q-td :props="props">
+				<q-btn label="Ändern" color="primary" size="sm" flat
+					@click="$parent.$emit('edit_recurring', props.row)" />
+				<q-btn label="Löschen" color="negative" size="sm" flat
+					@click="$parent.$emit('delete_recurring', props.row)" />
+			</q-td>
+		""")
+
+		def handle_delete_recurring(e) -> None:
+			row = e.args
+			recurring_id = row.get("recurring_id")
+			with ui.dialog() as confirm_dialog, ui.card():
+				ui.label("Dauerauftrag wirklich löschen?").classes("text-subtitle1 font-semibold")
+				ui.label(f"Betrag: {row.get('amount')} CHF | IBAN: {(row.get('target_iban') or '').upper()}").classes("text-gray-600")
+				with ui.row().classes("gap-4 mt-4"):
+					ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
+					def do_delete(rid=recurring_id):
+						error = recurring_controller.delete_recurring(rid)
+						confirm_dialog.close()
+						if error:
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Dauerauftrag gelöscht", type="positive")
+							refresh_recurring_table()
+					ui.button("Löschen", on_click=do_delete).props("color=negative unelevated")
+			confirm_dialog.open()
+
+		recurring_table.on("delete_recurring", handle_delete_recurring)
+
+		def handle_edit_recurring(e) -> None:
+			row = e.args
+			recurring_id = row.get("recurring_id")
+			from src.data_access.repositories.recurring_repository import RecurringRepository
+			with Session(engine) as session:
+				recurring_repository = RecurringRepository(session)
+				current_recurring = recurring_repository.get_by_id(recurring_id)
+				if current_recurring is None:
+					ui.notify("Dauerauftrag nicht gefunden", type="negative")
+					return
+			with Session(engine) as session:
+				cat_repo = CategoryRepository(session)
+				cats = cat_repo.list_all()
+			edit_category_options = {c.category_id: c.name for c in cats}
+
+			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
+				ui.label("Dauerauftrag bearbeiten").classes("text-subtitle1 font-semibold mb-4")
+				amount_edit = ui.number(
+					label="Betrag (CHF)", value=current_recurring.amount, min=0.01, step=0.01
+				).props("outlined").classes("w-full mb-4")
+				category_edit = ui.select(
+					options=edit_category_options, value=current_recurring.category_id, label="Kategorie"
+				).props("outlined").classes("w-full mb-4")
+				account_edit = ui.select(
+					options=account_map, value=int(current_recurring.account_id), label="Belastungskonto"
+				).props("outlined").classes("w-full mb-4")
+				interval_edit = ui.select(
+					options={"monthly": "Monatlich", "yearly": "Jährlich"},
+					value=current_recurring.interval, label="Intervall"
+				).props("outlined").classes("w-full mb-4")
+				target_iban_edit = ui.input(
+					label="Ziel-IBAN", value=current_recurring.target_iban
+				).props("outlined").classes("w-full mb-4")
+				with ui.row().classes("gap-4"):
+					ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
+					def do_edit(rid=recurring_id):
+						payload = {
+							"amount": amount_edit.value or 0,
+							"category_id": category_edit.value,
+							"account_id": account_edit.value,
+							"interval": interval_edit.value,
+							"target_iban": target_iban_edit.value,
+						}
+						error = recurring_controller.update_recurring(rid, payload)
+						edit_dialog.close()
+						if error:
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Dauerauftrag aktualisiert", type="positive")
+							refresh_recurring_table()
+					ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
+			edit_dialog.open()
+
+		recurring_table.on("edit_recurring", handle_edit_recurring)
+
+		# Tabelle initial laden
+		refresh_recurring_table()
+
+		# === FORMULAR: NEUEN DAUERAUFTRAG ERSTELLEN (unter der Tabelle) ===
+		with ui.expansion("Neuen Dauerauftrag erstellen").classes("w-full"):
+
 			with Session(engine) as session:
 				category_repository = CategoryRepository(session)
 				categories = category_repository.list_all()
 			category_options = {c.category_id: c.name for c in categories}
 
-			# Konten laden
 			result = account_controller.list_accounts(user_id)
 			if isinstance(result, str):
-				account_options = {}
+				form_account_options = {}
 			else:
-				account_options = {
-					(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
+				form_account_options = {
+					int(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
 					((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
 					for a in result
 					if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"
 				}
 
 			with ui.column().classes("w-full gap-4"):
-
-				amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
-				amount_input.classes("w-full")
-
-				category_select = ui.select(options=category_options, label="Kategorie").props("outlined")
-				category_select.classes("w-full")
-
-				account_select = ui.select(account_options, label="Konto").props("outlined")
-				account_select.classes("w-full")
-
-				iban_input = ui.input(label="Ziel-IBAN").props("outlined")
-				iban_input.classes("w-full")
-
+				amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined").classes("w-full")
+				category_select = ui.select(options=category_options, label="Kategorie").props("outlined").classes("w-full")
+				account_select = ui.select(form_account_options, label="Konto").props("outlined").classes("w-full")
+				iban_input = ui.input(label="Ziel-IBAN").props("outlined").classes("w-full")
 				interval_select = ui.select(
-					options={"monthly": "Monatlich", "yearly": "Jährlich"},
-					label="Intervall",
-				).props("outlined")
-				interval_select.classes("w-full")
-
+					options={"monthly": "Monatlich", "yearly": "Jährlich"}, label="Intervall"
+				).props("outlined").classes("w-full")
 				ui.label("Startdatum").classes("text-sm text-gray-600")
-				start_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
-				start_date_picker.classes("w-full")
-
-				ui.label("Enddatum (optional)").classes("text-sm text-gray-600")
-				end_date_picker = ui.date().props("outlined")
-				end_date_picker.classes("w-full")
-
+				start_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1").classes("w-full")
 				error_label = ui.label("").classes("text-red-600")
 
 				async def handle_create_recurring() -> None:
-					"""Erstellt einen neuen Dauerauftrag."""
-					if start_date_picker.value < date.today().isoformat():
-						ui.notify("Startdatum darf nicht in der Vergangenheit liegen", type="negative")
+					# Pflichtfeldprüfung
+					if (not amount_input.value or not category_select.value
+							or not account_select.value or not iban_input.value
+							or not interval_select.value):
+						error_label.set_text("Bitte alle Felder ausfüllen.")
 						return
-
+					if start_date_picker.value < date.today().isoformat():
+						error_label.set_text("Startdatum darf nicht in der Vergangenheit liegen.")
+						return
+					error_label.set_text("")
 					payload = {
 						"user_id": user_id,
-						"amount": amount_input.value or 0,
+						"amount": amount_input.value,
 						"category_id": category_select.value,
 						"account_id": account_select.value,
 						"target_iban": iban_input.value,
 						"interval": interval_select.value,
 						"start_date": start_date_picker.value,
-						"end_date": end_date_picker.value or None,
 					}
-
 					error = recurring_controller.create_recurring(payload)
-
 					if error:
 						error_label.set_text(error)
 						ui.notify(error, type="negative")
 					else:
 						ui.notify("Dauerauftrag erfolgreich erstellt", type="positive")
-					# Formular zurücksetzen
-					amount_input.value = 0
-					category_select.value = None
-					account_select.value = None
-					iban_input.value = ""
-					interval_select.value = None
-					start_date_picker.value = date.today().isoformat()
-					end_date_picker.value = ""
-					error_label.set_text("")
+						amount_input.value = None
+						category_select.value = None
+						account_select.value = None
+						iban_input.value = ""
+						interval_select.value = None
+						start_date_picker.value = date.today().isoformat()
+						refresh_recurring_table()
 
 				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring).classes("w-full")
-
-			try:
-				recurring = recurring_service.list_recurring(user_id)
-
-				if isinstance(recurring, str):
-					ui.notify(recurring, type="negative")
-					return
-			except Exception as e:
-				ui.notify(f"Fehler beim Laden der Daueraufträge: {str(e)}", type="negative")
-				return
-
-			# Hilfsfunktion zum Neuladen der Daueraufträge-Liste
-			def refresh_recurring_table():
-				nonlocal recurring
-				recurring = recurring_service.list_recurring(user_id)
-				rows = []
-				for rec in recurring:
-					amount_val = rec.amount if hasattr(rec, 'amount') else rec.get('amount')
-					interval_val = rec.interval if hasattr(rec, 'interval') else rec.get('interval')
-					last_executed = rec.last_executed if hasattr(rec, 'last_executed') else rec.get('last_executed')
-					
-					if isinstance(last_executed, str):
-						last_executed = date.fromisoformat(last_executed)
-					
-					next_exec = recurring_service._next_due_date(last_executed, interval_val)
-
-					if next_exec <= date.today():
-						next_exec = recurring_service._next_due_date(next_exec, interval_val)
-
-					rows.append({
-						"recurring_id": rec.recurring_id if hasattr(rec, 'recurring_id') else rec.get('recurring_id'),
-						"amount": f"{amount_val:,.2f}",
-						"target_iban": ((rec.target_iban if hasattr(rec, "target_iban") else rec.get("target_iban")) or "").upper(),
-						"account_iban": account_map.get(rec.account_id if hasattr(rec, "account_id") else rec.get("account_id"), "N/A"),
-						"interval": "Monatlich" if interval_val == "monthly" else "Jährlich",
-						"next_execution": str(next_exec),
-					})
-				recurring_table.rows = rows
-
-			accounts = account_controller.list_accounts(user_id)
-			account_map = {
-				(a.account_id if hasattr(a, "account_id") else a.get("account_id")):
-				((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
-				for a in (accounts if isinstance(accounts, list) else [])
-			}
-
-			# Tabelle mit actions-Spalte
-			recurring_table = ui.table(columns=[
-				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
-				{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
-				{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
-				{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
-				{"name": "account_iban", "label": "Belastungskonto", "field": "account_iban", "align": "left"},
-				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-			], rows=[]).props("dense")
-			recurring_table.classes("w-full")
-
-			# Button-Slot für Aktionen (Bearbeiten, Löschen)
-			recurring_table.add_slot("body-cell-actions", """
-				<q-td :props="props">
-					<q-btn label="Ändern" color="primary" size="sm" flat
-						@click="$parent.$emit('edit_recurring', props.row)" />
-					<q-btn label="Löschen" color="negative" size="sm" flat
-						@click="$parent.$emit('delete_recurring', props.row)" />
-				</q-td>
-			""")
-
-			# Löschen mit Bestätigung
-			def handle_delete_recurring(e) -> None:
-				row = e.args
-				recurring_id = row.get("recurring_id")
-
-				with ui.dialog() as confirm_dialog, ui.card():
-					ui.label("Dauerauftrag wirklich löschen?").classes("text-subtitle1 font-semibold")
-					ui.label(f"Betrag: {row.get('amount')} CHF | IBAN: {(row.get('target_iban') or '').upper()}").classes("text-gray-600")
-					with ui.row().classes("gap-4 mt-4"):
-						ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
-						def do_delete(rid=recurring_id):
-							error = recurring_controller.delete_recurring(rid)
-							confirm_dialog.close()
-							if error:
-								ui.notify(error, type="negative")
-							else:
-								ui.notify("Dauerauftrag gelöscht", type="positive")
-								refresh_recurring_table()
-						ui.button("Löschen", on_click=do_delete).props("color=negative unelevated")
-				confirm_dialog.open()
-
-			recurring_table.on("delete_recurring", handle_delete_recurring)
-
-			# Bearbeiten-Dialog
-			def handle_edit_recurring(e) -> None:
-				row = e.args
-				recurring_id = row.get("recurring_id")
-
-				# Lade den aktuellen Dauerauftrag
-				from src.data_access.repositories.recurring_repository import RecurringRepository
-				with Session(engine) as session:
-					recurring_repository = RecurringRepository(session)
-					current_recurring = recurring_repository.get_by_id(recurring_id)
-					if current_recurring is None:
-						ui.notify("Dauerauftrag nicht gefunden", type="negative")
-						return
-
-					with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
-						ui.label("Dauerauftrag bearbeiten").classes("text-subtitle1 font-semibold mb-4")
-
-						amount_edit = ui.number(
-							label="Betrag (CHF)",
-							value=current_recurring.amount,
-							min=0.01,
-							step=0.01
-						).props("outlined")
-						amount_edit.classes("w-full mb-4")
-
-						interval_edit = ui.select(
-							options={"monthly": "Monatlich", "yearly": "Jährlich"},
-							value=current_recurring.interval,
-							label="Intervall"
-						).props("outlined")
-						interval_edit.classes("w-full mb-4")
-
-						target_iban_edit = ui.input(
-							label="Ziel-IBAN",
-							value=current_recurring.target_iban
-						).props("outlined")
-						target_iban_edit.classes("w-full mb-4")
-
-						ui.label("Enddatum (optional)").classes("text-sm text-gray-600")
-						end_date_edit = ui.date(
-							value=str(current_recurring.end_date) if current_recurring.end_date else ""
-						).props("outlined")
-						end_date_edit.classes("w-full mb-4")
-
-						with ui.row().classes("gap-4"):
-							ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
-							def do_edit(rid=recurring_id):
-								payload = {
-									"amount": amount_edit.value or 0,
-									"interval": interval_edit.value,
-									"target_iban": target_iban_edit.value,
-									"end_date": end_date_edit.value or None,
-								}
-								error = recurring_controller.update_recurring(rid, payload)
-								edit_dialog.close()
-								if error:
-									ui.notify(error, type="negative")
-								else:
-									ui.notify("Dauerauftrag aktualisiert", type="positive")
-									refresh_recurring_table()
-							ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
-					edit_dialog.open()
-
-			recurring_table.on("edit_recurring", handle_edit_recurring)
-
-			# Initialisiere die Tabelle
-			refresh_recurring_table()
 
 
 
@@ -516,10 +490,10 @@ def _build_transaction_list(user_id: int) -> None:
 
 		# Filter-Bereich
 		with ui.row().classes("gap-4 mb-4"):
-			start_date_picker = ui.date(value=(date.today() - timedelta(days=30)).isoformat()).props("outlined")
+			start_date_picker = ui.date(value=(date.today() - timedelta(days=30)).isoformat()).props("outlined first-day-of-week=1")
 			start_date_picker.label = "Von"
 
-			end_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+			end_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
 			end_date_picker.label = "Bis"
 
 			category_filter = ui.select(
@@ -659,7 +633,7 @@ def _refresh_transaction_list(
 		category_name = category_names.get(txn['category_id'], f"ID {txn['category_id']}")
 		rows.append({
 			"transaction_id": txn["transaction_id"],
-			"date": txn["date"],
+			"date": str(txn["date"]).replace("-", "."),
 			"type": txn["type"],
 			"amount": f"{txn['amount']:,.2f}",
 			"category": category_name,
@@ -725,11 +699,11 @@ def _build_statement_section(user_id: int) -> None:
 		account_select.classes("w-full mb-4")
 
 		# Zeitraum
-		start_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+		start_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
 		start_date_picker.label = "Von"
 		start_date_picker.classes("w-full mb-4")
 
-		end_date_picker = ui.date(value=date.today().isoformat()).props("outlined")
+		end_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
 		end_date_picker.label = "Bis"
 		end_date_picker.classes("w-full mb-4")
 

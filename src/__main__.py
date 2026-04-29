@@ -98,6 +98,27 @@ def main() -> None:
 	# 6. App-Start
 	print("🚀 Starte Betterbank Banking App...")
 	print("   Öffne: http://localhost:8080/")
+	ui.add_head_html("""
+	<script>
+	document.addEventListener('DOMContentLoaded', function() {
+	    setTimeout(function() {
+	        if (window.Quasar && Quasar.lang) {
+	            Quasar.lang.set({
+	                isoName: 'de',
+	                nativeName: 'Deutsch',
+	                date: {
+	                    days: ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'],
+	                    daysShort: ['So','Mo','Di','Mi','Do','Fr','Sa'],
+	                    months: ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'],
+	                    monthsShort: ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
+	                    firstDayOfWeek: 1
+	                }
+	            });
+	        }
+	    }, 200);
+	});
+	</script>
+	""", shared=True)
 	ui.run(
 		title="💰 Betterbank - E-Banking Finanzverwaltung",
 		port=8080,

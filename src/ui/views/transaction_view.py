@@ -29,7 +29,10 @@ def show() -> None:
 
 	# ===== TOP-RIGHT: LOGOUT =====
 	with ui.header():
-		ui.button(icon="logout", on_click=lambda: _logout()).props("flat")
+		with ui.row().classes("w-full justify-end items-center"):
+			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
+				.props("flat no-caps") \
+				.classes("text-white font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -52,7 +55,7 @@ def show() -> None:
 
 			# ===== TAB 2: BEWEGUNGEN =====
 			with ui.tab_panel(tab_list):
-				_build_transaction_list(user_id)
+				_build_bewegungen_section(user_id)
 
 			# ===== TAB 3: DAUERAUFTRÄGE =====
 			with ui.tab_panel(tab_recurring):
@@ -148,7 +151,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 				"from_account_id": from_account_select.value,
 				"category_id": category_select.value,
 				"purpose": purpose_input.value,
-				"execution_date": execution_date_picker.value,
+				"date": execution_date_picker.value,
 			}
 
 			error = payment_controller.create_payment(payload)
@@ -404,6 +407,138 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 
 
+def _build_bewegungen_section(user_id: int) -> None:
+	from nicegui import ui
+	from src.data_access.repositories.category_repository import CategoryRepository
+	from src.data_access.db import engine
+	from sqlmodel import Session
+
+	with Session(engine) as session:
+		category_repository = CategoryRepository(session)
+		categories = category_repository.list_all()
+	category_options = {c.category_id: c.name for c in categories}
+
+	with ui.tabs() as sub_tabs:
+		tab_booked = ui.tab("Gebuchte Zahlungen")
+		tab_planned = ui.tab("Geplante Zahlungen")
+
+	with ui.tab_panels(sub_tabs, value=tab_booked):
+
+		# ===== GEBUCHTE ZAHLUNGEN (date <= today, mit Von/Bis Filter) =====
+		with ui.tab_panel(tab_booked):
+			with ui.card().classes("w-full"):
+				with ui.row().classes("gap-4 mb-4 items-end"):
+					booked_start = ui.date(value=(date.today() - timedelta(days=30)).isoformat()).props("outlined first-day-of-week=1")
+					booked_start.label = "Von"
+
+					with ui.column().classes("gap-1"):
+						ui.label("Bis").classes("text-sm text-gray-500")
+						ui.label(date.today().strftime("%d.%m.%Y")).classes(
+							"text-body1 font-semibold text-gray-700 px-2 py-1 bg-gray-100 rounded"
+						)
+					booked_cat_filter = ui.select(
+						options={None: "Alle Kategorien", **category_options},
+						value=None, label="Kategorie",
+					).props("outlined")
+					ui.button("Filter anwenden", on_click=lambda: _refresh_booked(
+						user_id, booked_start, booked_cat_filter, booked_table
+					)).props("unelevated color=primary size=sm")
+
+				booked_table = ui.table(columns=[
+					{"name": "date", "label": "Datum", "field": "date", "align": "left"},
+					{"name": "type", "label": "Typ", "field": "type", "align": "left"},
+					{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
+					{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
+					{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
+				], rows=[]).props("dense")
+				booked_table.classes("w-full")
+
+				_refresh_booked(user_id, booked_start, booked_cat_filter, booked_table)
+
+		# ===== GEPLANTE ZAHLUNGEN (date > heute, automatisch ab morgen) =====
+		with ui.tab_panel(tab_planned):
+			with ui.card().classes("w-full"):
+				with ui.row().classes("gap-4 mb-4"):
+					planned_cat_filter = ui.select(
+						options={None: "Alle Kategorien", **category_options},
+						value=None, label="Kategorie",
+					).props("outlined")
+					ui.button("Aktualisieren", on_click=lambda: _refresh_planned(
+						user_id, planned_cat_filter, planned_table
+					)).props("flat size=sm")
+
+				planned_table = ui.table(columns=[
+					{"name": "date", "label": "Datum", "field": "date", "align": "left"},
+					{"name": "type", "label": "Typ", "field": "type", "align": "left"},
+					{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
+					{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
+					{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
+					{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
+				], rows=[]).props("dense")
+				planned_table.classes("w-full")
+
+				planned_table.add_slot("body-cell-actions", """
+					<q-td :props="props">
+						<q-btn label="Ändern" color="primary" size="sm" flat
+							@click="$parent.$emit('edit_planned', props.row)" />
+						<q-btn label="Stornieren" color="negative" size="sm" flat
+							@click="$parent.$emit('delete_planned', props.row)" />
+					</q-td>
+				""")
+
+				def handle_edit_planned(e) -> None:
+					row = e.args
+					transaction_id = row.get("transaction_id")
+					with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
+						ui.label("Geplante Zahlung bearbeiten").classes("text-subtitle1 font-semibold mb-4")
+						amount_edit = ui.number(
+							label="Betrag (CHF)",
+							value=float(str(row.get("amount", "0")).replace(",", "")),
+							min=0.01, step=0.01
+						).props("outlined").classes("w-full mb-4")
+						note_edit = ui.textarea(
+							label="Notiz",
+							value=row.get("note") if row.get("note") != "-" else ""
+						).props("outlined").classes("w-full mb-4")
+						with ui.row().classes("gap-4"):
+							ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
+							def do_edit(tid=transaction_id):
+								error = transaction_controller.edit_transaction(
+									tid, {"amount": amount_edit.value or 0, "note": note_edit.value}
+								)
+								edit_dialog.close()
+								if error:
+									ui.notify(error, type="negative")
+								else:
+									ui.notify("Gespeichert", type="positive")
+									_refresh_planned(user_id, planned_cat_filter, planned_table)
+							ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
+					edit_dialog.open()
+
+				def handle_delete_planned(e) -> None:
+					row = e.args
+					transaction_id = row.get("transaction_id")
+					with ui.dialog() as confirm_dialog, ui.card():
+						ui.label("Zahlung stornieren?").classes("text-subtitle1 font-semibold")
+						with ui.row().classes("gap-4 mt-4"):
+							ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
+							def do_delete(tid=transaction_id):
+								error = transaction_controller.delete_transaction(tid, confirm=True)
+								confirm_dialog.close()
+								if error:
+									ui.notify(error, type="negative")
+								else:
+									ui.notify("Storniert", type="positive")
+									_refresh_planned(user_id, planned_cat_filter, planned_table)
+							ui.button("Stornieren", on_click=do_delete).props("color=negative unelevated")
+					confirm_dialog.open()
+
+				planned_table.on("edit_planned", handle_edit_planned)
+				planned_table.on("delete_planned", handle_delete_planned)
+
+				_refresh_planned(user_id, planned_cat_filter, planned_table)
+
+
 
 def _build_transfer_form(user_id: int) -> None:
 	"""
@@ -642,6 +777,60 @@ def _refresh_transaction_list(
 
 	if transactions_table:
 		transactions_table.rows = rows
+
+
+def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
+	"""Loads transactions with date <= today."""
+	from nicegui import ui
+	from src.data_access.repositories.category_repository import CategoryRepository
+	from src.data_access.db import engine
+	from sqlmodel import Session
+	result = transaction_controller.filter_transactions(
+		start_date=date.fromisoformat(start_picker.value),
+		end_date=date.today(),
+		category_id=cat_filter.value,
+		user_id=user_id,
+	)
+	if isinstance(result, str):
+		ui.notify(result, type="negative")
+		return
+	with Session(engine) as session:
+		cats = {c.category_id: c.name for c in CategoryRepository(session).list_all()}
+	table.rows = [{
+		"transaction_id": t["transaction_id"],
+		"date": str(t["date"]).replace("-", "."),
+		"type": t["type"],
+		"amount": f"{t['amount']:,.2f}",
+		"category": cats.get(t["category_id"], "—"),
+		"note": t["note"] or "-",
+	} for t in result]
+
+
+def _refresh_planned(user_id, cat_filter, table) -> None:
+	"""Loads transactions with date > today (ab morgen)."""
+	from nicegui import ui
+	from src.data_access.repositories.category_repository import CategoryRepository
+	from src.data_access.db import engine
+	from sqlmodel import Session
+	result = transaction_controller.filter_transactions(
+		start_date=date.today() + timedelta(days=1),
+		end_date=date(2099, 12, 31),
+		category_id=cat_filter.value,
+		user_id=user_id,
+	)
+	if isinstance(result, str):
+		ui.notify(result, type="negative")
+		return
+	with Session(engine) as session:
+		cats = {c.category_id: c.name for c in CategoryRepository(session).list_all()}
+	table.rows = [{
+		"transaction_id": t["transaction_id"],
+		"date": str(t["date"]).replace("-", "."),
+		"type": t["type"],
+		"amount": f"{t['amount']:,.2f}",
+		"category": cats.get(t["category_id"], "—"),
+		"note": t["note"] or "-",
+	} for t in result]
 
 
 def _build_sidebar() -> None:

@@ -27,7 +27,10 @@ def show() -> None:
 
 	# ===== TOP-RIGHT: LOGOUT =====
 	with ui.header():
-		ui.button(icon="logout", on_click=lambda: _logout()).props("flat")
+		with ui.row().classes("w-full justify-end items-center"):
+			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
+				.props("flat no-caps") \
+				.classes("text-white font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):

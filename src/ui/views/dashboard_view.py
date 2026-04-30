@@ -180,7 +180,7 @@ def _build_sidebar() -> None:
 	Baut die linke Sidebar mit Navigation zu allen Views.
 	"""
 	from nicegui import ui
-	ui.label("Betterbank").classes("text-h6 font-bold p-4")
+	ui.label("BetterBank").classes("text-h6 font-bold p-4")
 	
 	# Benutzername laden und anzeigen
 	user_id = app_state.get("user_id")

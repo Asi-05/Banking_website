@@ -337,7 +337,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 def _build_sidebar() -> None:
 	"""Baut die Navigation."""
 	from nicegui import ui
-	ui.label("Betterbank").classes("text-h6 font-bold p-4")
+	ui.label("BetterBank").classes("text-h6 font-bold p-4")
 	
 	# Benutzername laden und anzeigen
 	user_id = app_state.get("user_id")

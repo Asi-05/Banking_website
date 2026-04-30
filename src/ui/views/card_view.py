@@ -27,7 +27,10 @@ def show() -> None:
 
 	# ===== TOP-RIGHT: LOGOUT =====
 	with ui.header():
-		ui.button(icon="logout", on_click=lambda: _logout()).props("flat")
+		with ui.row().classes("w-full justify-end items-center"):
+			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
+				.props("flat no-caps") \
+				.classes("text-white font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -259,41 +262,25 @@ def _build_credit_cards_section(user_id: int) -> None:
 					], rows=[]).props("dense")
 					credit_table.classes("w-full")
 
-					# Button-Slot: Sperren (bei aktiv) oder Ersetzen (bei gesperrt) — FR-CC-03
 					credit_table.add_slot("body-cell-actions", """
 						<q-td :props="props">
-							<q-btn v-if="props.row.status === 'aktiv'"
-								label="Sperren" color="negative" size="sm" flat
-								@click="$parent.$emit('block_credit', props.row)" />
-							<q-btn v-else-if="props.row.status === 'gesperrt'"
-								label="Ersetzen" color="primary" size="sm" flat
-								@click="$parent.$emit('replace_credit', props.row)" />
-							<span v-else class="text-grey-6 text-sm">{{ props.row.status }}</span>
+							<q-btn label="Sperren & Ersetzen" color="negative" size="sm" unelevated
+								@click="$parent.$emit('block_and_replace_credit', props.row)" />
 						</q-td>
 					""")
 
-					def handle_block_credit(e) -> None:
+					def handle_block_and_replace_credit(e) -> None:
 						creditcard_id = e.args.get("card_id")
 						error = card_controller.block_credit_card(creditcard_id)
 						if error:
-							ui.notify(error, type="negative")
-						else:
-							ui.notify("Kreditkarte gesperrt", type="positive")
-							for row in credit_table.rows:
-								if row["card_id"] == creditcard_id:
-									row["status"] = "gesperrt"
-							credit_table.update()
-
-					def handle_replace_credit(e) -> None:
-						creditcard_id = e.args.get("card_id")
+							ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
+							return
 						error = card_controller.replace_credit_card(creditcard_id)
 						if error:
-							ui.notify(error, type="negative")
+							ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
 						else:
-							ui.notify("Ersatzkreditkarte bestellt", type="positive")
-
-					credit_table.on("block_credit", handle_block_credit)
-					credit_table.on("replace_credit", handle_replace_credit)
+							ui.notify("Kreditkarte gesperrt und Ersatzkarte bestellt", type="positive")
+					credit_table.on("block_and_replace_credit", handle_block_and_replace_credit)
 
 					# Daten: aktive Karten
 					rows = []

@@ -30,11 +30,10 @@ def show() -> None:
 
 	# ===== TOP-RIGHT: USERNAME + LOGOUT =====
 	with ui.header():
-		with ui.row().classes("w-full justify-end"):
-			ui.button("Logout", icon="logout", on_click=lambda: _logout()) \
-				.props("unelevated no-caps") \
-				.classes("bg-white font-semibold px-4 py-2 rounded") \
-				.style("color: #1d4ed8 !important;")
+		with ui.row().classes("w-full justify-end items-center"):
+			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
+				.props("flat no-caps") \
+				.classes("text-white font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -42,35 +41,36 @@ def show() -> None:
 		# Titel
 		ui.label("Dashboard").classes("text-h4 font-bold")
 
-		# Gesamtvermögen-Karte (oberhalb des Kalenders)
+		# Gesamtvermögen (bleibt oben)
 		balance_container = ui.column().classes("w-full")
 
-		# Kalender links, Einnahmen/Ausgaben rechts
-		with ui.row().classes("w-full gap-4 items-start"):
-			with ui.card().classes("").style("flex: 1; min-width: 280px;"):
-				with ui.row().classes("gap-4 items-start"):
-					today = date.today()
-					first_day_of_month = date(today.year, today.month, 1)
-					default_end = today
+		# Kalender nebeneinander + Filter-Button auf gleicher Höhe
+		with ui.row().classes("w-full gap-4 items-center"):
+			with ui.card().classes(""):
+				ui.label("Von").classes("text-sm text-gray-500 mb-1")
+				start_date_picker = ui.date(
+					value=date(date.today().year, date.today().month, 1).isoformat()
+				).props("first-day-of-week=1")
 
-					start_date_picker = ui.date(value=first_day_of_month.isoformat()).props("outlined first-day-of-week=1")
-					start_date_picker.label = "Von"
+			with ui.card().classes(""):
+				ui.label("Bis").classes("text-sm text-gray-500 mb-1")
+				end_date_picker = ui.date(
+					value=date.today().isoformat()
+				).props("first-day-of-week=1")
 
-					end_date_picker = ui.date(value=default_end.isoformat()).props("outlined first-day-of-week=1")
-					end_date_picker.label = "Bis"
+			ui.button("Filter anwenden", on_click=lambda: _refresh_dashboard(
+				user_id,
+				start_date_picker,
+				end_date_picker,
+				balance_container,
+				income_expense_container,
+				chart_container,
+			)).props("unelevated color=primary")
 
-					ui.button("Filter anwenden", on_click=lambda: _refresh_dashboard(
-						user_id,
-						start_date_picker,
-						end_date_picker,
-						balance_container,
-						income_expense_container,
-						chart_container,
-					)).props("unelevated color=primary")
+		# Zeile 2: Einnahmen und Ausgaben
+		income_expense_container = ui.row().classes("w-full gap-4")
 
-			income_expense_container = ui.row().classes("gap-4").style("flex: 1;")
-
-		# Diagramm darunter, volle Breite
+		# Zeile 3: Diagramm volle Breite
 		chart_container = ui.column().classes("w-full gap-6")
 
 		# Initiales Laden

@@ -23,6 +23,8 @@ class TransactionService:
 		amount = float(payload["amount"])
 		transaction_type = str(payload["type"])
 		transaction_date = payload.get("date") or date.today()
+		if isinstance(transaction_date, str):
+			transaction_date = date.fromisoformat(transaction_date)
 		category_id = int(payload["category_id"])
 		account_id = payload.get("account_id")
 		card_id = payload.get("card_id")

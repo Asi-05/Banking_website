@@ -29,7 +29,10 @@ def show() -> None:
 
 	# ===== TOP-RIGHT: LOGOUT =====
 	with ui.header():
-		ui.button(icon="logout", on_click=lambda: _logout()).props("flat")
+		with ui.row().classes("w-full justify-end items-center"):
+			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
+				.props("flat no-caps") \
+				.classes("text-white font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -147,99 +150,122 @@ def _build_budget_form(user_id: int) -> None:
 
 
 def _build_budget_list(user_id: int) -> None:
-	"""
-	Zeigt Übersicht aller Budgets des Users mit Status (OK / ÜBERSCHRITTEN).
-	"""
 	from nicegui import ui
+	from datetime import date
 
-	from src.services.budget_service import budget_service
+	today = date.today()
+	cur_year = today.year
+	cur_month = today.month
 
+	COLUMNS = [
+		{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left"},
+		{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
+		{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+		{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right"},
+		{"name": "status", "label": "Status", "field": "status", "align": "center"},
+		{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
+	]
+
+	EXPIRED_COLUMNS = [
+		{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left"},
+		{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
+		{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+		{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right"},
+		{"name": "status", "label": "Status", "field": "status", "align": "center"},
+		{"name": "actions", "label": "Löschen", "field": "actions", "align": "center"},
+	]
+
+	ACTION_SLOT = """
+		<q-td :props="props">
+			<q-btn label="Bearbeiten" color="primary" size="sm" flat
+				@click="$parent.$emit('edit_budget', props.row)" />
+			<q-btn label="Löschen" color="negative" size="sm" flat
+				@click="$parent.$emit('delete_budget', props.row)" />
+		</q-td>
+	"""
+
+	EXPIRED_ACTION_SLOT = """
+		<q-td :props="props">
+			<q-btn label="Löschen" color="negative" size="sm" flat
+				@click="$parent.$emit('delete_budget', props.row)" />
+		</q-td>
+	"""
+
+	# === KASTEN 1: AKTIVE BUDGETS ===
 	with ui.card().classes("w-full"):
+		ui.label("Aktive Budgets").classes("text-subtitle1 font-semibold mb-2")
+		active_table = ui.table(columns=COLUMNS, rows=[]).props("dense")
+		active_table.classes("w-full")
+		active_table.add_slot("body-cell-actions", ACTION_SLOT)
 
-		budgets_table = ui.table(columns=[
-			{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left"},
-			{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
-			{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
-			{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right"},
-			{"name": "status", "label": "Status", "field": "status", "align": "center"},
-			{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-		], rows=[]).props("dense")
-		budgets_table.classes("w-full")
+		def handle_edit_active(e) -> None:
+			_open_edit_dialog(e, user_id, active_table, expired_table, cur_year, cur_month)
+		def handle_delete_active(e) -> None:
+			_open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_month)
+		active_table.on("edit_budget", handle_edit_active)
+		active_table.on("delete_budget", handle_delete_active)
 
-		# Action-Slot für Bearbeiten/Löschen
-		budgets_table.add_slot("body-cell-actions", """
-			<q-td :props="props">
-				<q-btn label="Bearbeiten" color="primary" size="sm" flat
-					@click="$parent.$emit('edit_budget', props.row)" />
-				<q-btn label="Löschen" color="negative" size="sm" flat
-					@click="$parent.$emit('delete_budget', props.row)" />
-			</q-td>
-		""")
+	# === KASTEN 2: ABGELAUFENE BUDGETS ===
+	with ui.card().classes("w-full mt-4"):
+		ui.label("Abgelaufene Budgets").classes("text-subtitle1 font-semibold mb-2")
+		expired_table = ui.table(columns=EXPIRED_COLUMNS, rows=[]).props("dense")
+		expired_table.classes("w-full")
+		expired_table.add_slot("body-cell-actions", EXPIRED_ACTION_SLOT)
+		def handle_delete_expired(e) -> None:
+			_open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_month)
+		expired_table.on("delete_budget", handle_delete_expired)
 
-		# Löschen mit Bestätigungsdialog
-		def handle_delete_budget(e) -> None:
-			row = e.args
-			budget_id = row.get("budget_id")
-
-			with ui.dialog() as confirm_dialog, ui.card():
-				ui.label("Budget wirklich löschen?").classes("text-subtitle1 font-semibold")
-				ui.label(f"Zeitraum: {row.get('month_year')} | Kategorie: {row.get('category')}").classes("text-gray-600")
-				with ui.row().classes("gap-4 mt-4"):
-					ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
-					def do_delete(bid=budget_id):
-						error = budget_controller.delete_budget(bid)
-						confirm_dialog.close()
-						if error:
-							ui.notify(error, type="negative")
-						else:
-							ui.notify("Budget gelöscht", type="positive")
-							_refresh_budget_list(user_id, budgets_table)
-					ui.button("Löschen", on_click=do_delete).props("color=negative unelevated")
-			confirm_dialog.open()
-
-		# Bearbeiten mit Dialog
-		def handle_edit_budget(e) -> None:
-			row = e.args
-			budget_id = row.get("budget_id")
-
-			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
-				ui.label("Budget bearbeiten").classes("text-subtitle1 font-semibold mb-4")
-
-				limit_edit = ui.number(
-					label="Limit (CHF)",
-					value=float(str(row.get("limit", "0")).replace(",", "")),
-					min=0.01,
-					step=0.01,
-				).props("outlined")
-				limit_edit.classes("w-full mb-4")
-
-				with ui.row().classes("gap-4"):
-					ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
-					def do_edit(bid=budget_id):
-						error = budget_controller.update_budget(bid, limit_edit.value or 0)
-						edit_dialog.close()
-						if error:
-							ui.notify(error, type="negative")
-						else:
-							ui.notify("Budget aktualisiert", type="positive")
-							_refresh_budget_list(user_id, budgets_table)
-					ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
-			edit_dialog.open()
-
-		budgets_table.on("delete_budget", handle_delete_budget)
-		budgets_table.on("edit_budget", handle_edit_budget)
-
-		# Laden
-		_refresh_budget_list(user_id, budgets_table)
+	_refresh_split_budget_list(user_id, active_table, expired_table, cur_year, cur_month)
 
 
-def _refresh_budget_list(user_id: int, budgets_table=None) -> None:
-	"""
-	Lädt alle Budgets des Users und zeigt sie an.
-	Berechnet die aktuelle Auslastung pro Budget.
-	"""
+def _open_edit_dialog(e, user_id, active_table, expired_table, cur_year, cur_month) -> None:
 	from nicegui import ui
+	row = e.args
+	budget_id = row.get("budget_id")
+	with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
+		ui.label("Budget bearbeiten").classes("text-subtitle1 font-semibold mb-4")
+		limit_edit = ui.number(
+			label="Limit (CHF)",
+			value=float(str(row.get("limit", "0")).replace(",", "")),
+			min=0.01, step=0.01,
+		).props("outlined").classes("w-full mb-4")
+		with ui.row().classes("gap-4"):
+			ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
+			def do_edit(bid=budget_id):
+				error = budget_controller.update_budget(bid, limit_edit.value or 0)
+				edit_dialog.close()
+				if error:
+					ui.notify(error, type="negative")
+				else:
+					ui.notify("Budget aktualisiert", type="positive")
+					_refresh_split_budget_list(user_id, active_table, expired_table, cur_year, cur_month)
+			ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
+	edit_dialog.open()
 
+
+def _open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_month) -> None:
+	from nicegui import ui
+	row = e.args
+	budget_id = row.get("budget_id")
+	with ui.dialog() as confirm_dialog, ui.card():
+		ui.label("Budget wirklich löschen?").classes("text-subtitle1 font-semibold")
+		ui.label(f"Zeitraum: {row.get('month_year')} | Kategorie: {row.get('category')}").classes("text-gray-600")
+		with ui.row().classes("gap-4 mt-4"):
+			ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
+			def do_delete(bid=budget_id):
+				error = budget_controller.delete_budget(bid)
+				confirm_dialog.close()
+				if error:
+					ui.notify(error, type="negative")
+				else:
+					ui.notify("Budget gelöscht", type="positive")
+					_refresh_split_budget_list(user_id, active_table, expired_table, cur_year, cur_month)
+			ui.button("Löschen", on_click=do_delete).props("color=negative unelevated")
+	confirm_dialog.open()
+
+
+def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, cur_month) -> None:
+	from nicegui import ui
 	from src.services.budget_service import budget_service
 	from src.data_access.repositories.category_repository import CategoryRepository
 	from src.data_access.db import engine
@@ -247,29 +273,24 @@ def _refresh_budget_list(user_id: int, budgets_table=None) -> None:
 
 	try:
 		budgets = budget_service.list_budgets(user_id)
-
 		if isinstance(budgets, str):
 			ui.notify(budgets, type="negative")
 			return
-
-		# Kategorienamen laden für Anzeige
 		with Session(engine) as session:
-			category_repository = CategoryRepository(session)
-			categories = category_repository.list_all()
-		category_names = {c.category_id: c.name for c in categories}
+			category_names = {c.category_id: c.name for c in CategoryRepository(session).list_all()}
 
-		rows = []
+		active_rows = []
+		expired_rows = []
+		month_names = ["", "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+					   "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+
 		for budget in budgets:
-			month_name = ["", "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"][budget.month]
+			month_name = month_names[budget.month]
 			month_year = f"{month_name} {budget.year}"
-
-			# Budgetstatus prüfen (nutzt check_budget_status)
 			try:
 				status_data = budget_service.check_budget_status(
-					user_id=user_id,
-					month=budget.month,
-					year=budget.year,
-					category_id=budget.category_id,
+					user_id=user_id, month=budget.month,
+					year=budget.year, category_id=budget.category_id,
 				)
 				is_exceeded = status_data.get("is_exceeded", False)
 				used_amount = status_data.get("current_spending", 0)
@@ -277,27 +298,28 @@ def _refresh_budget_list(user_id: int, budgets_table=None) -> None:
 				is_exceeded = False
 				used_amount = 0
 
-			# Status-Badge
-			status_badge = "OK ✓" if not is_exceeded else "ÜBERSCHRITTEN ⚠"
-			status_color = "green-6" if not is_exceeded else "red-6"
-
-			# Kategorienamen
-			category_display = "Alle" if budget.category_id is None else category_names.get(budget.category_id, f"ID {budget.category_id}")
-
-			rows.append({
+			row = {
 				"budget_id": budget.budget_id,
 				"month_year": month_year,
-				"category": category_display,
+				"category": "Alle" if budget.category_id is None
+					else category_names.get(budget.category_id, f"ID {budget.category_id}"),
 				"limit": f"{budget.limit_amount:,.2f}",
 				"used": f"{used_amount:,.2f}",
-				"status": status_badge,
-			})
+				"status": "OK ✓" if not is_exceeded else "ÜBERSCHRITTEN ⚠",
+			}
 
-		if budgets_table:
-			budgets_table.rows = rows
+			is_active = (budget.year > cur_year) or (
+				budget.year == cur_year and budget.month >= cur_month
+			)
+			if is_active:
+				active_rows.append(row)
+			else:
+				expired_rows.append(row)
 
-	except Exception as e:
-		ui.notify(f"Fehler beim Laden der Budgets: {str(e)}", type="negative")
+		active_table.rows = active_rows
+		expired_table.rows = expired_rows
+	except Exception as ex:
+		ui.notify(f"Fehler: {str(ex)}", type="negative")
 
 
 def _build_sidebar() -> None:

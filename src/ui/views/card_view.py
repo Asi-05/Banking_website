@@ -163,6 +163,8 @@ def _build_debit_cards_section(user_id: int) -> None:
 						<q-td :props="props">
 							<q-btn label="Sperren & Ersetzen" color="negative" size="sm" unelevated
 								@click="$parent.$emit('block_and_replace_debit', props.row)" />
+							<q-btn label="PIN bestellen" color="primary" size="sm" flat
+								@click="$parent.$emit('order_pin_debit', props.row)" />
 						</q-td>
 					""")
 					def handle_block_and_replace_debit(e) -> None:
@@ -176,7 +178,10 @@ def _build_debit_cards_section(user_id: int) -> None:
 							ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
 						else:
 							ui.notify("Karte gesperrt und Ersatzkarte bestellt", type="positive")
+					def handle_order_pin_debit(e) -> None:
+						ui.notify("PIN bestellt", type="positive")
 					active_table.on("block_and_replace_debit", handle_block_and_replace_debit)
+					active_table.on("order_pin_debit", handle_order_pin_debit)
 
 			# === KASTEN 2: GESPERRTE / ERSETZTE DEBITKARTEN ===
 			with ui.card().classes("w-full mt-4"):
@@ -266,6 +271,8 @@ def _build_credit_cards_section(user_id: int) -> None:
 						<q-td :props="props">
 							<q-btn label="Sperren & Ersetzen" color="negative" size="sm" unelevated
 								@click="$parent.$emit('block_and_replace_credit', props.row)" />
+							<q-btn label="PIN bestellen" color="primary" size="sm" flat
+								@click="$parent.$emit('order_pin_credit', props.row)" />
 						</q-td>
 					""")
 
@@ -280,7 +287,12 @@ def _build_credit_cards_section(user_id: int) -> None:
 							ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
 						else:
 							ui.notify("Kreditkarte gesperrt und Ersatzkarte bestellt", type="positive")
+					
+					def handle_order_pin_credit(e) -> None:
+						ui.notify("PIN bestellt", type="positive")
+					
 					credit_table.on("block_and_replace_credit", handle_block_and_replace_credit)
+					credit_table.on("order_pin_credit", handle_order_pin_credit)
 
 					# Daten: aktive Karten
 					rows = []
@@ -337,7 +349,20 @@ def _build_credit_cards_section(user_id: int) -> None:
 def _build_sidebar() -> None:
 	"""Baut die Navigation."""
 	from nicegui import ui
-	ui.label("Betterbank").classes("text-h6 font-bold p-4")
+	ui.label("BetterBank").classes("text-h6 font-bold p-4")
+	
+	# Benutzername laden und anzeigen
+	user_id = app_state.get("user_id")
+	if user_id:
+		from src.data_access.repositories.user_repository import UserRepository
+		from src.data_access.db import engine
+		from sqlmodel import Session
+		
+		with Session(engine) as session:
+			user = UserRepository(session).get_by_id(user_id)
+			if user:
+				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
+	
 	ui.separator()
 
 	with ui.column().classes("gap-2 p-4"):

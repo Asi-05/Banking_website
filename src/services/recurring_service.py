@@ -192,6 +192,16 @@ class RecurringService:
 
 			return recurring_repository.save(recurring)
 
+	# Liefert einen einzelnen Dauerauftrag per ID.
+	def get_by_id(self, recurring_id: int) -> RecurringTransaction | None:
+		with Session(engine) as session:
+			recurring_repository = RecurringRepository(session)
+			return recurring_repository.get_by_id(recurring_id)
+
+	# Oeffentliche Version von _next_due_date fuer die Controller-Schicht.
+	def next_execution_date(self, last_executed: date, interval: str) -> date:
+		return self._next_due_date(last_executed, interval)
+
 	# Loescht einen Dauerauftrag und die verknuepfte Template-Transaktion.
 	def delete_recurring(self, recurring_id: int) -> None:
 		with Session(engine) as session:

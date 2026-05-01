@@ -53,5 +53,19 @@ class CardController:
 		except Exception as error:
 			return str(error)
 
+	# Listet alle Debitkarten eines Users.
+	def list_debit_cards(self, user_id: int) -> list | str:
+		try:
+			return card_service.list_debit_cards(user_id)
+		except Exception as error:
+			return str(error)
+
+	# Listet alle Kreditkarten eines Users.
+	def list_credit_cards(self, user_id: int) -> list | str:
+		try:
+			return card_service.list_credit_cards(user_id)
+		except Exception as error:
+			return str(error)
+
 
 card_controller = CardController()

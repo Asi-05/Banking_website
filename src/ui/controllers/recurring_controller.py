@@ -56,5 +56,23 @@ class RecurringController:
         except Exception as error:
             return str(error)
 
+    # Listet alle Dauerauftraege eines Users.
+    def list_recurring(self, user_id: int) -> list | str:
+        try:
+            return recurring_service.list_recurring(user_id)
+        except Exception as error:
+            return str(error)
+
+    # Berechnet das naechste Ausfuehrungsdatum.
+    def get_next_execution_date(self, last_executed: date, interval: str) -> date:
+        return recurring_service.next_execution_date(last_executed, interval)
+
+    # Liefert einen einzelnen Dauerauftrag per ID.
+    def get_by_id(self, recurring_id: int):
+        try:
+            return recurring_service.get_by_id(recurring_id)
+        except Exception:
+            return None
+
 
 recurring_controller = RecurringController()

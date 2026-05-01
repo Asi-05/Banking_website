@@ -12,5 +12,12 @@ class AuthController:
 		except Exception as error:
 			return str(error)
 
+	# Gibt den vollstaendigen Namen eines Users zurueck.
+	def get_username(self, user_id: int) -> str:
+		try:
+			return auth_service.get_full_name(user_id)
+		except Exception:
+			return ""
+
 
 auth_controller = AuthController()

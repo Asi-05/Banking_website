@@ -48,4 +48,10 @@ class AuthService:
             "executed_recurring": executed_recurring,
         }
 
+    def get_full_name(self, user_id: int) -> str:
+        with Session(engine) as session:
+            user = UserRepository(session).get_by_id(user_id)
+            return f"{user.first_name} {user.last_name}" if user else ""
+
+
 auth_service = AuthService()

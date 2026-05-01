@@ -9,30 +9,30 @@ Das Ziel dieses Projekts ist die Entwicklung einer umfassenden Personal Finance 
 
 ### Problem
 
-Viele Menschen verlieren im Alltag leicht den Überblick über ihre Einnahmen und Ausgaben. Die manuelle Erfassung ist mühsam, und bestehende Banking-Apps bieten oft nicht die nötige Flexibilität, um Budgets individuell zu verwalten, wiederkehrende Kosten zu automatisieren und gleichzeitig Konten oder Karten direkt zu managen. Das führt zu unbemerkten Budgetüberschreitungen und fehlender finanzieller Kontrolle.
+Viele Menschen verlieren im Alltag leicht den Überblick über ihre Ausgaben. Die manuelle Erfassung ist mühsam, und bestehende Banking-Apps bieten oft nicht die nötige Flexibilität, um Budgets individuell zu verwalten, wiederkehrende Kosten zu automatisieren und gleichzeitig Konten oder Karten direkt zu managen. Das führt zu unbemerkten Budgetüberschreitungen und fehlender finanzieller Kontrolle.
 
 ---
 
 ### Scenario
 
-Unsere Finanzverwaltungs-App Betterbank löst dieses Problem, indem sie dem User eine zentrale Plattform bietet. Der User loggt sich ein und kann auf einem übersichtlichen Dashboard seine aktuelle finanzielle Lage prüfen. Er kann im Alltag neue Transaktionen mit wenigen Klicks erfassen und kategorisieren. Am Ende des Monats sieht er dank automatischer Warnungen sofort, ob er seine gesetzten Budgets eingehalten hat, und kann sich bei Bedarf Kontoauszüge als PDF generieren.
+Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User eine zentrale Plattform bietet. Der User loggt sich ein und kann auf einem übersichtlichen Dashboard seine aktuelle finanzielle Lage prüfen. Er kann im Alltag neue Transaktionen mit wenigen Klicks erfassen und kategorisieren. Am Ende des Monats sieht er dank automatischer Warnungen sofort, ob er seine gesetzten Budgets eingehalten hat, und kann sich bei Bedarf Kontoauszüge als PDF generieren.
 
 ---
 
 ## User Stories
 
 ### 1. Transaktion manuell erfassen inkl. Kategorie
-**Als User möchte ich meine Einnahmen und Ausgaben manuell hinzufügen und ihnen eine Kategorie zuweisen, damit ich meine Finanzstruktur überwachen und verstehen kann.**
+**Als User möchte ich meine Ausgaben manuell hinzufügen und ihnen eine Kategorie zuweisen, damit ich meine Finanzstruktur überwachen und verstehen kann.**
 
 **Description:** Die Anwendung speichert eine neue Einnahme oder Ausgabe mit Betrag, Datum, der zugewiesenen Kategorie und dem belasteten Konto/der belasteten Karte.
 
 **Inputs:** * `amount` as `float`
-* `type` as `str` (e.g., "income" | "expense")
+* `type` as `str` (e.g. "expense")
 * `date` as `date`
 * `category_id` as `int`
-* `account_id` as `int` (optional, falls über Konto bezahlt)
-* `card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)
-* `creditcard_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
+* `account_id` as `int` (optional, falls über Konto bezahlt)%%%%%%%
+* `card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)%%%%%%%
+* `creditcard_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt) %%%%%
 * `note` as `str` (optional)
 
 **Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `card_id`, `creditcard_id`).

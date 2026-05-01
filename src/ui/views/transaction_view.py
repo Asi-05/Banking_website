@@ -79,15 +79,9 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 	from src.ui.controllers.account_controller import account_controller
 	from src.ui.controllers.payment_controller import payment_controller
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.category_controller import category_controller
 
-	# Kategorien laden
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_options = {c.category_id: c.name for c in categories}
+	category_options = category_controller.list_categories()
 
 	# Konten laden
 	result = account_controller.list_accounts(user_id)
@@ -179,20 +173,13 @@ def _build_recurring_payments_section(user_id: int) -> None:
 	"""
 	from nicegui import ui
 
-	from src.services.recurring_service import recurring_service
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
 	from src.ui.controllers.account_controller import account_controller
 	from src.ui.controllers.recurring_controller import recurring_controller
-	from sqlmodel import Session
+	from src.ui.controllers.category_controller import category_controller
 
 	with ui.column().classes("w-full gap-6"):
 
-		# Kategorien-Mapping für Tabelle und Edit-Dialog
-		with Session(engine) as session:
-			cat_repo = CategoryRepository(session)
-			cats = cat_repo.list_all()
-		category_map_names = {c.category_id: c.name for c in cats}
+		category_map_names = category_controller.list_categories()
 
 		# Konto-Mapping für Tabelle und Edit-Dialog
 		accounts_result = account_controller.list_accounts(user_id)
@@ -206,11 +193,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		# === TABELLE: DAUERAUFTRÄGE (direkt sichtbar, kein Klick nötig) ===
 
 		def refresh_recurring_table():
-			try:
-				recurring_list = recurring_service.list_recurring(user_id)
-			except Exception as ex:
-				ui.notify(f"Fehler: {str(ex)}", type="negative")
-				return
+			recurring_list = recurring_controller.list_recurring(user_id)
 			if isinstance(recurring_list, str):
 				ui.notify(recurring_list, type="negative")
 				return
@@ -221,9 +204,9 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				last_executed = rec.last_executed if hasattr(rec, 'last_executed') else rec.get('last_executed')
 				if isinstance(last_executed, str):
 					last_executed = date.fromisoformat(last_executed)
-				next_exec = recurring_service._next_due_date(last_executed, interval_val)
+				next_exec = recurring_controller.get_next_execution_date(last_executed, interval_val)
 				if next_exec <= date.today():
-					next_exec = recurring_service._next_due_date(next_exec, interval_val)
+					next_exec = recurring_controller.get_next_execution_date(next_exec, interval_val)
 				rows.append({
 					"recurring_id": rec.recurring_id if hasattr(rec, 'recurring_id') else rec.get('recurring_id'),
 					"amount": f"{amount_val:,.2f}",
@@ -283,17 +266,11 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		def handle_edit_recurring(e) -> None:
 			row = e.args
 			recurring_id = row.get("recurring_id")
-			from src.data_access.repositories.recurring_repository import RecurringRepository
-			with Session(engine) as session:
-				recurring_repository = RecurringRepository(session)
-				current_recurring = recurring_repository.get_by_id(recurring_id)
-				if current_recurring is None:
-					ui.notify("Dauerauftrag nicht gefunden", type="negative")
-					return
-			with Session(engine) as session:
-				cat_repo = CategoryRepository(session)
-				cats = cat_repo.list_all()
-			edit_category_options = {c.category_id: c.name for c in cats}
+			current_recurring = recurring_controller.get_by_id(recurring_id)
+			if current_recurring is None:
+				ui.notify("Dauerauftrag nicht gefunden", type="negative")
+				return
+			edit_category_options = category_controller.list_categories()
 
 			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
 				ui.label("Dauerauftrag bearbeiten").classes("text-subtitle1 font-semibold mb-4")
@@ -341,10 +318,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		# === FORMULAR: NEUEN DAUERAUFTRAG ERSTELLEN (unter der Tabelle) ===
 		with ui.expansion("Neuen Dauerauftrag erstellen").classes("w-full"):
 
-			with Session(engine) as session:
-				category_repository = CategoryRepository(session)
-				categories = category_repository.list_all()
-			category_options = {c.category_id: c.name for c in categories}
+			category_options = category_controller.list_categories()
 
 			result = account_controller.list_accounts(user_id)
 			if isinstance(result, str):
@@ -409,14 +383,9 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 def _build_bewegungen_section(user_id: int) -> None:
 	from nicegui import ui
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.category_controller import category_controller
 
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_options = {c.category_id: c.name for c in categories}
+	category_options = category_controller.list_categories()
 
 	with ui.tabs() as sub_tabs:
 		tab_booked = ui.tab("Gebuchte Zahlungen")
@@ -610,16 +579,9 @@ def _build_transaction_list(user_id: int) -> None:
 	Zeigt Edit/Delete-Buttons.
 	"""
 	from nicegui import ui
+	from src.ui.controllers.category_controller import category_controller
 
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
-
-	# Kategorien laden für Filter
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_options = {c.category_id: c.name for c in categories}
+	category_options = category_controller.list_categories()
 
 	with ui.card().classes("w-full"):
 
@@ -735,16 +697,12 @@ def _refresh_transaction_list(
 	Lädt Transaktionsliste neu und aktualisiert die Tabelle.
 	"""
 	from nicegui import ui
-
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.category_controller import category_controller
 
 	start_date = date.fromisoformat(start_date_picker.value)
 	end_date = date.fromisoformat(end_date_picker.value)
 	category_id = category_filter.value if category_filter.value is not None else None
 
-	# Controller aufrufen
 	result = transaction_controller.filter_transactions(
 		start_date=start_date,
 		end_date=end_date,
@@ -756,11 +714,7 @@ def _refresh_transaction_list(
 		ui.notify(result, type="negative")
 		return
 
-	# Kategorienamen-Mapping laden
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_names = {c.category_id: c.name for c in categories}
+	category_names = category_controller.list_categories()
 
 	# Transaktionen in Tabellenformat konvertieren
 	rows = []
@@ -782,9 +736,7 @@ def _refresh_transaction_list(
 def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
 	"""Loads transactions with date <= today."""
 	from nicegui import ui
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.category_controller import category_controller
 	result = transaction_controller.filter_transactions(
 		start_date=date.fromisoformat(start_picker.value),
 		end_date=date.today(),
@@ -794,8 +746,7 @@ def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
 		return
-	with Session(engine) as session:
-		cats = {c.category_id: c.name for c in CategoryRepository(session).list_all()}
+	cats = category_controller.list_categories()
 	table.rows = [{
 		"transaction_id": t["transaction_id"],
 		"date": str(t["date"]).replace("-", "."),
@@ -809,9 +760,7 @@ def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
 def _refresh_planned(user_id, cat_filter, table) -> None:
 	"""Loads transactions with date > today (ab morgen)."""
 	from nicegui import ui
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.category_controller import category_controller
 	result = transaction_controller.filter_transactions(
 		start_date=date.today() + timedelta(days=1),
 		end_date=date(2099, 12, 31),
@@ -821,8 +770,7 @@ def _refresh_planned(user_id, cat_filter, table) -> None:
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
 		return
-	with Session(engine) as session:
-		cats = {c.category_id: c.name for c in CategoryRepository(session).list_all()}
+	cats = category_controller.list_categories()
 	table.rows = [{
 		"transaction_id": t["transaction_id"],
 		"date": str(t["date"]).replace("-", "."),
@@ -837,19 +785,14 @@ def _build_sidebar() -> None:
 	"""Baut die Navigation."""
 	from nicegui import ui
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
-	
-	# Benutzername laden und anzeigen
+
 	user_id = app_state.get("user_id")
 	if user_id:
-		from src.data_access.repositories.user_repository import UserRepository
-		from src.data_access.db import engine
-		from sqlmodel import Session
-		
-		with Session(engine) as session:
-			user = UserRepository(session).get_by_id(user_id)
-			if user:
-				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
-	
+		from src.ui.controllers.auth_controller import auth_controller
+		username = auth_controller.get_username(user_id)
+		if username:
+			ui.label(username).classes("text-sm text-gray-500 px-4 pb-2")
+
 	ui.separator()
 
 	with ui.column().classes("gap-2 p-4"):

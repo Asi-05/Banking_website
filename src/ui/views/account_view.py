@@ -169,19 +169,14 @@ def _build_sidebar() -> None:
 	"""Baut die Navigation."""
 	from nicegui import ui
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
-	
-	# Benutzername laden und anzeigen
+
 	user_id = app_state.get("user_id")
 	if user_id:
-		from src.data_access.repositories.user_repository import UserRepository
-		from src.data_access.db import engine
-		from sqlmodel import Session
-		
-		with Session(engine) as session:
-			user = UserRepository(session).get_by_id(user_id)
-			if user:
-				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
-	
+		from src.ui.controllers.auth_controller import auth_controller
+		username = auth_controller.get_username(user_id)
+		if username:
+			ui.label(username).classes("text-sm text-gray-500 px-4 pb-2")
+
 	ui.separator()
 
 	with ui.column().classes("gap-2 p-4"):

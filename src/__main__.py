@@ -120,7 +120,7 @@ def main() -> None:
 	</script>
 	""", shared=True)
 	ui.run(
-		title="💰 Betterbank - E-Banking Finanzverwaltung",
+		title="💰 BetterBank - E-Banking Finanzverwaltung",
 		port=8080,
 	)
 

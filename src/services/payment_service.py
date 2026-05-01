@@ -146,7 +146,7 @@ class PaymentService:
 			)
 
 		lines = [
-			"Betterbank",
+			"BetterBank",
 			"",
 			f"Kontoinhaber: {user_name}",
 			f"IBAN: {account_iban}",

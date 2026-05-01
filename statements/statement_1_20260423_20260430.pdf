@@ -3,9 +3,9 @@
 2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj
 3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
 4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> endobj
-5 0 obj << /Length 1841 >> stream
+5 0 obj << /Length 1318 >> stream
 BT /F1 10 Tf 50 780 Td
-(Betterbank) Tj
+(BetterBank) Tj
 0 -14 Td
 () Tj
 0 -14 Td
@@ -15,31 +15,11 @@ BT /F1 10 Tf 50 780 Td
 0 -14 Td
 (Kontotyp: Privatkonto) Tj
 0 -14 Td
-(Zeitraum: 01-04-2026 bis 30-04-2026) Tj
+(Zeitraum: 23-04-2026 bis 30-04-2026) Tj
 0 -14 Td
 (Waehrung: CHF) Tj
 0 -14 Td
 () Tj
-0 -14 Td
-(07-04-2026 | Ausgabe | 20.00 CHF | ) Tj
-0 -14 Td
-(13-04-2026 | Ausgabe | 120.00 CHF | hmm) Tj
-0 -14 Td
-(20-04-2026 | Ausgabe | 280.59 CHF | Hausrat) Tj
-0 -14 Td
-(21-04-2026 | Einkommen | 200.00 CHF | Kontoumbuchung \(Eingang\)) Tj
-0 -14 Td
-(21-04-2026 | Einkommen | 9800.00 CHF | Kontoumbuchung \(Eingang\)) Tj
-0 -14 Td
-(21-04-2026 | Ausgabe | 400.00 CHF | ) Tj
-0 -14 Td
-(21-04-2026 | Ausgabe | 100.00 CHF | Coiffeur) Tj
-0 -14 Td
-(21-04-2026 | Ausgabe | 100.00 CHF | ) Tj
-0 -14 Td
-(21-04-2026 | Ausgabe | 120.00 CHF | Kontoumbuchung \(Ausgang\)) Tj
-0 -14 Td
-(21-04-2026 | Ausgabe | 120.00 CHF | Kontoumbuchung \(Ausgang\)) Tj
 0 -14 Td
 (23-04-2026 | Ausgabe | 3000.00 CHF | Dauerauftrag Ausfuehrung) Tj
 0 -14 Td
@@ -65,7 +45,11 @@ BT /F1 10 Tf 50 780 Td
 0 -14 Td
 (29-04-2026 | Ausgabe | 400.00 CHF | Dauerauftrag Ausfuehrung) Tj
 0 -14 Td
+(29-04-2026 | Ausgabe | 33.50 CHF | ) Tj
+0 -14 Td
 (30-04-2026 | Ausgabe | 50.00 CHF | lebensmittel) Tj
+0 -14 Td
+(30-04-2026 | Ausgabe | 500.00 CHF | Dauerauftrag) Tj
 0 -14 Td
 ET
 endstream endobj
@@ -79,5 +63,5 @@ xref
 0000000338 00000 n 
 trailer << /Size 6 /Root 1 0 R >>
 startxref
-2231
+1708
 %%EOF

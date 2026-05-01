@@ -24,10 +24,10 @@ Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User
 ### 1. Transaktion manuell erfassen inkl. Kategorie
 **Als User möchte ich meine Ausgaben manuell hinzufügen und ihnen eine Kategorie zuweisen, damit ich meine Finanzstruktur überwachen und verstehen kann.**
 
-**Description:** Die Anwendung speichert eine neue Einnahme oder Ausgabe mit Betrag, Datum, der zugewiesenen Kategorie und dem belasteten Konto/der belasteten Karte.
+**Description:** Die Anwendung speichert eine neue Einnahme%%%%% oder Ausgabe mit Betrag, Datum, der zugewiesenen Kategorie und dem belasteten Konto/der belasteten Karte.
 
 **Inputs:** * `amount` as `float`
-* `type` as `str` (e.g. "expense")
+* `type` as `str` (e.g. "income" | "expense")
 * `date` as `date`
 * `category_id` as `int`
 * `account_id` as `int` (optional, falls über Konto bezahlt)%%%%%%%
@@ -84,7 +84,7 @@ Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User
 ---
 
 ### 5. Monatliche Limits setzen
-**Als User möchte ich monatliche Limits festlegen, damit ich automatisch gewarnt werde, wenn ich mein Budget überschreite.**
+**Als User möchte ich monatliche oder Jährliche Limits festlegen, damit ich automatisch gewarnt werde, wenn ich mein Budget überschreite.**
 
 **Description:** Der User definiert ein Budget. Das System prüft aktuelle Ausgaben gegen dieses Budget und gibt bei Überschreitung ein Flag aus.
 
@@ -117,7 +117,7 @@ Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User
 ### 7. Konten eröffnen und schliessen
 **Als User möchte ich Privat- und Sparkonten selbstständig eröffnen oder schliessen.**
 
-**Description:** Der User legt ein neues Konto an oder schliesst ein bestehendes Konto. Geschlossene Konten erhalten den Status `geschlossen`.
+**Description:** Der User legt ein neues Konto an oder schliesst ein bestehendes Konto. Geschlossene Konten erhalten den Status `geschlossen`. Das schliessen von einem Konto geht nur bei einem Saldo von 0 CHF.
 
 **Inputs:** * `account_type` as `str` ("privat" | "spar")
 * `account_id` as `int` (nur relevant bei 'close')
@@ -128,21 +128,21 @@ Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User
 ---
 
 ### 8. Debitkarten verwalten
-**Als User möchte ich neue Debitkarten bestellen sowie meine Debitkarten im Verlustfall sperren oder ersetzen lassen.**
+**Als User möchte ich neue Debitkarten bestellen sowie meine Debitkarten im Verlustfall sperren und ersetzen lassen.**
 
-**Description:** Der User kann eine neue Debitkarte für sein Privatkonto bestellen oder den Status einer bestehenden Debitkarte auf "gesperrt" setzen. 
+**Description:** Der User kann eine neue Debitkarte für sein Privatkonto bestellen und ersetzen. 
 
 **Inputs:** * `account_id` as `int`
 * `card_id` as `int` (bei Sperrung/Ersatz)
-* `action` as `str` ("order" | "block" | "replace")
+* `action` as `str` ("order" | "block" | "replace")%%%%%%%%%
 
 **Outputs:** * `card_status` as `str`
 * aktualisierte Kartenliste (internally: `list[Card]`)
 
 ---
 
-### 9. Unabhängige Kreditkarten verwalten
-**Als User möchte ich eine eigenständige Kreditkarte mit eigenem Kreditrahmen bestellen sowie verwalten (sperren/ersetzen), um Zahlungen unabhängig von meinem Kontostand abzuwickeln.**
+### 9. Unabhängige Kreditkarten verwalten %%%%%%%%%%%%%%%%%%
+**Als User möchte ich eine eigenständige Kreditkarte mit eigenem Kreditrahmen bestellen sowie verwalten (sperren/ersetzen), um Zahlungen unabhängig von meinem Kontostand abzuwickeln.** %%%%%%%
 
 **Description:** Der User beantragt eine Kreditkarte. Das System erstellt ein neues, unabhängiges Kreditkarten-Objekt mit einem festgelegten Limit. Der User kann Transaktionen direkt über diese Karte abwickeln, wodurch sich der genutzte Kreditrahmen (Saldo) verändert. Bei Verlust kann die Karte gesperrt werden.
 
@@ -221,13 +221,13 @@ Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User
 ### Main Use Cases
 
 * **Konto & Sicherheit:** Login mit vordefinierten Usern
-* **Transaktionen verwalten:** Einnahmen und Ausgaben manuell erfassen, bearbeiten, löschen und filtern
-* **Finanzen analysieren:** Dashboard mit Gesamtbilanz ansehen
+* **Transaktionen verwalten:** Einnahmen und Ausgaben manuell erfassen, bearbeiten, löschen und filtern%%%%%%%%%%%%%%%%%
+* **Finanzen analysieren:** Dashboard mit Gesamtvermögen ansehen
 * **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen
 * **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
 * **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
 
-### Use Case Diagramm
+### Use Case Diagramm%%%%%%%%%%%%%%%%%
 
 <img width="818" height="936" alt="Bildschirmfoto 2026-04-09 um 23 54 29" src="https://github.com/user-attachments/assets/0afa94cf-0bd9-4aad-a06b-31e196b26aaf" />
 
@@ -264,7 +264,7 @@ Die Anwendung erhält Benutzereingaben über die Weboberfläche. Alle Eingaben w
 
 Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusammengefasste Finanzinformationen, die im Dashboard angezeigt werden.
  
-### Output Struktur
+### Output Struktur %%%%%%%%%%%%%%%%%
  
 | Feld          | Typ    |
 |---------------|--------|
@@ -296,6 +296,10 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 
 ## 🏛️ Architecture
+
+## Programm Struktur 
+###(Platzhalter)
+
 ### Software Architecture
 ## UML Klassendiagramm / ER Diagramm
 
@@ -334,7 +338,7 @@ Unsere Applikation nutzt eine **SQLite**-Datenbank in Kombination mit **SQLModel
 
 Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten und nutzt relationale Muster, um Redundanzen zu vermeiden und die Datenintegrität sicherzustellen:
 
-* **User ↔ Account / Cards:** Kunden werden in der `users`-Tabelle gespeichert und auf die `User`-Entität gemappt. Die `User` ↔ `Account` Beziehung (sowie zu `CreditCard` und `DebitCard`) ist eine 1:n-Beziehung. Das stellt sicher, dass ein User mehrere Konten und Karten besitzen kann, ein Konto/eine Karte aber immer exakt einem User zugeordnet ist. 
+* **User ↔ Account / Cards:** Kunden werden in der `users`-Tabelle gespeichert und auf die `User`-Entität gemappt. Die `User` ↔ `Account` Beziehung (sowie zu `CreditCard` und `DebitCard`) ist eine 1:n-Beziehung. Das stellt sicher, dass ein User mehrere Konten und Kreditkarten besitzen kann, ein Konto/eine Debitkarte der immer exakt einem User zugeordnet ist. 
 
 * **Bidirektionales Mapping:** In der Python-Logik nutzen wir das `back_populates`-Feature von SQLModel. Dadurch können wir bidirektional navigieren (z. B. von einem Konto direkt auf das `User`-Objekt zugreifen), während die Datenbankebene strikt bei einer Einbahnstraße über Foreign Keys (`user_id`) bleibt.
 
@@ -357,7 +361,7 @@ Die Anwendung validiert Eingaben u. a. für:
 * Beträge (`validate_positive_amount`)
 * IBAN-Format (`validate_iban`)
 * Datumsbereiche (`validate_date_range`)
-* Exactly-one-Regel für Transaktionsquellen (`validate_exactly_one_source`)
+* Exactly-one-Regel für Transaktionsquellen (`validate_exactly_one_source`)%%%%%%%%%%%%%%%
 
 ### 3. Database Management
 Alle fachlichen Daten werden über SQLModel/SQLAlchemy verwaltet (u. a. User, Konten, Karten, Transaktionen, Budgets, Zahlungen, Umbuchungen).

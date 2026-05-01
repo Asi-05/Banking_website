@@ -79,15 +79,15 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 	from src.ui.controllers.account_controller import account_controller
 	from src.ui.controllers.payment_controller import payment_controller
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.transaction_controller import transaction_controller
 
 	# Kategorien laden
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_options = {c.category_id: c.name for c in categories}
+	category_options_result = transaction_controller.get_all_categories()
+	if isinstance(category_options_result, str):
+		ui.notify(category_options_result, type="negative")
+		category_options = {}
+	else:
+		category_options = category_options_result
 
 	# Konten laden
 	result = account_controller.list_accounts(user_id)
@@ -179,20 +179,19 @@ def _build_recurring_payments_section(user_id: int) -> None:
 	"""
 	from nicegui import ui
 
-	from src.services.recurring_service import recurring_service
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
 	from src.ui.controllers.account_controller import account_controller
 	from src.ui.controllers.recurring_controller import recurring_controller
-	from sqlmodel import Session
+	from src.ui.controllers.transaction_controller import transaction_controller
 
 	with ui.column().classes("w-full gap-6"):
 
 		# Kategorien-Mapping für Tabelle und Edit-Dialog
-		with Session(engine) as session:
-			cat_repo = CategoryRepository(session)
-			cats = cat_repo.list_all()
-		category_map_names = {c.category_id: c.name for c in cats}
+		category_map_result = transaction_controller.get_all_categories()
+		if isinstance(category_map_result, str):
+			ui.notify(category_map_result, type="negative")
+			category_map_names = {}
+		else:
+			category_map_names = category_map_result
 
 		# Konto-Mapping für Tabelle und Edit-Dialog
 		accounts_result = account_controller.list_accounts(user_id)
@@ -205,12 +204,9 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 		# === TABELLE: DAUERAUFTRÄGE (direkt sichtbar, kein Klick nötig) ===
 
-		def refresh_recurring_table():
-			try:
-				recurring_list = recurring_service.list_recurring(user_id)
-			except Exception as ex:
-				ui.notify(f"Fehler: {str(ex)}", type="negative")
-				return
+	def refresh_recurring_table():
+		try:
+			recurring_list = recurring_controller.list_recurring(user_id)
 			if isinstance(recurring_list, str):
 				ui.notify(recurring_list, type="negative")
 				return
@@ -221,9 +217,15 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				last_executed = rec.last_executed if hasattr(rec, 'last_executed') else rec.get('last_executed')
 				if isinstance(last_executed, str):
 					last_executed = date.fromisoformat(last_executed)
-				next_exec = recurring_service._next_due_date(last_executed, interval_val)
+				next_exec = recurring_controller.calculate_next_due_date(last_executed, interval_val)
+				if isinstance(next_exec, str):
+					ui.notify(next_exec, type="negative")
+					continue
 				if next_exec <= date.today():
-					next_exec = recurring_service._next_due_date(next_exec, interval_val)
+					next_exec = recurring_controller.calculate_next_due_date(next_exec, interval_val)
+					if isinstance(next_exec, str):
+						ui.notify(next_exec, type="negative")
+						continue
 				rows.append({
 					"recurring_id": rec.recurring_id if hasattr(rec, 'recurring_id') else rec.get('recurring_id'),
 					"amount": f"{amount_val:,.2f}",
@@ -238,6 +240,9 @@ def _build_recurring_payments_section(user_id: int) -> None:
 					"next_execution": next_exec.strftime("%d.%m.%Y"),
 				})
 			recurring_table.rows = rows
+		except Exception as ex:
+			ui.notify(f"Fehler beim Laden der Daueraufträge: {str(ex)}", type="negative")
+			return
 
 		recurring_table = ui.table(columns=[
 			{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
@@ -283,35 +288,35 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		def handle_edit_recurring(e) -> None:
 			row = e.args
 			recurring_id = row.get("recurring_id")
-			from src.data_access.repositories.recurring_repository import RecurringRepository
-			with Session(engine) as session:
-				recurring_repository = RecurringRepository(session)
-				current_recurring = recurring_repository.get_by_id(recurring_id)
-				if current_recurring is None:
-					ui.notify("Dauerauftrag nicht gefunden", type="negative")
-					return
-			with Session(engine) as session:
-				cat_repo = CategoryRepository(session)
-				cats = cat_repo.list_all()
-			edit_category_options = {c.category_id: c.name for c in cats}
+			recurring_result = recurring_controller.get_recurring_by_id(recurring_id)
+			if isinstance(recurring_result, str):
+				ui.notify(recurring_result, type="negative")
+				return
+			current_recurring = recurring_result
+			edit_category_result = transaction_controller.get_all_categories()
+			if isinstance(edit_category_result, str):
+				ui.notify(edit_category_result, type="negative")
+				edit_category_options = {}
+			else:
+				edit_category_options = edit_category_result
 
 			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
 				ui.label("Dauerauftrag bearbeiten").classes("text-subtitle1 font-semibold mb-4")
 				amount_edit = ui.number(
-					label="Betrag (CHF)", value=current_recurring.amount, min=0.01, step=0.01
+					label="Betrag (CHF)", value=current_recurring["amount"], min=0.01, step=0.01
 				).props("outlined").classes("w-full mb-4")
 				category_edit = ui.select(
-					options=edit_category_options, value=current_recurring.category_id, label="Kategorie"
+					options=edit_category_options, value=current_recurring["category_id"], label="Kategorie"
 				).props("outlined").classes("w-full mb-4")
 				account_edit = ui.select(
-					options=account_map, value=int(current_recurring.account_id), label="Belastungskonto"
+					options=account_map, value=int(current_recurring["account_id"]), label="Belastungskonto"
 				).props("outlined").classes("w-full mb-4")
 				interval_edit = ui.select(
 					options={"monthly": "Monatlich", "yearly": "Jährlich"},
-					value=current_recurring.interval, label="Intervall"
+					value=current_recurring["frequency"], label="Intervall"
 				).props("outlined").classes("w-full mb-4")
 				target_iban_edit = ui.input(
-					label="Ziel-IBAN", value=current_recurring.target_iban
+					label="Ziel-IBAN", value=current_recurring.get("description", "")
 				).props("outlined").classes("w-full mb-4")
 				with ui.row().classes("gap-4"):
 					ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
@@ -320,8 +325,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 							"amount": amount_edit.value or 0,
 							"category_id": category_edit.value,
 							"account_id": account_edit.value,
-							"interval": interval_edit.value,
-							"target_iban": target_iban_edit.value,
+							"frequency": interval_edit.value,
+							"description": target_iban_edit.value,
 						}
 						error = recurring_controller.update_recurring(rid, payload)
 						edit_dialog.close()
@@ -341,10 +346,12 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		# === FORMULAR: NEUEN DAUERAUFTRAG ERSTELLEN (unter der Tabelle) ===
 		with ui.expansion("Neuen Dauerauftrag erstellen").classes("w-full"):
 
-			with Session(engine) as session:
-				category_repository = CategoryRepository(session)
-				categories = category_repository.list_all()
-			category_options = {c.category_id: c.name for c in categories}
+			category_result = transaction_controller.get_all_categories()
+			if isinstance(category_result, str):
+				ui.notify(category_result, type="negative")
+				category_options = {}
+			else:
+				category_options = category_result
 
 			result = account_controller.list_accounts(user_id)
 			if isinstance(result, str):
@@ -409,14 +416,14 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 def _build_bewegungen_section(user_id: int) -> None:
 	from nicegui import ui
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.transaction_controller import transaction_controller
 
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_options = {c.category_id: c.name for c in categories}
+	category_result = transaction_controller.get_all_categories()
+	if isinstance(category_result, str):
+		ui.notify(category_result, type="negative")
+		category_options = {}
+	else:
+		category_options = category_result
 
 	with ui.tabs() as sub_tabs:
 		tab_booked = ui.tab("Gebuchte Zahlungen")
@@ -610,16 +617,15 @@ def _build_transaction_list(user_id: int) -> None:
 	Zeigt Edit/Delete-Buttons.
 	"""
 	from nicegui import ui
-
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.transaction_controller import transaction_controller
 
 	# Kategorien laden für Filter
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_options = {c.category_id: c.name for c in categories}
+	category_result = transaction_controller.get_all_categories()
+	if isinstance(category_result, str):
+		ui.notify(category_result, type="negative")
+		category_options = {}
+	else:
+		category_options = category_result
 
 	with ui.card().classes("w-full"):
 
@@ -736,10 +742,6 @@ def _refresh_transaction_list(
 	"""
 	from nicegui import ui
 
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
-
 	start_date = date.fromisoformat(start_date_picker.value)
 	end_date = date.fromisoformat(end_date_picker.value)
 	category_id = category_filter.value if category_filter.value is not None else None
@@ -757,10 +759,12 @@ def _refresh_transaction_list(
 		return
 
 	# Kategorienamen-Mapping laden
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_names = {c.category_id: c.name for c in categories}
+	category_result = transaction_controller.get_all_categories()
+	if isinstance(category_result, str):
+		ui.notify(category_result, type="negative")
+		category_names = {}
+	else:
+		category_names = category_result
 
 	# Transaktionen in Tabellenformat konvertieren
 	rows = []
@@ -782,9 +786,6 @@ def _refresh_transaction_list(
 def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
 	"""Loads transactions with date <= today."""
 	from nicegui import ui
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
 	result = transaction_controller.filter_transactions(
 		start_date=date.fromisoformat(start_picker.value),
 		end_date=date.today(),
@@ -794,8 +795,8 @@ def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
 		return
-	with Session(engine) as session:
-		cats = {c.category_id: c.name for c in CategoryRepository(session).list_all()}
+	category_result = transaction_controller.get_all_categories()
+	cats = category_result if not isinstance(category_result, str) else {}
 	table.rows = [{
 		"transaction_id": t["transaction_id"],
 		"date": str(t["date"]).replace("-", "."),
@@ -809,9 +810,6 @@ def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
 def _refresh_planned(user_id, cat_filter, table) -> None:
 	"""Loads transactions with date > today (ab morgen)."""
 	from nicegui import ui
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
 	result = transaction_controller.filter_transactions(
 		start_date=date.today() + timedelta(days=1),
 		end_date=date(2099, 12, 31),
@@ -821,8 +819,8 @@ def _refresh_planned(user_id, cat_filter, table) -> None:
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
 		return
-	with Session(engine) as session:
-		cats = {c.category_id: c.name for c in CategoryRepository(session).list_all()}
+	category_result = transaction_controller.get_all_categories()
+	cats = category_result if not isinstance(category_result, str) else {}
 	table.rows = [{
 		"transaction_id": t["transaction_id"],
 		"date": str(t["date"]).replace("-", "."),
@@ -841,14 +839,11 @@ def _build_sidebar() -> None:
 	# Benutzername laden und anzeigen
 	user_id = app_state.get("user_id")
 	if user_id:
-		from src.data_access.repositories.user_repository import UserRepository
-		from src.data_access.db import engine
-		from sqlmodel import Session
+		from src.ui.controllers.account_controller import account_controller
 		
-		with Session(engine) as session:
-			user = UserRepository(session).get_by_id(user_id)
-			if user:
-				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
+		user_display_name = account_controller.get_current_user_display_name(user_id)
+		if user_display_name:
+			ui.label(user_display_name).classes("text-sm text-gray-500 px-4 pb-2")
 	
 	ui.separator()
 

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.data_access.db import engine
+from src.data_access.repositories.recurring_repository import RecurringRepository
 from src.services.recurring_service import recurring_service
+from sqlmodel import Session
 
 
 # Orchestriert Dauerauftrag-Use-Cases und kapselt Fehlerbehandlung fuer die UI.
@@ -53,6 +56,41 @@ class RecurringController:
         try:
             recurring_service.delete_recurring(recurring_id)
             return None
+        except Exception as error:
+            return str(error)
+
+    # Liefert einen Dauerauftrag nach ID oder einen Fehler.
+    def get_recurring_by_id(self, recurring_id: int) -> dict | str:
+        try:
+            with Session(engine) as session:
+                recurring_repository = RecurringRepository(session)
+                recurring = recurring_repository.get_by_id(recurring_id)
+            if recurring is None:
+                return "Dauerauftrag nicht gefunden"
+            return {
+                "recurring_id": recurring.recurring_id,
+                "amount": recurring.amount,
+                "category_id": recurring.category_id,
+                "account_id": recurring.account_id,
+                "start_date": recurring.start_date.isoformat() if recurring.start_date else None,
+                "end_date": recurring.end_date.isoformat() if recurring.end_date else None,
+                "frequency": recurring.frequency,
+                "description": recurring.description,
+            }
+        except Exception as error:
+            return str(error)
+
+    # Liefert alle Daueraufträge für einen User oder Fehlermeldung.
+    def list_recurring(self, user_id: int) -> list | str:
+        try:
+            return recurring_service.list_recurring(user_id)
+        except Exception as error:
+            return str(error)
+
+    # Berechnet das nächste Ausführungsdatum eines Dauerauftrags.
+    def calculate_next_due_date(self, from_date: date, interval: str) -> date | str:
+        try:
+            return recurring_service._next_due_date(from_date, interval)
         except Exception as error:
             return str(error)
 

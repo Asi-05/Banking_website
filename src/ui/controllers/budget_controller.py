@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from src.data_access.db import engine
+from src.data_access.repositories.category_repository import CategoryRepository
 from src.services.budget_service import budget_service
+from sqlmodel import Session
 
 
 # Orchestriert Budget-Use-Cases und kapselt Fehlerbehandlung fuer die UI.
@@ -44,6 +47,23 @@ class BudgetController:
 		try:
 			budget_service.delete_budget(budget_id)
 			return None
+		except Exception as error:
+			return str(error)
+
+	# Liefert alle Kategorien fuer Dropdowns.
+	def get_all_categories(self) -> dict | str:
+		try:
+			with Session(engine) as session:
+				category_repository = CategoryRepository(session)
+				categories = category_repository.list_all()
+			return {c.category_id: c.name for c in categories}
+		except Exception as error:
+			return str(error)
+
+	# Liefert alle Budgets für einen User oder Fehlermeldung.
+	def list_budgets(self, user_id: int) -> list | str:
+		try:
+			return budget_service.list_budgets(user_id)
 		except Exception as error:
 			return str(error)
 

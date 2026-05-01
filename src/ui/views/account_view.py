@@ -173,14 +173,9 @@ def _build_sidebar() -> None:
 	# Benutzername laden und anzeigen
 	user_id = app_state.get("user_id")
 	if user_id:
-		from src.data_access.repositories.user_repository import UserRepository
-		from src.data_access.db import engine
-		from sqlmodel import Session
-		
-		with Session(engine) as session:
-			user = UserRepository(session).get_by_id(user_id)
-			if user:
-				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
+		user_display_name = account_controller.get_current_user_display_name(user_id)
+		if user_display_name:
+			ui.label(user_display_name).classes("text-sm text-gray-500 px-4 pb-2")
 	
 	ui.separator()
 

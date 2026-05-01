@@ -2,12 +2,26 @@ from __future__ import annotations
 
 from datetime import date
 
+from sqlmodel import Session
+
+from src.data_access.db import engine
+from src.data_access.repositories.category_repository import CategoryRepository
 from src.services.transaction_service import transaction_service
 from src.utils.formatters import format_date_dmy, format_transaction_type
 
 
 # Orchestriert Transaktions-Use-Cases und kapselt Fehlerbehandlung fuer die UI.
 class TransactionController:
+    # Liefert alle verfuegbaren Transaktionskategorien.
+    def get_all_categories(self) -> dict | str:
+        try:
+            with Session(engine) as session:
+                category_repository = CategoryRepository(session)
+                categories = category_repository.list_all()
+            return {c.category_id: c.name for c in categories}
+        except Exception as error:
+            return str(error)
+
     # Erstellt eine neue Transaktion.
     def create_transaction(self, payload: dict) -> str | None:
         try:

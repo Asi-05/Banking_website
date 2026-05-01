@@ -62,15 +62,15 @@ def _build_budget_form(user_id: int) -> None:
 	"""
 	from nicegui import ui
 
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.budget_controller import budget_controller
 
 	# Kategorien laden
-	with Session(engine) as session:
-		category_repository = CategoryRepository(session)
-		categories = category_repository.list_all()
-	category_options = {c.category_id: c.name for c in categories}
+	category_result = budget_controller.get_all_categories()
+	if isinstance(category_result, str):
+		ui.notify(category_result, type="negative")
+		category_options = {}
+	else:
+		category_options = category_result
 
 	# Monats-Optionen (deutscher Name)
 	monat_optionen = {
@@ -266,18 +266,18 @@ def _open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_m
 
 def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, cur_month) -> None:
 	from nicegui import ui
-	from src.services.budget_service import budget_service
-	from src.data_access.repositories.category_repository import CategoryRepository
-	from src.data_access.db import engine
-	from sqlmodel import Session
+	from src.ui.controllers.budget_controller import budget_controller
 
 	try:
-		budgets = budget_service.list_budgets(user_id)
+		budgets = budget_controller.list_budgets(user_id)
 		if isinstance(budgets, str):
 			ui.notify(budgets, type="negative")
 			return
-		with Session(engine) as session:
-			category_names = {c.category_id: c.name for c in CategoryRepository(session).list_all()}
+		category_result = budget_controller.get_all_categories()
+		if isinstance(category_result, str):
+			category_names = {}
+		else:
+			category_names = category_result
 
 		active_rows = []
 		expired_rows = []
@@ -288,7 +288,7 @@ def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, c
 			month_name = month_names[budget.month]
 			month_year = f"{month_name} {budget.year}"
 			try:
-				status_data = budget_service.check_budget_status(
+				status_data = budget_controller.check_budget_status(
 					user_id=user_id, month=budget.month,
 					year=budget.year, category_id=budget.category_id,
 				)
@@ -325,19 +325,15 @@ def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, c
 def _build_sidebar() -> None:
 	"""Baut die Navigation."""
 	from nicegui import ui
+	from src.ui.controllers.account_controller import account_controller
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
 	
 	# Benutzername laden und anzeigen
 	user_id = app_state.get("user_id")
 	if user_id:
-		from src.data_access.repositories.user_repository import UserRepository
-		from src.data_access.db import engine
-		from sqlmodel import Session
-		
-		with Session(engine) as session:
-			user = UserRepository(session).get_by_id(user_id)
-			if user:
-				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
+		user_display_name = account_controller.get_current_user_display_name(user_id)
+		if user_display_name:
+			ui.label(user_display_name).classes("text-sm text-gray-500 px-4 pb-2")
 	
 	ui.separator()
 

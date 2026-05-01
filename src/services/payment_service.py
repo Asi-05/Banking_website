@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+from textwrap import TextWrapper
 
+from fpdf import FPDF
 from sqlmodel import Session
 
 from src.data_access.db import engine
@@ -145,75 +147,99 @@ class PaymentService:
 				end_date=end_date,
 			)
 
-		lines = [
-			"BetterBank",
-			"",
-			f"Kontoinhaber: {user_name}",
-			f"IBAN: {account_iban}",
-			f"Kontotyp: {account_type_label}",
-			f"Zeitraum: {format_date_dmy(start_date)} bis {format_date_dmy(end_date)}",
-			f"Waehrung: {CURRENCY_CODE}",
-			"",
-		]
-		for transaction in transactions:
-			lines.append(
-				f"{format_date_dmy(transaction.date)} | {format_transaction_type(transaction.type)} | {transaction.amount:.2f} {CURRENCY_CODE} | {transaction.note or ''}"
-			)
-
 		output_dir = Path("statements")
 		output_dir.mkdir(parents=True, exist_ok=True)
 		file_path = output_dir / (
 			f"statement_{account_id}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}.pdf"
 		)
-		self._write_simple_pdf(file_path, lines)
+		self._write_statement_pdf(file_path, user_name, account_iban, account_type_label, start_date, end_date, transactions)
 		return str(file_path)
 
-	# Schreibt ein minimales, gueltiges PDF mit Textinhalt.
-	def _write_simple_pdf(self, file_path: Path, lines: list[str]) -> None:
-		escaped_lines = [line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") for line in lines]
-		text_commands = ["BT /F1 10 Tf 50 780 Td"]
-		for line in escaped_lines:
-			text_commands.append(f"({line}) Tj")
-			text_commands.append("0 -14 Td")
-		text_commands.append("ET")
-		stream_data = "\n".join(text_commands).encode("cp1252", errors="replace")
+	# Schreibt einen strukturierten PDF-Kontoauszug mit FPDF2.
+	def _write_statement_pdf(
+		self,
+		file_path: Path,
+		user_name: str,
+		account_iban: str,
+		account_type_label: str,
+		start_date: date,
+		end_date: date,
+		transactions: list,
+	) -> None:
+		pdf = FPDF(format="A4")
+		pdf.set_auto_page_break(auto=True, margin=16)
+		pdf.set_margins(15, 15, 15)
+		pdf.add_page()
 
-		objects: list[bytes] = []
-		objects.append(b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n")
-		objects.append(b"2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj\n")
-		objects.append(
-			b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj\n"
-		)
-		objects.append(b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> endobj\n")
-		objects.append(
-			f"5 0 obj << /Length {len(stream_data)} >> stream\n".encode("ascii")
-			+ stream_data
-			+ b"\nendstream endobj\n"
-		)
+		pdf.set_font("Helvetica", "B", 16)
+		pdf.cell(0, 10, "BetterBank Kontoauszug", ln=True)
 
-		content = bytearray(b"%PDF-1.4\n")
-		offsets = [0]
-		for obj in objects:
-			offsets.append(len(content))
-			content.extend(obj)
+		pdf.set_font("Helvetica", "", 11)
+		pdf.cell(0, 8, f"Kontoinhaber: {user_name}", ln=True)
+		pdf.cell(0, 8, f"IBAN: {account_iban}", ln=True)
+		pdf.cell(0, 8, f"Kontotyp: {account_type_label}", ln=True)
+		pdf.cell(0, 8, f"Zeitraum: {format_date_dmy(start_date)} bis {format_date_dmy(end_date)}", ln=True)
+		pdf.cell(0, 8, f"Waehrung: {CURRENCY_CODE}", ln=True)
 
-		xref_start = len(content)
-		content.extend(f"xref\n0 {len(offsets)}\n".encode("ascii"))
-		content.extend(b"0000000000 65535 f \n")
-		for offset in offsets[1:]:
-			content.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+		pdf.ln(4)
+		pdf.set_font("Helvetica", "B", 10)
+		pdf.set_fill_color(235, 235, 235)
+		pdf.cell(28, 8, "Datum", border=1, fill=True)
+		pdf.cell(26, 8, "Typ", border=1, fill=True)
+		pdf.cell(30, 8, "Betrag", border=1, fill=True, align="R")
+		pdf.cell(0, 8, "Beschreibung", border=1, fill=True, ln=True)
 
-		content.extend(
-			(
-				"trailer << /Size "
-				+ str(len(offsets))
-				+ " /Root 1 0 R >>\nstartxref\n"
-				+ str(xref_start)
-				+ "\n%%EOF\n"
-			).encode("ascii")
-		)
+		pdf.set_font("Helvetica", "", 10)
+		if not transactions:
+			pdf.cell(0, 8, "Keine Transaktionen im gewaehlteten Zeitraum.", border=1, ln=True)
+		else:
+			max_text_width = pdf.w - pdf.l_margin - pdf.r_margin
+			for transaction in transactions:
+				description = transaction.note or ""
+				header_line = (
+					f"Datum: {format_date_dmy(transaction.date)} | "
+					f"Typ: {format_transaction_type(transaction.type)} | "
+					f"Betrag: {transaction.amount:.2f} {CURRENCY_CODE}"
+				)
+				pdf.cell(0, 8, header_line, border=1, ln=True)
+				for index, line in enumerate(self._split_statement_text(description, pdf, max_text_width)):
+					prefix = "Beschreibung: " if index == 0 else ""
+					pdf.cell(0, 8, f"{prefix}{line}", border=1, ln=True)
+				pdf.ln(1)
 
-		file_path.write_bytes(bytes(content))
+		pdf.output(str(file_path))
+
+	# Teilt Text in Zeilen auf, die sicher in die aktuelle PDF-Breite passen.
+	def _split_statement_text(self, text: str, pdf: FPDF, max_width: float) -> list[str]:
+		if not text:
+			return [""]
+
+		wrapped_lines = TextWrapper(
+			width=200,
+			break_long_words=True,
+			break_on_hyphens=True,
+		).wrap(text)
+		result: list[str] = []
+		for wrapped_line in wrapped_lines or [text]:
+			result.extend(self._fit_text_to_width(wrapped_line, pdf, max_width))
+		return result
+
+	# Schneidet einen Text so auf, dass jede Teilzeile innerhalb der verfügbaren Breite liegt.
+	def _fit_text_to_width(self, text: str, pdf: FPDF, max_width: float) -> list[str]:
+		if not text:
+			return [""]
+
+		lines: list[str] = []
+		remaining = text
+		while remaining:
+			cut = len(remaining)
+			while cut > 0 and pdf.get_string_width(remaining[:cut]) > max_width:
+				cut -= 1
+			if cut == 0:
+				cut = 1
+			lines.append(remaining[:cut])
+			remaining = remaining[cut:]
+		return lines
 
 
 payment_service = PaymentService()

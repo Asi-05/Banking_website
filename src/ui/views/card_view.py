@@ -60,7 +60,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 	"""
 	from nicegui import ui
 
-	from src.services.card_service import card_service
+	from src.ui.controllers.card_controller import card_controller
 	from src.ui.controllers.account_controller import account_controller
 
 	with ui.column().classes("w-full gap-6"):
@@ -106,7 +106,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 		# === DEBITKARTEN-LISTE ===
 		# Daten laden
 		try:
-			debit_cards = card_service.list_debit_cards(user_id)
+			debit_cards = card_controller.list_debit_cards(user_id)
 			if isinstance(debit_cards, str):
 				ui.notify(debit_cards, type="negative")
 				return
@@ -202,7 +202,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 	"""
 	from nicegui import ui
 
-	from src.services.card_service import card_service
+	from src.ui.controllers.card_controller import card_controller
 
 	with ui.column().classes("w-full gap-6"):
 
@@ -238,7 +238,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 
 		# === KREDITKARTEN LADEN ===
 		try:
-			credit_cards = card_service.list_credit_cards(user_id)
+			credit_cards = card_controller.list_credit_cards(user_id)
 
 			if isinstance(credit_cards, str):
 				ui.notify(credit_cards, type="negative")
@@ -349,19 +349,15 @@ def _build_credit_cards_section(user_id: int) -> None:
 def _build_sidebar() -> None:
 	"""Baut die Navigation."""
 	from nicegui import ui
+	from src.ui.controllers.account_controller import account_controller
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
 	
 	# Benutzername laden und anzeigen
 	user_id = app_state.get("user_id")
 	if user_id:
-		from src.data_access.repositories.user_repository import UserRepository
-		from src.data_access.db import engine
-		from sqlmodel import Session
-		
-		with Session(engine) as session:
-			user = UserRepository(session).get_by_id(user_id)
-			if user:
-				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
+		user_display_name = account_controller.get_current_user_display_name(user_id)
+		if user_display_name:
+			ui.label(user_display_name).classes("text-sm text-gray-500 px-4 pb-2")
 	
 	ui.separator()
 

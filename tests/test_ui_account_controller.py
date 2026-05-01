@@ -7,7 +7,7 @@ FR-ACC-02: Kontoschließung nur bei Kontostand = 0 zulässig
 """
 
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from src.ui.controllers.account_controller import AccountController
 
@@ -22,6 +22,41 @@ def _valid_open_payload():
         "account_type": "privat",
         "iban": "CH5604835012345678009",
     }
+
+
+# FR-ACC-01: Sidebar-Namenauflösung gibt Vor- und Nachnamen zurück
+def test_get_current_user_display_name_returns_full_name():
+    controller = _make_controller()
+
+    fake_user = SimpleNamespace(first_name="Hermann", last_name="Muster")
+    mock_session = MagicMock()
+    mock_session.__enter__.return_value = mock_session
+    mock_session.__exit__.return_value = False
+
+    with patch("src.ui.controllers.account_controller.Session", return_value=mock_session), patch(
+        "src.ui.controllers.account_controller.UserRepository.get_by_id",
+        return_value=fake_user,
+    ):
+        result = controller.get_current_user_display_name(1)
+
+    assert result == "Hermann Muster"
+
+
+# FR-ACC-01: Unbekannter User liefert keinen Namen zurück
+def test_get_current_user_display_name_returns_none_for_unknown_user():
+    controller = _make_controller()
+
+    mock_session = MagicMock()
+    mock_session.__enter__.return_value = mock_session
+    mock_session.__exit__.return_value = False
+
+    with patch("src.ui.controllers.account_controller.Session", return_value=mock_session), patch(
+        "src.ui.controllers.account_controller.UserRepository.get_by_id",
+        return_value=None,
+    ):
+        result = controller.get_current_user_display_name(999)
+
+    assert result is None
 
 
 # FR-ACC-01: Erfolgreiche Kontoeröffnung gibt None zurück

@@ -3,7 +3,7 @@ from datetime import date
 from sqlmodel import Session, select
 
 from src.data_access.db import create_db_and_tables, engine
-from src.domain.models import Account, Category, DebitCard, User
+from src.domain.models import Account, Category, CreditCard, DebitCard, User
 from src.utils.validators import generate_ch_iban
 
 
@@ -157,6 +157,34 @@ def seed_debit_cards_for_users(session: Session, users: list[User]) -> None:
 	session.commit()
 
 
+# For each predefined user, ensure exactly one active credit card exists
+def seed_credit_cards_for_users(session: Session, users: list[User]) -> None:
+	today = date.today()
+	for user in users:
+		has_active_credit = session.exec(
+			select(CreditCard).where(
+				CreditCard.user_id == user.user_id,
+				CreditCard.status == "aktiv",
+			)
+		).first()
+
+		if has_active_credit is not None:
+			continue
+
+		session.add(
+			CreditCard(
+				card_number=f"510000{user.user_id:010d}",
+				expire_date=date(today.year + 4, today.month, 1),
+				limit=5000.0,
+				balance=0.0,
+				status="aktiv",
+				user_id=user.user_id,
+			)
+		)
+
+	session.commit()
+
+
 # Public function to run complete database seeding process
 def seed_database() -> None:
 	create_db_and_tables()
@@ -165,6 +193,7 @@ def seed_database() -> None:
 		users = seed_users(session)
 		seed_accounts_for_users(session, users)
 		seed_debit_cards_for_users(session, users)
+		seed_credit_cards_for_users(session, users)
 
 
 if __name__ == "__main__":

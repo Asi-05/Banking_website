@@ -97,16 +97,16 @@ def _refresh_dashboard(
 	Zeigt Bilanz, Summen und Diagramm.
 	"""
 	from nicegui import ui
-
-	# Import here to avoid circular imports
-	from src.services.dashboard_service import dashboard_service
+	from src.ui.controllers.dashboard_controller import dashboard_controller
 
 	start_date = date.fromisoformat(start_date_picker.value)
 	end_date = date.fromisoformat(end_date_picker.value)
 
 	try:
-		# Dashboard-Daten laden
-		summary = dashboard_service.dashboard(user_id, start_date, end_date)
+		summary = dashboard_controller.get_dashboard(user_id, start_date, end_date)
+		if isinstance(summary, str):
+			ui.notify(f"Fehler: {summary}", type="negative")
+			return
 
 		if balance_container is None or income_expense_container is None or chart_container is None:
 			return
@@ -181,19 +181,14 @@ def _build_sidebar() -> None:
 	"""
 	from nicegui import ui
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
-	
-	# Benutzername laden und anzeigen
+
 	user_id = app_state.get("user_id")
 	if user_id:
-		from src.data_access.repositories.user_repository import UserRepository
-		from src.data_access.db import engine
-		from sqlmodel import Session
-		
-		with Session(engine) as session:
-			user = UserRepository(session).get_by_id(user_id)
-			if user:
-				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
-	
+		from src.ui.controllers.auth_controller import auth_controller
+		username = auth_controller.get_username(user_id)
+		if username:
+			ui.label(username).classes("text-sm text-gray-500 px-4 pb-2")
+
 	ui.separator()
 
 	with ui.column().classes("gap-2 p-4"):

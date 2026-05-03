@@ -47,5 +47,12 @@ class BudgetController:
 		except Exception as error:
 			return str(error)
 
+	# Listet alle Budgets eines Users.
+	def list_budgets(self, user_id: int) -> list | str:
+		try:
+			return budget_service.list_budgets(user_id)
+		except Exception as error:
+			return str(error)
+
 
 budget_controller = BudgetController()

@@ -59,8 +59,6 @@ def _build_debit_cards_section(user_id: int) -> None:
 	Liste aller Debitkarten, Bestellen, Sperren, Ersetzen.
 	"""
 	from nicegui import ui
-
-	from src.services.card_service import card_service
 	from src.ui.controllers.account_controller import account_controller
 
 	with ui.column().classes("w-full gap-6"):
@@ -104,9 +102,8 @@ def _build_debit_cards_section(user_id: int) -> None:
 			ui.button("Bestellen", on_click=handle_order_debit_card).classes("w-full")
 
 		# === DEBITKARTEN-LISTE ===
-		# Daten laden
 		try:
-			debit_cards = card_service.list_debit_cards(user_id)
+			debit_cards = card_controller.list_debit_cards(user_id)
 			if isinstance(debit_cards, str):
 				ui.notify(debit_cards, type="negative")
 				return
@@ -202,8 +199,6 @@ def _build_credit_cards_section(user_id: int) -> None:
 	"""
 	from nicegui import ui
 
-	from src.services.card_service import card_service
-
 	with ui.column().classes("w-full gap-6"):
 
 		# === NEUE KREDITKARTE BEANTRAGEN ===
@@ -238,7 +233,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 
 		# === KREDITKARTEN LADEN ===
 		try:
-			credit_cards = card_service.list_credit_cards(user_id)
+			credit_cards = card_controller.list_credit_cards(user_id)
 
 			if isinstance(credit_cards, str):
 				ui.notify(credit_cards, type="negative")
@@ -350,19 +345,14 @@ def _build_sidebar() -> None:
 	"""Baut die Navigation."""
 	from nicegui import ui
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
-	
-	# Benutzername laden und anzeigen
+
 	user_id = app_state.get("user_id")
 	if user_id:
-		from src.data_access.repositories.user_repository import UserRepository
-		from src.data_access.db import engine
-		from sqlmodel import Session
-		
-		with Session(engine) as session:
-			user = UserRepository(session).get_by_id(user_id)
-			if user:
-				ui.label(f"{user.first_name} {user.last_name}").classes("text-sm text-gray-500 px-4 pb-2")
-	
+		from src.ui.controllers.auth_controller import auth_controller
+		username = auth_controller.get_username(user_id)
+		if username:
+			ui.label(username).classes("text-sm text-gray-500 px-4 pb-2")
+
 	ui.separator()
 
 	with ui.column().classes("gap-2 p-4"):

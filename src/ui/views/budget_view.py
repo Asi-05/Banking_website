@@ -350,7 +350,6 @@ def _logout() -> None:
 
 
 def _open_settings_dialog(user_id: int) -> None:
-	"""Öffnet einen Dialog mit Kontoeinstellungen (E-Mail, Wohnadresse)."""
 	from nicegui import ui
 	from src.ui.controllers.user_controller import user_controller
 
@@ -362,53 +361,28 @@ def _open_settings_dialog(user_id: int) -> None:
 	with ui.dialog() as dlg, ui.card().classes("w-96"):
 		ui.label("Kontoeinstellungen").classes("text-h6 font-semibold mb-4")
 
-		# E-Mail-Zeile
-		with ui.row().classes("w-full items-center justify-between mb-2"):
-			with ui.column().classes("gap-0"):
-				ui.label("E-Mail-Adresse").classes("text-sm text-gray-500")
-				email_label = ui.label(profile.email or "—")
-			def open_email_edit():
-				with ui.dialog() as d2, ui.card().classes("w-80"):
-					ui.label("E-Mail ändern").classes("font-semibold mb-2")
-					inp = ui.input(label="Neue E-Mail", value=profile.email or "").props("outlined").classes("w-full mb-4")
-					with ui.row().classes("gap-2"):
-						ui.button("Abbrechen", on_click=d2.close).props("flat")
-						def save(inp=inp):
-							err = user_controller.update_profile(user_id, email=inp.value, address=None)
-							if err:
-								ui.notify(err, type="negative")
-							else:
-								email_label.set_text(inp.value)
-								ui.notify("E-Mail gespeichert", type="positive")
-								d2.close()
-						ui.button("Speichern", on_click=save).props("color=primary unelevated")
-				d2.open()
-			ui.button(icon="edit", on_click=open_email_edit).props("flat round dense")
+		# Telefonnummer (nur Anzeige)
+		with ui.card().classes("w-full mb-3").props("flat bordered"):
+			with ui.row().classes("w-full items-center justify-between p-2"):
+				with ui.column().classes("gap-0"):
+					ui.label("Telefonnummer").classes("text-sm text-gray-500")
+					ui.label(profile.phone or "—").classes("text-base")
+					ui.label("Format: +41 XX XXX XX XX").classes("text-xs text-gray-400")
+				ui.button(
+					"Telefonnummeränderung beantragen",
+					on_click=lambda: ui.notify("Formular beantragt", type="positive")
+				).props("flat color=primary no-caps")
 
-		ui.separator()
+		# Wohnadresse (nur Anzeige)
+		with ui.card().classes("w-full mb-4").props("flat bordered"):
+			with ui.row().classes("w-full items-center justify-between p-2"):
+				with ui.column().classes("gap-0"):
+					ui.label("Wohnadresse").classes("text-sm text-gray-500")
+					ui.label(profile.address or "—").classes("text-base")
+				ui.button(
+					"Adressänderung beantragen",
+					on_click=lambda: ui.notify("Formular beantragt", type="positive")
+				).props("flat color=primary no-caps")
 
-		# Wohnadresse-Zeile
-		with ui.row().classes("w-full items-center justify-between mt-2"):
-			with ui.column().classes("gap-0"):
-				ui.label("Wohnadresse").classes("text-sm text-gray-500")
-				address_label = ui.label(profile.address or "—")
-			def open_address_edit():
-				with ui.dialog() as d2, ui.card().classes("w-80"):
-					ui.label("Adresse ändern").classes("font-semibold mb-2")
-					inp = ui.input(label="Neue Adresse", value=profile.address or "").props("outlined").classes("w-full mb-4")
-					with ui.row().classes("gap-2"):
-						ui.button("Abbrechen", on_click=d2.close).props("flat")
-						def save(inp=inp):
-							err = user_controller.update_profile(user_id, email=None, address=inp.value)
-							if err:
-								ui.notify(err, type="negative")
-							else:
-								address_label.set_text(inp.value)
-								ui.notify("Adresse gespeichert", type="positive")
-								d2.close()
-						ui.button("Speichern", on_click=save).props("color=primary unelevated")
-				d2.open()
-			ui.button(icon="edit", on_click=open_address_edit).props("flat round dense")
-
-		ui.button("Schliessen", on_click=dlg.close).props("flat").classes("w-full mt-4")
+		ui.button("Schliessen", on_click=dlg.close).props("flat").classes("w-full")
 	dlg.open()

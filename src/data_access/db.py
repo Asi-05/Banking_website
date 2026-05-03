@@ -15,9 +15,9 @@ engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_threa
 def create_db_and_tables() -> None:
 	SQLModel.metadata.create_all(engine)
 	
-	# Migration: Neue Spalten email und address zu Users-Tabelle hinzufügen (einmalig)
+	# Migration: Neue Spalten phone und address zu Users-Tabelle hinzufügen (einmalig)
 	with engine.connect() as conn:
-		for col, typ in [("email", "TEXT"), ("address", "TEXT")]:
+		for col, typ in [("phone", "TEXT"), ("address", "TEXT")]:
 			try:
 				conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {typ}"))
 				conn.commit()

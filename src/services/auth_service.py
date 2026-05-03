@@ -8,6 +8,7 @@ from sqlmodel import Session
 from src.data_access.db import engine
 from src.data_access.repositories.user_repository import UserRepository
 from src.services.recurring_service import recurring_service
+from src.services.creditcard_billing_service import creditcard_billing_service
 
 # 1. HIER HAST DU DEN IMPORT ERGÄNZT:
 from src.utils.validators import verify_password, hash_password
@@ -30,22 +31,26 @@ class AuthService:
             if not password_ok:
                 raise ValueError("Ungueltige Anmeldedaten")
 
-            # 2. HIER MUSST DU DIESE LOGIK EINBAUEN:
-            # Das ist der Moment, in dem das bereitgelegte Werkzeug benutzt wird!
+            user_id = user.user_id
             if "$" not in stored_hash:
                 user.password_hash = hash_password(password)
                 session.add(user)
                 session.commit()
 
         executed_recurring = recurring_service.process_due_recurring_on_login(
-            user.user_id,
+            user_id,
+            date.today(),
+        )
+        billed_cards = creditcard_billing_service.process_monthly_billing(
+            user_id,
             date.today(),
         )
         return {
             "success": True,
             "auth_token": secrets.token_urlsafe(24),
-            "user_id": user.user_id,
+            "user_id": user_id,
             "executed_recurring": executed_recurring,
+            "billed_cards": billed_cards,
         }
 
     def get_full_name(self, user_id: int) -> str:

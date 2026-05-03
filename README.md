@@ -24,15 +24,15 @@ Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User
 ### 1. Transaktion manuell erfassen inkl. Kategorie
 **Als User möchte ich meine Ausgaben manuell hinzufügen und ihnen eine Kategorie zuweisen, damit ich meine Finanzstruktur überwachen und verstehen kann.**
 
-**Description:** Die Anwendung speichert eine neue Einnahme%%%%% oder Ausgabe mit Betrag, Datum, der zugewiesenen Kategorie und dem belasteten Konto/der belasteten Karte.
+**Description:** Die Anwendung speichert eine neue Einnahme oder Ausgabe mit Betrag, Datum, der zugewiesenen Kategorie und dem belasteten Konto/der belasteten Karte.
 
 **Inputs:** * `amount` as `float`
 * `type` as `str` (e.g. "income" | "expense")
 * `date` as `date`
 * `category_id` as `int`
-* `account_id` as `int` (optional, falls über Konto bezahlt)%%%%%%%
-* `card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)%%%%%%%
-* `creditcard_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt) %%%%%
+* `account_id` as `int` (optional, falls über Konto bezahlt)
+* `card_id` as `int` (optional, falls über kontogebundene Debitkarte bezahlt)
+* `creditcard_id` as `int` (optional, falls über unabhängige Kreditkarte bezahlt)
 * `note` as `str` (optional)
 
 **Validierungsregel:** Es muss genau eines der drei Belastungsfelder gesetzt sein (`account_id`, `card_id`, `creditcard_id`).
@@ -134,15 +134,15 @@ Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User
 
 **Inputs:** * `account_id` as `int`
 * `card_id` as `int` (bei Sperrung/Ersatz)
-* `action` as `str` ("order" | "block" | "replace")%%%%%%%%%
+* `action` as `str` ("order" | "block" | "replace")
 
 **Outputs:** * `card_status` as `str`
 * aktualisierte Kartenliste (internally: `list[Card]`)
 
 ---
 
-### 9. Unabhängige Kreditkarten verwalten %%%%%%%%%%%%%%%%%%
-**Als User möchte ich eine eigenständige Kreditkarte mit eigenem Kreditrahmen bestellen sowie verwalten (sperren/ersetzen), um Zahlungen unabhängig von meinem Kontostand abzuwickeln.** %%%%%%%
+### 9. Unabhängige Kreditkarten verwalten
+**Als User möchte ich eine eigenständige Kreditkarte mit eigenem Kreditrahmen bestellen sowie verwalten (sperren/ersetzen), um Zahlungen unabhängig von meinem Kontostand abzuwickeln.**
 
 **Description:** Der User beantragt eine Kreditkarte. Das System erstellt ein neues, unabhängiges Kreditkarten-Objekt mit einem festgelegten Limit. Der User kann Transaktionen direkt über diese Karte abwickeln, wodurch sich der genutzte Kreditrahmen (Saldo) verändert. Bei Verlust kann die Karte gesperrt werden.
 
@@ -221,13 +221,13 @@ Unsere Finanzverwaltungs-App BetterBank löst dieses Problem, indem sie dem User
 ### Main Use Cases
 
 * **Konto & Sicherheit:** Login mit vordefinierten Usern
-* **Transaktionen verwalten:** Einnahmen und Ausgaben manuell erfassen, bearbeiten, löschen und filtern%%%%%%%%%%%%%%%%%
+* **Transaktionen verwalten:** Einnahmen und Ausgaben manuell erfassen, bearbeiten, löschen und filtern
 * **Finanzen analysieren:** Dashboard mit Gesamtvermögen ansehen
 * **Budgetierung & Planung:** Monatliche Budget-Limits setzen, wiederkehrende Zahlungen erfassen
 * **Zahlungsverkehr:** Inlandzahlungen per IBAN tätigen, Geld zwischen eigenen Konten umbuchen, Kontoauszüge generieren
 * **Konten- & Kartenmanagement:** Privat und Sparkonten eröffnen/schliessen, Karten bestellen/sperren/ersetzen
 
-### Use Case Diagramm%%%%%%%%%%%%%%%%%
+### Use Case Diagramm
 
 <img width="818" height="936" alt="Bildschirmfoto 2026-04-09 um 23 54 29" src="https://github.com/user-attachments/assets/0afa94cf-0bd9-4aad-a06b-31e196b26aaf" />
 
@@ -264,7 +264,7 @@ Die Anwendung erhält Benutzereingaben über die Weboberfläche. Alle Eingaben w
 
 Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusammengefasste Finanzinformationen, die im Dashboard angezeigt werden.
  
-### Output Struktur %%%%%%%%%%%%%%%%%
+### Output Struktur
  
 | Feld          | Typ    |
 |---------------|--------|
@@ -297,8 +297,61 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 ## 🏛️ Architecture
 
-## Programm Struktur 
-###(Platzhalter)
+### Programm Struktur
+
+Die BetterBank-Anwendung folgt einer **3-Schichten-Architektur** mit klarer Trennung der Verantwortlichkeiten:
+
+#### **1. Presentation Layer (UI / src/ui/)**
+- **Views** (`src/ui/views/`): 6 NiceGUI-Seiten für Benutzerinteraktion
+  - `login_view.py` - Authentifizierung
+  - `dashboard_view.py` - Übersicht und Finanzanalyse
+  - `transaction_view.py` - Transaktionsmanagement (mit Tabs für Zahlungen, Umbuchungen, Daueraufträge, Kontoauszüge)
+  - `account_view.py` - Konten-Verwaltung
+  - `budget_view.py` - Budget-Limits und Überwachung
+  - `card_view.py` - Karten-Management (Debit-/Kreditkarten)
+
+- **Controllers** (`src/ui/controllers/`): 10 Event-Handler und Koordinations-Logik
+  - Validieren Benutzereingaben
+  - Delegieren an Services
+  - Formatieren Ausgaben für die UI
+
+- **App State** (`src/ui/app_state.py`): Zentrale Session-Verwaltung für eingeloggte User
+
+#### **2. Business Logic Layer (Services / src/services/)**
+Implementiert alle Geschäftsregeln und ist **vollständig unabhängig von der UI**:
+
+- **auth_service.py** - Benutzer-Authentifizierung, Passwort-Hashing
+- **transaction_service.py** - Erstellen, Bearbeiten, Löschen, Filtern von Transaktionen + Saldo-Updates
+- **payment_service.py** - Inlandszahlungen, Kontenumbuchungen, Kontoauszüge
+- **recurring_service.py** - Wiederkehrende Zahlungen (Daueraufträge) und automatische Verarbeitung
+- **budget_service.py** - Budget-Limits setzen, Überschreitung prüfen
+- **account_service.py** - Konten eröffnen, schließen, Status verwalten
+- **card_service.py** - Debit-/Kreditkarten bestellen, sperren, ersetzen
+- **dashboard_service.py** - Finanzielle Zusammenfassungen und Diagramm-Daten
+- **user_service.py**, **category_service.py**, **creditcard_billing_service.py** - Spezialisierten Services
+
+#### **3. Data Access Layer (Persistence / src/data_access/)**
+Abstrahiert die Datenbankzugriffe:
+
+- **Repositories** (`src/data_access/repositories/`): 8 Repository-Klassen für CRUD-Operationen
+  - `transaction_repository.py`, `account_repository.py`, `budget_repository.py`, etc.
+  - Nutzen SQLModel für typsicheren Datenbankzugriff
+  - Filtern, Aggregieren und Suchen im Datenbestand
+
+- **ORM** (`src/domain/models.py`): SQLModel-Entitäten (12 Modelle)
+  - Definieren Datenbank-Schema und Validierungsregeln
+  - Unterstützen bidirektionale Relationships
+
+- **Database** (`src/data_access/db.py`): SQLite-Engine und Tabellen-Initialisierung
+- **Seed** (`src/data_access/seed.py`): Test-Daten zum Starten
+
+#### **4. Utilities (src/utils/)**
+Wiederverwendbare Hilfsfunktionen:
+
+- **validators.py** - Datenvalidierung (IBAN, Beträge, Datum, Passwort, Transaktionsquellen)
+- **formatters.py** - Formatierung von Ausgaben (Daten, Transaktionstypen)
+
+---
 
 ### Software Architecture
 ## UML Klassendiagramm / ER Diagramm

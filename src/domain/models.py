@@ -29,6 +29,8 @@ class User(SQLModel, table=True):
 	last_name: str
 	password_hash: str
 	contract_number: str
+	phone: Optional[str] = Field(default=None)
+	address: Optional[str] = Field(default=None)
 
 	accounts: list["Account"] = Relationship(back_populates="user")
 	credit_cards: list["CreditCard"] = Relationship(back_populates="user")
@@ -63,6 +65,10 @@ class Account(SQLModel, table=True):
 	)
 	recurring_transactions: list["RecurringTransaction"] = Relationship(
 		back_populates="account"
+	)
+	billed_credit_cards: list["CreditCard"] = Relationship(
+		back_populates="billing_account",
+		sa_relationship_kwargs={"foreign_keys": "[CreditCard.billing_account_id]"},
 	)
 
 	def open(self) -> None:
@@ -102,9 +108,18 @@ class CreditCard(SQLModel, table=True):
 	limit: float
 	balance: float = 0.0
 	status: str = "aktiv"
+	# Konto von dem der monatliche Kreditkartenbetrag abgebucht wird (Lohnkonto)
+	billing_account_id: Optional[int] = Field(
+		default=None, foreign_key="accounts.account_id"
+	)
+	# Datum der letzten Monatsabrechnung
+	last_billed: Optional[date] = Field(default=None)
 	user_id: int = Field(foreign_key="users.user_id")
 
 	user: "User" = Relationship(back_populates="credit_cards")
+	billing_account: Optional["Account"] = Relationship(
+		sa_relationship_kwargs={"foreign_keys": "[CreditCard.billing_account_id]"}
+	)
 	transactions: list["Transaction"] = Relationship(back_populates="creditcard")
 
 	def create(self) -> None:

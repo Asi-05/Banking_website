@@ -27,7 +27,10 @@ def show() -> None:
 
 	# ===== TOP-RIGHT: LOGOUT =====
 	with ui.header():
-		with ui.row().classes("w-full justify-end items-center"):
+		with ui.row().classes("w-full justify-end items-center gap-2"):
+			with ui.button(icon="settings").props("flat round").classes("text-white"):
+				with ui.menu():
+					ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
 			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
 				.props("flat no-caps") \
 				.classes("text-white font-semibold")
@@ -198,6 +201,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 	Trennt aktive Kreditkarten von Anträgen.
 	"""
 	from nicegui import ui
+	from src.ui.controllers.account_controller import account_controller
 
 	with ui.column().classes("w-full gap-6"):
 
@@ -257,6 +261,8 @@ def _build_credit_cards_section(user_id: int) -> None:
 						{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
 						{"name": "balance", "label": "Genutzt (CHF)", "field": "balance", "align": "right"},
 						{"name": "available", "label": "Verfügbar (CHF)", "field": "available", "align": "right"},
+						{"name": "billing_account", "label": "Abrechnungskonto", "field": "billing_account", "align": "left"},
+						{"name": "last_billed", "label": "Letzte Abrechnung", "field": "last_billed", "align": "left"},
 						{"name": "status", "label": "Status", "field": "status", "align": "left"},
 						{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 					], rows=[]).props("dense")
@@ -295,6 +301,24 @@ def _build_credit_cards_section(user_id: int) -> None:
 						limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
 						balance_val = card.balance if hasattr(card, "balance") else card.get("balance")
 						available = limit_val - balance_val
+						
+						# Abrechnungskonto anzeigen
+						billing_account = card.billing_account if hasattr(card, "billing_account") else card.get("billing_account")
+						if billing_account is not None:
+							billing_account_display = (billing_account.iban if hasattr(billing_account, "iban") else billing_account.get("iban", "N/A")).upper()
+						else:
+							billing_account_display = "Nicht gesetzt"
+						
+						# Letzte Abrechnung anzeigen
+						last_billed = card.last_billed if hasattr(card, "last_billed") else card.get("last_billed")
+						if last_billed is not None:
+							from datetime import date as date_type
+							if isinstance(last_billed, str):
+								from datetime import datetime
+								last_billed = datetime.fromisoformat(last_billed).date()
+							last_billed_display = last_billed.strftime("%d.%m.%Y")
+						else:
+							last_billed_display = "Noch keine"
 
 						rows.append({
 							"card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
@@ -302,10 +326,91 @@ def _build_credit_cards_section(user_id: int) -> None:
 							"limit": f"{limit_val:,.2f}",
 							"balance": f"{balance_val:,.2f}",
 							"available": f"{available:,.2f}",
+							"billing_account": billing_account_display,
+							"last_billed": last_billed_display,
 							"status": card.status if hasattr(card, "status") else card.get("status"),
 						})
 
 					credit_table.rows = rows
+
+			# === ABRECHNUNGSKONTO FESTLEGEN ===
+			with ui.card().classes("w-full"):
+				ui.label("Abrechnungskonto festlegen").classes("text-subtitle2 font-semibold mb-4")
+				
+				if not active_cards:
+					ui.label("Keine aktiven Kreditkarten.").classes("text-gray-500 italic")
+				else:
+					# Karten-Dropdown
+					card_options = {
+						(card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id")):
+						f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}"
+						for card in active_cards
+					}
+					
+					# Konto-Dropdown (nur Privatkonten)
+					result = account_controller.list_accounts(user_id)
+					if isinstance(result, str):
+						ui.notify(result, type="negative")
+						account_options = {}
+					else:
+						# Nur Privatkonten filtern
+						account_options = {
+							(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
+							((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
+							for a in result
+							if (a.account_type if hasattr(a, "account_type") else a.get("account_type")) == "privat"
+						}
+					
+					with ui.row().classes("w-full gap-4"):
+						card_select = ui.select(
+							options=card_options,
+							label="Kreditkarte auswählen",
+						).props("outlined").classes("flex-1")
+						
+						account_select = ui.select(
+							options=account_options,
+							label="Privatkonto auswählen",
+						).props("outlined").classes("flex-1")
+					
+					error_label = ui.label("").classes("text-red-600 mb-4 w-full")
+					
+					async def handle_set_billing_account() -> None:
+						"""Setzt das Abrechnungskonto für eine Kreditkarte."""
+						if not card_select.value or not account_select.value:
+							error_label.set_text("Bitte Kreditkarte und Konto auswählen.")
+							ui.notify("Bitte Kreditkarte und Konto auswählen", type="warning")
+							return
+						
+						error = card_controller.handle_set_billing_account(
+							card_select.value,
+							account_select.value
+						)
+						
+						if error:
+							error_label.set_text(error)
+							ui.notify(error, type="negative")
+						else:
+							error_label.set_text("")
+							ui.notify("Abrechnungskonto gespeichert", type="positive")
+							card_select.value = None
+							account_select.value = None
+					
+					ui.button("Speichern", on_click=handle_set_billing_account).classes("w-full")
+				
+				# === WARNUNG: KEIN ABRECHNUNGSKONTO ===
+				cards_without_billing = [
+					c for c in active_cards 
+					if (c.billing_account_id if hasattr(c, "billing_account_id") else c.get("billing_account_id")) is None
+				]
+				
+				if cards_without_billing:
+					ui.separator().classes("my-4")
+					with ui.card().classes("w-full bg-yellow-50 border-l-4 border-yellow-400"):
+						ui.label("⚠️ Kein Abrechnungskonto gesetzt").classes("text-subtitle2 font-semibold text-yellow-800 mb-2")
+						ui.label(
+							f"{len(cards_without_billing)} Kreditkarte(n) haben kein Abrechnungskonto. "
+							"Der Monatsabschluss ist für diese Karten inaktiv."
+						).classes("text-sm text-yellow-700")
 
 			# === KREDITKARTENANTRÄGE-LISTE ===
 			with ui.card().classes("w-full"):
@@ -370,3 +475,42 @@ def _logout() -> None:
 	app_state["user_id"] = None
 	ui.navigate.to("/")
 	ui.notify("Erfolgreich abgemeldet", type="positive")
+
+
+def _open_settings_dialog(user_id: int) -> None:
+	from nicegui import ui
+	from src.ui.controllers.user_controller import user_controller
+
+	profile = user_controller.get_profile(user_id)
+	if isinstance(profile, str):
+		ui.notify(profile, type="negative")
+		return
+
+	with ui.dialog() as dlg, ui.card().classes("w-96"):
+		ui.label("Kontoeinstellungen").classes("text-h6 font-semibold mb-4")
+
+		# Telefonnummer (nur Anzeige)
+		with ui.card().classes("w-full mb-3").props("flat bordered"):
+			with ui.row().classes("w-full items-center justify-between p-2"):
+				with ui.column().classes("gap-0"):
+					ui.label("Telefonnummer").classes("text-sm text-gray-500")
+					ui.label(profile.phone or "—").classes("text-base")
+					ui.label("Format: +41 XX XXX XX XX").classes("text-xs text-gray-400")
+				ui.button(
+					"Telefonnummeränderung beantragen",
+					on_click=lambda: ui.notify("Formular beantragt", type="positive")
+				).props("flat color=primary no-caps")
+
+		# Wohnadresse (nur Anzeige)
+		with ui.card().classes("w-full mb-4").props("flat bordered"):
+			with ui.row().classes("w-full items-center justify-between p-2"):
+				with ui.column().classes("gap-0"):
+					ui.label("Wohnadresse").classes("text-sm text-gray-500")
+					ui.label(profile.address or "—").classes("text-base")
+				ui.button(
+					"Adressänderung beantragen",
+					on_click=lambda: ui.notify("Formular beantragt", type="positive")
+				).props("flat color=primary no-caps")
+
+		ui.button("Schliessen", on_click=dlg.close).props("flat").classes("w-full")
+	dlg.open()

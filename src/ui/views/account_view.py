@@ -27,7 +27,10 @@ def show() -> None:
 
 	# ===== TOP-RIGHT: LOGOUT =====
 	with ui.header():
-		with ui.row().classes("w-full justify-end items-center"):
+		with ui.row().classes("w-full justify-end items-center gap-2"):
+			with ui.button(icon="settings").props("flat round").classes("text-white"):
+				with ui.menu():
+					ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
 			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
 				.props("flat no-caps") \
 				.classes("text-white font-semibold")
@@ -194,3 +197,42 @@ def _logout() -> None:
 	app_state["user_id"] = None
 	ui.navigate.to("/")
 	ui.notify("Erfolgreich abgemeldet", type="positive")
+
+
+def _open_settings_dialog(user_id: int) -> None:
+	from nicegui import ui
+	from src.ui.controllers.user_controller import user_controller
+
+	profile = user_controller.get_profile(user_id)
+	if isinstance(profile, str):
+		ui.notify(profile, type="negative")
+		return
+
+	with ui.dialog() as dlg, ui.card().classes("w-96"):
+		ui.label("Kontoeinstellungen").classes("text-h6 font-semibold mb-4")
+
+		# Telefonnummer (nur Anzeige)
+		with ui.card().classes("w-full mb-3").props("flat bordered"):
+			with ui.row().classes("w-full items-center justify-between p-2"):
+				with ui.column().classes("gap-0"):
+					ui.label("Telefonnummer").classes("text-sm text-gray-500")
+					ui.label(profile.phone or "—").classes("text-base")
+					ui.label("Format: +41 XX XXX XX XX").classes("text-xs text-gray-400")
+				ui.button(
+					"Telefonnummeränderung beantragen",
+					on_click=lambda: ui.notify("Formular beantragt", type="positive")
+				).props("flat color=primary no-caps")
+
+		# Wohnadresse (nur Anzeige)
+		with ui.card().classes("w-full mb-4").props("flat bordered"):
+			with ui.row().classes("w-full items-center justify-between p-2"):
+				with ui.column().classes("gap-0"):
+					ui.label("Wohnadresse").classes("text-sm text-gray-500")
+					ui.label(profile.address or "—").classes("text-base")
+				ui.button(
+					"Adressänderung beantragen",
+					on_click=lambda: ui.notify("Formular beantragt", type="positive")
+				).props("flat color=primary no-caps")
+
+		ui.button("Schliessen", on_click=dlg.close).props("flat").classes("w-full")
+	dlg.open()

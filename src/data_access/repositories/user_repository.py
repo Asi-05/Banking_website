@@ -25,3 +25,14 @@ class UserRepository:
 		self.session.commit()
 		self.session.refresh(user)
 		return user
+
+	# Aktualisiert Profildaten eines Users (Telefon und Adresse).
+	def update_profile(self, user_id: int, phone: str | None, address: str | None) -> User:
+		user = self.get_by_id(user_id)
+		if user is None:
+			raise KeyError(f"User {user_id} nicht gefunden")
+		if phone is not None:
+			user.phone = phone
+		if address is not None:
+			user.address = address
+		return self.save(user)

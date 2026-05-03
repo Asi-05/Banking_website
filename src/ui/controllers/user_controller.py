@@ -24,20 +24,20 @@ class UserController:
 		except Exception as e:
 			return str(e)
 
-	def update_profile(self, user_id: int, email: str | None, address: str | None) -> str | None:
+	def update_profile(self, user_id: int, phone: str | None, address: str | None) -> str | None:
 		"""
-		Aktualisiert das Benutzerprofil (E-Mail, Adresse).
+		Aktualisiert das Benutzerprofil (Telefon, Adresse).
 		
 		Args:
 		    user_id: ID des Users
-		    email: Neue E-Mail (optional)
+		    phone: Neue Telefonnummer (optional)
 		    address: Neue Wohnadresse (optional)
 		    
 		Returns:
 		    None bei Erfolg, Fehlermeldung (str) bei Fehler
 		"""
 		try:
-			user_service.update_profile(user_id, email, address)
+			user_service.update_profile(user_id, phone, address)
 			return None
 		except Exception as e:
 			return str(e)

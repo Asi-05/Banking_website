@@ -24,13 +24,13 @@ class UserService:
 		with Session(engine) as session:
 			return UserRepository(session).get_by_id(user_id)
 
-	def update_profile(self, user_id: int, email: str | None, address: str | None):
+	def update_profile(self, user_id: int, phone: str | None, address: str | None):
 		"""
-		Aktualisiert die Profildaten eines Users (E-Mail, Adresse).
+		Aktualisiert die Profildaten eines Users (Telefon, Adresse).
 		
 		Args:
 		    user_id: ID des Users
-		    email: Neue E-Mail (optional)
+		    phone: Neue Telefonnummer (optional)
 		    address: Neue Wohnadresse (optional)
 		    
 		Returns:
@@ -40,7 +40,7 @@ class UserService:
 		    KeyError: User nicht gefunden
 		"""
 		with Session(engine) as session:
-			return UserRepository(session).update_profile(user_id, email, address)
+			return UserRepository(session).update_profile(user_id, phone, address)
 
 
 user_service = UserService()

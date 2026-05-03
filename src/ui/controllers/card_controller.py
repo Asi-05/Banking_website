@@ -53,6 +53,14 @@ class CardController:
 		except Exception as error:
 			return str(error)
 
+	# Setzt das Abrechnungskonto fuer eine Kreditkarte.
+	def handle_set_billing_account(self, creditcard_id: int, account_id: int) -> str | None:
+		try:
+			card_service.set_billing_account(creditcard_id, account_id)
+			return None
+		except Exception as error:
+			return str(error)
+
 	# Listet alle Debitkarten eines Users.
 	def list_debit_cards(self, user_id: int) -> list | str:
 		try:

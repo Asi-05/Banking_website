@@ -21,11 +21,32 @@ class CardService:
 			card_repository = CardRepository(session)
 			return card_repository.list_debit_by_user(user_id)
 
-	# Listet alle Kreditkarten eines Users.
-	def list_credit_cards(self, user_id: int) -> list[CreditCard]:
+	# Listet alle Kreditkarten eines Users als Dicts (inkl. aufgeloester billing_account IBAN).
+	def list_credit_cards(self, user_id: int) -> list[dict]:
 		with Session(engine) as session:
 			card_repository = CardRepository(session)
-			return card_repository.list_credit_by_user(user_id)
+			account_repository = AccountRepository(session)
+			cards = card_repository.list_credit_by_user(user_id)
+			result = []
+			for card in cards:
+				billing_account = None
+				if card.billing_account_id is not None:
+					acc = account_repository.get_by_id(card.billing_account_id)
+					if acc is not None:
+						billing_account = {"iban": acc.iban}
+				result.append({
+					"creditcard_id": card.creditcard_id,
+					"card_number": card.card_number,
+					"expire_date": card.expire_date,
+					"limit": card.limit,
+					"balance": card.balance,
+					"status": card.status,
+					"user_id": card.user_id,
+					"billing_account_id": card.billing_account_id,
+					"billing_account": billing_account,
+					"last_billed": card.last_billed,
+				})
+			return result
 
 	# Bestellt eine neue Debitkarte fuer ein Privatkonto.
 	def order_debit_card(self, account_id: int) -> DebitCard:
@@ -142,6 +163,34 @@ class CardService:
 	# Erzeugt eine pseudozufaellige 16-stellige Kartennummer.
 	def _generate_card_number(self) -> str:
 		return "".join(str(random.randint(0, 9)) for _ in range(16))
+
+	# Setzt das Abrechnungskonto fuer eine Kreditkarte.
+	def set_billing_account(self, creditcard_id: int, account_id: int) -> CreditCard:
+		with Session(engine) as session:
+			card_repository = CardRepository(session)
+			account_repository = AccountRepository(session)
+
+			# Lade Kreditkarte
+			credit_card = card_repository.get_credit_by_id(creditcard_id)
+			if credit_card is None:
+				raise KeyError(f"Kreditkarte {creditcard_id} nicht gefunden")
+
+			# Lade Konto
+			account = account_repository.get_by_id(account_id)
+			if account is None:
+				raise KeyError(f"Konto {account_id} nicht gefunden")
+
+			# Validiere: Konto muss aktiv sein
+			if account.status != "aktiv":
+				raise ValueError(f"Konto {account_id} ist nicht aktiv")
+
+			# Validiere: Kreditkarte muss dem selben User gehoeren wie das Konto
+			if credit_card.user_id != account.user_id:
+				raise ValueError("Kreditkarte und Konto gehoeren nicht zum selben User")
+
+			# Setze Abrechnungskonto
+			credit_card.billing_account_id = account_id
+			return card_repository.save_credit(credit_card)
 
 	# Prueft, dass ein User global maximal eine aktive Debitkarte besitzt.
 	def _ensure_user_has_no_active_debit_card(self, session: Session, user_id: int) -> None:

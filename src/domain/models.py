@@ -29,7 +29,7 @@ class User(SQLModel, table=True):
 	last_name: str
 	password_hash: str
 	contract_number: str
-	email: Optional[str] = Field(default=None)
+	phone: Optional[str] = Field(default=None)
 	address: Optional[str] = Field(default=None)
 
 	accounts: list["Account"] = Relationship(back_populates="user")

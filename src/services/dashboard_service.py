@@ -33,9 +33,10 @@ class DashboardService:
 			
 			# Filter out internal transfers (Kontoumbuchungen) from income/expense calculations
 			# but keep them for balance calculation
+			# Some test fixtures return SimpleNamespace without 'note'; be defensive.
 			non_transfer_transactions = [
-				t for t in transactions 
-				if not (t.note and "Kontoumbuchung" in t.note)
+				t for t in transactions
+				if not (getattr(t, "note", None) and "Kontoumbuchung" in getattr(t, "note", ""))
 			]
 			
 			total_income = sum(t.amount for t in non_transfer_transactions if t.type == "income")

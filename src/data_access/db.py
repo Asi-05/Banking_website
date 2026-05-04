@@ -14,7 +14,6 @@ engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_threa
 # Create all tables that are registered in SQLModel metadata
 def create_db_and_tables() -> None:
 	SQLModel.metadata.create_all(engine)
-	
 	# Migration: Neue Spalten phone und address zu Users-Tabelle hinzufügen (einmalig)
 	with engine.connect() as conn:
 		for col, typ in [("phone", "TEXT"), ("address", "TEXT")]:
@@ -23,6 +22,13 @@ def create_db_and_tables() -> None:
 				conn.commit()
 			except Exception:
 				pass  # Spalte existiert bereits
+
+		# Entferne alte persistente Dashboard-Tabelle falls vorhanden (Option 1: kein Persistieren)
+		try:
+			conn.execute(text("DROP TABLE IF EXISTS dashboard"))
+			conn.commit()
+		except Exception:
+			pass
 
 
 # Session provider used by repositories and services

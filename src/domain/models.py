@@ -267,16 +267,6 @@ class RecurringTransaction(SQLModel, table=True):
 	transaction: "Transaction" = Relationship(back_populates="recurring_transaction")
 
 
-# Table exists as requested by design and can be used for persisted dashboard snapshots
-class Dashboard(SQLModel, table=True):
-	__tablename__ = "dashboard"
-
-	dashboard_id: Optional[int] = Field(default=None, primary_key=True)
-
-	def dashboard(self) -> DashboardSummary:
-		return DashboardSummary(
-			total_balance=0.0,
-			total_income=0.0,
-			total_expenses=0.0,
-			chart_data=[],
-		)
+# NOTE: Persisted dashboard snapshots were removed by decision (not needed).
+# If you want to re-enable persisted snapshots later, add a Dashboard model
+# here with fields like snapshot_date, total_balance, total_income, total_expenses.

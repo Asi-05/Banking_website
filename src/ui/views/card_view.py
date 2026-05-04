@@ -243,9 +243,22 @@ def _build_credit_cards_section(user_id: int) -> None:
 				ui.notify(credit_cards, type="negative")
 				return
 
-			# Trennung: aktive Karten vs. Anträge/Pending
-			active_cards = [c for c in credit_cards if (c.status if hasattr(c, "status") else c.get("status")) in ["aktiv", "gesperrt"]]
-			pending_cards = [c for c in credit_cards if (c.status if hasattr(c, "status") else c.get("status")) not in ["aktiv", "gesperrt"]]
+			# Trennung: aktive Karten, ersetzte Karten und offene Antraege.
+			active_cards = [
+				c
+				for c in credit_cards
+				if (c.status if hasattr(c, "status") else c.get("status")) in ["aktiv", "gesperrt"]
+			]
+			replaced_cards = [
+				c
+				for c in credit_cards
+				if (c.status if hasattr(c, "status") else c.get("status")) == "ersetzt"
+			]
+			pending_cards = [
+				c
+				for c in credit_cards
+				if (c.status if hasattr(c, "status") else c.get("status")) == "beantragt"
+			]
 
 			# === AKTIVE KREDITKARTEN-LISTE ===
 			with ui.card().classes("w-full"):
@@ -411,6 +424,33 @@ def _build_credit_cards_section(user_id: int) -> None:
 							f"{len(cards_without_billing)} Kreditkarte(n) haben kein Abrechnungskonto. "
 							"Der Monatsabschluss ist für diese Karten inaktiv."
 						).classes("text-sm text-yellow-700")
+
+			# === ERSETZTE KREDITKARTEN ===
+			with ui.card().classes("w-full"):
+
+				ui.label("Ersetzte Kreditkarten").classes("text-subtitle2 font-semibold")
+
+				if not replaced_cards:
+					ui.label("Keine ersetzten Kreditkarten.").classes("text-gray-500 italic")
+				else:
+					replaced_table = ui.table(columns=[
+						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+						{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+						{"name": "status", "label": "Status", "field": "status", "align": "left"},
+					], rows=[]).props("dense")
+					replaced_table.classes("w-full")
+
+					replaced_rows = []
+					for card in replaced_cards:
+						limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
+						replaced_rows.append({
+							"card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
+							"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
+							"limit": f"{limit_val:,.2f}",
+							"status": card.status if hasattr(card, "status") else card.get("status"),
+						})
+
+					replaced_table.rows = replaced_rows
 
 			# === KREDITKARTENANTRÄGE-LISTE ===
 			with ui.card().classes("w-full"):

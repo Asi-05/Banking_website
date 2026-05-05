@@ -26,10 +26,7 @@ class BudgetService:
 
 		validate_positive_amount(limit_amount)
 		validate_budget_month_year(month, year)
-		from datetime import date
-		today = date.today()
-		if date(year, month, 1) < date(today.year, today.month, 1):
-			raise ValueError("Budget kann nicht für vergangene Monate erstellt werden")
+		# Allow creating budgets for past months (useful for importing historical budgets)
 
 		with Session(engine) as session:
 			user_repository = UserRepository(session)

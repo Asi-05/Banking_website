@@ -1,7 +1,22 @@
-"""
-Card View - Betterbank Banking App
-Implementiert US8, US9: Debitkarten und Kreditkarten verwalten
-Route: /cards
+"""src.ui.views.card_view
+
+Card-View (NiceGUI) fuer die Kartenverwaltung.
+
+Diese Datei gehoert zur **UI-View-Schicht**. Die View ist zustaendig fuer die
+Darstellung (Tabs, Tabellen, Buttons) und das Ausloesen von Aktionen ueber
+Controller.
+
+Use-Cases:
+- Debitkarten (US8): bestellen, sperren, ersetzen
+- Kreditkarten (US9): beantragen, sperren, ersetzen, Abrechnungskonto setzen
+
+Wichtig fuer das Verstaendnis:
+- Fachregeln (z.B. "Debitkarte nur fuer Privatkonto", "max. 1 aktive Debitkarte",
+  Kreditkartenlimit) liegen im `CardService`.
+- Diese View ruft Regeln ausschliesslich ueber den `CardController` auf und
+  zeigt nur das Ergebnis (Success/Fehler) in der UI an.
+
+Route: `/cards`
 """
 
 from src.ui.controllers.card_controller import card_controller
@@ -9,12 +24,13 @@ from src.ui.app_state import app_state
 
 
 def show() -> None:
-	"""
-	Zeigt Debitkarten- und Kreditkarten-Verwaltung.
+	"""Rendert die Karten-Seite (Tabs: Debitkarten und Kreditkarten).
+
+	Die Seite ist geschuetzt: Ohne Login wird zur Startseite umgeleitet.
 	"""
 	from nicegui import ui
 
-	# Sicherheitsprüfung
+	# Sicherheitspruefung: ohne Login zur Startseite.
 	if app_state.get("current_user") is None:
 		ui.navigate.to("/")
 		return
@@ -57,9 +73,15 @@ def show() -> None:
 
 
 def _build_debit_cards_section(user_id: int) -> None:
-	"""
-	Debitkarten-Verwaltung (US8).
-	Liste aller Debitkarten, Bestellen, Sperren, Ersetzen.
+	"""Rendert den Bereich fuer Debitkarten (US8).
+
+	Der Bereich bietet:
+	- Bestellung einer neuen Debitkarte (nur fuer Privatkonten)
+	- Anzeige aktiver und inaktiver Debitkarten
+	- Aktionen wie Sperren/Ersetzen ueber den Controller
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 	from src.ui.controllers.account_controller import account_controller
@@ -92,7 +114,13 @@ def _build_debit_cards_section(user_id: int) -> None:
 			error_label = ui.label("").classes("text-red-600 mb-4")
 
 			async def handle_order_debit_card() -> None:
-				"""Bestellt eine neue Debitkarte."""
+				"""Bestellt eine Debitkarte ueber den Controller.
+
+				Die UI uebergibt nur die Auswahl (Konto). Fachliche Regeln (z.B.
+				"max. 1 aktive Debitkarte") werden im Service geprueft.
+				"""
+				# Der Service prueft u.a. "max. 1 aktive Debitkarte" und ob das Konto
+				# wirklich geeignet ist. Die UI zeigt hier nur den Fehlertext an.
 				error = card_controller.order_debit_card(account_select.value)
 
 				if error:
@@ -122,6 +150,11 @@ def _build_debit_cards_section(user_id: int) -> None:
 				}
 
 			def make_row(card):
+				"""Konvertiert eine Karte in eine Tabellenzeile.
+
+				In manchen Tests/Fixtures kommen Dicts statt ORM-Objekten vor.
+				Darum wird defensiv mit `hasattr(...)`/`.get(...)` gelesen.
+				"""
 				account_iban = account_map.get(
 					card.account_id if hasattr(card, "account_id") else card.get("account_id"), "N/A"
 				)
@@ -168,7 +201,14 @@ def _build_debit_cards_section(user_id: int) -> None:
 						</q-td>
 					""")
 					def handle_block_and_replace_debit(e) -> None:
+						"""Sperrt die Karte und bestellt danach eine Ersatzkarte.
+
+						Args:
+							e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+						"""
 						card_id = e.args.get("card_id")
+						# Zwei Schritte: erst sperren (Sicherheitsmassnahme), dann ersetzen
+						# (neue Kartennummer/Gueltigkeit).
 						error = card_controller.block_debit_card(card_id)
 						if error:
 							ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
@@ -179,6 +219,11 @@ def _build_debit_cards_section(user_id: int) -> None:
 						else:
 							ui.notify("Karte gesperrt und Ersatzkarte bestellt", type="positive")
 					def handle_order_pin_debit(e) -> None:
+						"""UI-Demoaktion: PIN bestellen (hier nur Notification).
+
+						Args:
+							e: NiceGUI-Event; wird hier nicht ausgewertet.
+						"""
 						ui.notify("PIN bestellt", type="positive")
 					active_table.on("block_and_replace_debit", handle_block_and_replace_debit)
 					active_table.on("order_pin_debit", handle_order_pin_debit)
@@ -194,11 +239,17 @@ def _build_debit_cards_section(user_id: int) -> None:
 
 		except Exception as e:
 			ui.notify(f"Fehler beim Laden der Debitkarten: {str(e)}", type="negative")
+
 def _build_credit_cards_section(user_id: int) -> None:
-	"""
-	Kreditkarten-Verwaltung (US9).
-	Liste aller Kreditkarten, Beantragen, Sperren, Ersetzen.
-	Trennt aktive Kreditkarten von Anträgen.
+	"""Rendert den Bereich fuer Kreditkarten (US9).
+
+	Der Bereich umfasst:
+	- Kreditkartenantrag (gewuenschtes Limit)
+	- Anzeige aktiver/gesperrter Karten, ersetzter Karten und offener Antraege
+	- Setzen eines Abrechnungskontos fuer aktive Kreditkarten
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 	from src.ui.controllers.account_controller import account_controller
@@ -215,7 +266,11 @@ def _build_credit_cards_section(user_id: int) -> None:
 			error_label = ui.label("").classes("text-red-600 mb-4")
 
 			async def handle_create_credit_card() -> None:
-				"""Beantragt eine neue Kreditkarte."""
+				"""Event-Handler: beantragt eine Kreditkarte.
+
+				Die Limit-Regel (max. 10'000) ist eine UI-Vorpruefung; die echte
+				Validierung liegt im Service.
+				"""
 				if (limit_input.value or 0) > 10000:
 					error_label.set_text("Das maximale Kreditlimit beträgt CHF 10'000.")
 					return
@@ -291,7 +346,13 @@ def _build_credit_cards_section(user_id: int) -> None:
 					""")
 
 					def handle_block_and_replace_credit(e) -> None:
+						"""Sperrt und ersetzt eine Kreditkarte.
+
+						Args:
+							e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+						"""
 						creditcard_id = e.args.get("card_id")
+						# Sperren + Ersetzen ist ein bewusstes Sicherheitsmuster.
 						error = card_controller.block_credit_card(creditcard_id)
 						if error:
 							ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
@@ -303,6 +364,11 @@ def _build_credit_cards_section(user_id: int) -> None:
 							ui.notify("Kreditkarte gesperrt und Ersatzkarte bestellt", type="positive")
 					
 					def handle_order_pin_credit(e) -> None:
+						"""UI-Demoaktion: PIN bestellen (hier nur Notification).
+
+						Args:
+							e: NiceGUI-Event; wird hier nicht ausgewertet.
+						"""
 						ui.notify("PIN bestellt", type="positive")
 					
 					credit_table.on("block_and_replace_credit", handle_block_and_replace_credit)
@@ -313,16 +379,19 @@ def _build_credit_cards_section(user_id: int) -> None:
 					for card in active_cards:
 						limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
 						balance_val = card.balance if hasattr(card, "balance") else card.get("balance")
+						# In dieser App bedeutet `balance`: bereits genutzter Kredit.
+						# Verfuegbar = Limit - genutzter Kredit.
 						available = limit_val - balance_val
 						
-						# Abrechnungskonto anzeigen
+						# Abrechnungskonto anzeigen (optional, kann noch nicht gesetzt sein).
 						billing_account = card.billing_account if hasattr(card, "billing_account") else card.get("billing_account")
 						if billing_account is not None:
 							billing_account_display = (billing_account.iban if hasattr(billing_account, "iban") else billing_account.get("iban", "N/A")).upper()
 						else:
 							billing_account_display = "Nicht gesetzt"
 						
-						# Letzte Abrechnung anzeigen
+						# Letzte Abrechnung anzeigen. Hier kommt teils ein ISO-String aus der DB/Fixture.
+						# Wir normalisieren auf `date`, um ein einheitliches Anzeigeformat zu haben.
 						last_billed = card.last_billed if hasattr(card, "last_billed") else card.get("last_billed")
 						if last_billed is not None:
 							from datetime import date as date_type
@@ -361,6 +430,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 					}
 					
 					# Konto-Dropdown (nur Privatkonten)
+					# (Fachregel im Service: Abrechnungskonto muss aktiv sein und dem User gehoeren.)
 					result = account_controller.list_accounts(user_id)
 					if isinstance(result, str):
 						ui.notify(result, type="negative")
@@ -388,7 +458,11 @@ def _build_credit_cards_section(user_id: int) -> None:
 					error_label = ui.label("").classes("text-red-600 mb-4 w-full")
 					
 					async def handle_set_billing_account() -> None:
-						"""Setzt das Abrechnungskonto für eine Kreditkarte."""
+						"""Setzt das Abrechnungskonto fuer eine Kreditkarte.
+
+						Das Abrechnungskonto ist notwendig, damit spaeter eine Monatsabrechnung
+						fuer die Kreditkarte erstellt werden kann.
+						"""
 						if not card_select.value or not account_select.value:
 							error_label.set_text("Bitte Kreditkarte und Konto auswählen.")
 							ui.notify("Bitte Kreditkarte und Konto auswählen", type="warning")
@@ -411,6 +485,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 					ui.button("Speichern", on_click=handle_set_billing_account).classes("w-full")
 				
 				# === WARNUNG: KEIN ABRECHNUNGSKONTO ===
+				# Ohne Billing-Account kann `CreditCardBillingService` keine Monatsabrechnung ausfuehren.
 				cards_without_billing = [
 					c for c in active_cards 
 					if (c.billing_account_id if hasattr(c, "billing_account_id") else c.get("billing_account_id")) is None
@@ -487,7 +562,10 @@ def _build_credit_cards_section(user_id: int) -> None:
 
 
 def _build_sidebar() -> None:
-	"""Baut die Navigation."""
+	"""Baut die Sidebar-Navigation (Links zu den Views).
+
+	Falls ein User eingeloggt ist, wird zusaetzlich der Username angezeigt.
+	"""
 	from nicegui import ui
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
 
@@ -509,7 +587,10 @@ def _build_sidebar() -> None:
 
 
 def _logout() -> None:
-	"""Meldet den User ab."""
+	"""Meldet den User ab und navigiert zur Startseite.
+
+	Der Login-Status wird im globalen `app_state` zurueckgesetzt.
+	"""
 	from nicegui import ui
 	app_state["current_user"] = None
 	app_state["user_id"] = None
@@ -518,6 +599,15 @@ def _logout() -> None:
 
 
 def _open_settings_dialog(user_id: int) -> None:
+	"""Oeffnet den Kontoeinstellungen-Dialog (aktuell nur Anzeige).
+
+	Die Daten werden ueber den `UserController` geladen. In dieser View werden
+	Telefonnummer und Adresse nur angezeigt; Aenderungen werden als "beantragt"
+	simuliert.
+
+	Args:
+		user_id: ID des eingeloggten Users.
+	"""
 	from nicegui import ui
 	from src.ui.controllers.user_controller import user_controller
 

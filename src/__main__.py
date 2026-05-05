@@ -1,6 +1,23 @@
-"""
-Betterbank Banking App - Main Entry Point
-Initialisiert die NiceGUI-Anwendung, registriert Routen und startet den Server.
+"""src.__main__
+
+Diese Datei ist der **Programmeinstieg** der BetterBank-App.
+
+Sie orchestriert den Start in groben Schritten:
+
+1) Datenbank initialisieren (Engine/Tabellen/kleine Migrationen)
+2) Demo-/Seed-Daten einspielen (idempotent: nur wenn noch nichts existiert)
+3) NiceGUI initialisieren und Routen registrieren
+4) Webserver starten
+
+Architektur in einem Satz:
+
+- Views (NiceGUI) -> Controller -> Services -> Repositories -> Datenbank.
+
+Wichtig fuer Anfaenger:
+
+- Imports der Views liegen *innerhalb* der Route-Funktionen. Das ist ein
+	bewusstes Pattern, um beim Start keine UI-Module zu laden, bevor NiceGUI
+	initialisiert ist, und um zirkulaere Abhaengigkeiten zu vermeiden.
 """
 
 from src.data_access.db import create_db_and_tables
@@ -11,26 +28,29 @@ from src.data_access.seed import seed_database
 
 
 def main() -> None:
-	"""
-	Haupteinstiegspunkt der Betterbank-Anwendung.
-	1. Datenbank initialisieren und Tabellen erstellen
-	2. Testdaten seeden (nur beim Erststart)
-	3. Alle Routen registrieren
-	4. NiceGUI-Server starten
+	"""Startet die BetterBank-Anwendung.
+
+	Die Funktion ist bewusst "top level" und laeuft in einer festen Reihenfolge:
+	- Zuerst wird die DB vorbereitet.
+	- Danach werden Seed-Daten erzeugt (falls die DB noch leer ist).
+	- Danach werden UI-Routen registriert.
+	- Zuletzt startet der Webserver.
 	"""
 
-	# 1. Datenbank und Tabellen erstellen
+	# 1) Datenbank und Tabellen erstellen
 	print("📦 Initialisiere Datenbank...")
 	create_db_and_tables()
 
-	# 2. Testdaten seeden (Kategorien, User, Konten)
+	# 2) Testdaten seeden (Kategorien, User, Konten)
+	#    Hinweis: `seed_database()` ist so gebaut, dass es mehrfach ausgefuehrt
+	#    werden kann, ohne jedes Mal Duplikate zu erzeugen.
 	print("🌱 Seede Testdaten...")
 	seed_database()
 
-	# 3. NiceGUI initialisieren
+	# 3) NiceGUI initialisieren
 	from nicegui import ui
 
-	# 5. Routen definieren
+	# 4) Routen definieren
 	@ui.page("/")
 	def index() -> None:
 		"""
@@ -95,9 +115,11 @@ def main() -> None:
 		from src.ui.views import card_view
 		card_view.show()
 
-	# 6. App-Start
+	# 5) App-Start
 	print("🚀 Starte Betterbank Banking App...")
 	print("   Öffne: http://localhost:8080/")
+	# UI-Lokalisierung: Quasar (Frontend-Komponente unter NiceGUI) wird hier auf
+	# Deutsch gesetzt. Das beeinflusst z.B. Wochentage/Monatsnamen in Datepickern.
 	ui.add_head_html("""
 	<script>
 	document.addEventListener('DOMContentLoaded', function() {

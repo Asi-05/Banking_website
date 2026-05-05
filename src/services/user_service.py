@@ -1,6 +1,9 @@
-"""
-User Service - Betterbank Banking App
-Verwaltet Geschäftslogik für Benutzerdaten und Profiländerungen.
+"""User-Funktionen (Service-Schicht).
+
+Dieses Modul enthält die Service-Logik rund um Benutzer-Profile.
+Es gehört zur Service-Schicht, weil es den Ablauf steuert (Session öffnen,
+Repository aufrufen) und so UI/Controller von Datenbankdetails trennt.
+Es arbeitet mit `UserRepository` und nutzt die DB-Engine aus `data_access.db`.
 """
 
 from src.data_access.db import engine
@@ -21,6 +24,7 @@ class UserService:
 		Returns:
 		    User-Objekt mit Profildaten oder None
 		"""
+		# Service-Schicht: Session/Transaktion steuern, DB-Details ans Repository delegieren.
 		with Session(engine) as session:
 			return UserRepository(session).get_by_id(user_id)
 
@@ -39,6 +43,7 @@ class UserService:
 		Raises:
 		    KeyError: User nicht gefunden
 		"""
+		# Repository kümmert sich um "User laden → Felder setzen → speichern".
 		with Session(engine) as session:
 			return UserRepository(session).update_profile(user_id, phone, address)
 

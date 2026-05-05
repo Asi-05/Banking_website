@@ -1,7 +1,21 @@
-"""
-Login View - Betterbank Banking App
-Implementiert US13: Benutzer-Anmeldung mit Vertragsnummer und Passwort
-Route: /
+"""src.ui.views.login_view
+
+Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
+
+Die View ist zustaendig fuer:
+
+- Aufbau des Login-Formulars (Eingabefelder, Button, Fehlerlabel)
+- Interaktion (Button-Click) und Anzeige von Rueckmeldungen
+
+Wichtiges Zusammenspiel:
+
+- Der eigentliche Login-Use-Case liegt im `AuthService`.
+- Diese View ruft den `AuthController` auf, der Exceptions abfaengt und entweder
+	ein Ergebnis-Dict oder einen Fehlertext zurueckgibt.
+- Nach erfolgreichem Login wird `app_state` gesetzt, damit andere Views wissen,
+	welcher User aktiv ist.
+
+Route: `/`
 """
 
 from src.ui.controllers.auth_controller import auth_controller
@@ -9,9 +23,10 @@ from src.ui.app_state import app_state
 
 
 def show() -> None:
-	"""
-	Zeigt das Login-Formular an.
-	Enthält Eingabefelder für Vertragsnummer und Passwort sowie einen Anmelde-Button.
+	"""Rendert das Login-Formular.
+
+	Die UI besteht aus einer zentrierten Card mit Vertragsnummer/Passwort und einem
+	Button. Bei Fehlern wird eine Meldung unterhalb der Eingabefelder angezeigt.
 	"""
 	from nicegui import ui
 
@@ -36,14 +51,27 @@ def show() -> None:
 
 			# Login-Button
 			async def handle_login() -> None:
-				"""
-				Verarbeitet den Login-Vorgang.
-				1. controller.login() aufrufen → gibt dict (success) oder str (error) zurück
-				2. Bei Erfolg: app_state setzen und zu /dashboard navigieren
-				3. Bei Fehler: Fehlermeldung anzeigen
+				"""Verarbeitet den Login-Button-Klick.
+
+				Die View ruft den `AuthController` auf und verarbeitet das Ergebnis so,
+				dass die UI einfach reagieren kann:
+				- Bei Fehlern wird ein Text angezeigt.
+				- Bei Erfolg wird der globale `app_state` gesetzt und zur Dashboard-Route
+				  navigiert.
+
+				Warum ist die Funktion `async`?
+				NiceGUI erlaubt sowohl synchrone als auch asynchrone Event-Handler.
+				Mit `async` bleibt die UI reaktionsfaehig, falls ein Handler spaeter
+				z. B. laengere IO-Operationen machen wuerde.
+
+				Returns:
+					None
 				"""
 				contract_number = contract_number_input.value.strip()
 				password = password_input.value
+
+				# Hinweis: Das Passwort wird nur fuer den Login-Aufruf verwendet und
+				# nicht im `app_state` gespeichert.
 
 				# Validierung: Beide Felder müssen gefüllt sein
 				if not contract_number or not password:
@@ -65,6 +93,9 @@ def show() -> None:
 					app_state["user_id"] = result.get("user_id")
 					# current_user wird später ggf. gefüllt, für jetzt reicht user_id
 					app_state["current_user"] = result
+
+					# Achtung: In einer echten Anwendung wuerde man hier keine kompletten
+					# Auth-Daten global speichern, sondern ein Session-Token pro Client.
 
 					# Erfolgs-Meldung anzeigen
 					ui.notify("Erfolgreich angemeldet!", type="positive")

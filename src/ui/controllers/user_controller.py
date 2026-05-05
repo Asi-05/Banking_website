@@ -1,23 +1,30 @@
-"""
-User Controller - Betterbank Banking App
-Vermittelt zwischen UI und UserService für Profilbearbeitung.
+"""src.ui.controllers.user_controller
+
+Diese Datei gehoert zur **UI-Controller-Schicht**.
+
+Der UserController stellt Methoden fuer das Benutzerprofil bereit
+(Anzeige/Aktualisierung von Telefon und Adresse).
+
+Wie bei den anderen Controllern gilt:
+- Business-Regeln und Persistenz liegen im Service/Repository.
+- Der Controller faengt Exceptions ab und liefert fuer die UI einfache
+	Rueckgabewerte (Objekt oder Fehlertext).
 """
 
 from src.services.user_service import user_service
 
 
 class UserController:
-	"""Controller für Benutzerprofil-Operationen."""
+	"""UI-Controller fuer Profil-Operationen."""
 
 	def get_profile(self, user_id: int):
-		"""
-		Lädt das Benutzerprofil.
-		
+		"""Laedt das Benutzerprofil.
+
 		Args:
-		    user_id: ID des Users
-		    
+			user_id: ID des eingeloggten Users.
+
 		Returns:
-		    User-Objekt oder Fehlermeldung (str)
+			User-Objekt bei Erfolg, sonst Fehlermeldung als String.
 		"""
 		try:
 			return user_service.get_profile(user_id)
@@ -25,16 +32,15 @@ class UserController:
 			return str(e)
 
 	def update_profile(self, user_id: int, phone: str | None, address: str | None) -> str | None:
-		"""
-		Aktualisiert das Benutzerprofil (Telefon, Adresse).
-		
+		"""Aktualisiert Telefon und/oder Adresse.
+
 		Args:
-		    user_id: ID des Users
-		    phone: Neue Telefonnummer (optional)
-		    address: Neue Wohnadresse (optional)
-		    
+			user_id: ID des eingeloggten Users.
+			phone: Neue Telefonnummer oder `None` (unveraendert lassen).
+			address: Neue Adresse oder `None` (unveraendert lassen).
+
 		Returns:
-		    None bei Erfolg, Fehlermeldung (str) bei Fehler
+			`None` bei Erfolg, sonst Fehlermeldung als String.
 		"""
 		try:
 			user_service.update_profile(user_id, phone, address)

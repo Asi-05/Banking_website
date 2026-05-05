@@ -1,7 +1,24 @@
-"""
-Account View - Betterbank Banking App
-Implementiert US7, US11: Konten eröffnen/schließen und Umbuchungen
-Route: /accounts
+"""src.ui.views.account_view
+
+Account-View (NiceGUI) fuer Konto-Uebersicht und Kontoeroeffnung.
+
+Diese Datei gehoert zur **UI-View-Schicht**. Sie ist zustaendig fuer die
+Darstellung und fuer das Ausloesen von Aktionen ueber Controller.
+
+Funktionen der Seite:
+- Konten anzeigen (aktive vs. geschlossene Konten)
+- Neues Konto eroeffnen (Privat/Spar)
+- Konto schliessen (fachliche Regeln liegen im Service)
+
+Login-Guard:
+	Die Seite ist geschuetzt und nutzt `app_state`, um zu pruefen, ob ein User
+	eingeloggt ist.
+
+Wichtig:
+	Alle fachlichen Regeln (z.B. "nur schliessen wenn Saldo = 0") liegen im
+	`AccountService` und werden ueber den `AccountController` aufgerufen.
+
+Route: `/accounts`
 """
 
 from src.ui.controllers.account_controller import account_controller
@@ -9,12 +26,13 @@ from src.ui.app_state import app_state
 
 
 def show() -> None:
-	"""
-	Zeigt Konten-Übersicht, Kontoeroeffnung und Umbuchung.
+	"""Rendert die Konten-Seite (Tabs: Uebersicht und Konto eroeffnen).
+
+	Die Seite ist geschuetzt: Ohne Login wird zur Startseite umgeleitet.
 	"""
 	from nicegui import ui
 
-	# Sicherheitsprüfung
+	# Sicherheitspruefung: ohne Login zurueck zur Startseite.
 	if app_state.get("current_user") is None:
 		ui.navigate.to("/")
 		return
@@ -57,22 +75,34 @@ def show() -> None:
 
 
 def _build_account_list(user_id: int) -> None:
-	"""
-	Zeigt Übersicht aller Konten des Users.
-	Trennt aktive und geschlossene Konten in zwei separate Kästen.
+	"""Zeigt eine Uebersicht aller Konten des Users.
+
+	Die Anzeige trennt aktive und geschlossene Konten in zwei Karten.
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 
+	# Controller liefert entweder Liste oder Fehlertext.
 	result = account_controller.list_accounts(user_id)
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
 		return
 
 	# Konten in aktiv / geschlossen aufteilen
+	# Hinweis: In Tests/Fixtures kommen teils Dicts statt ORM-Objekten vor.
+	# Darum wird defensiv mit `hasattr(...)`/`.get(...)` gelesen.
 	active_accounts = [a for a in result if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"]
 	closed_accounts = [a for a in result if (a.status if hasattr(a, "status") else a.get("status")) != "aktiv"]
 
 	def build_rows(accounts):
+		"""Konvertiert Konto-Objekte in Tabellenzeilen (Dicts).
+
+		Hinweis:
+			In Tests/Fixtures koennen Konten auch als Dicts statt als ORM-Objekte
+			vorliegen. Daher wird beim Lesen der Felder robust vorgegangen.
+		"""
 		rows = []
 		for account in accounts:
 			balance_val = account.balance if hasattr(account, "balance") else account.get("balance")
@@ -108,7 +138,14 @@ def _build_account_list(user_id: int) -> None:
 				</q-td>
 			""")
 			def handle_close_active(e) -> None:
+				"""Schliesst ein Konto ueber den Controller.
+
+				Args:
+					e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+				"""
 				account_id = e.args.get("account_id")
+				# Fachliche Regeln (z.B. "nur schliessen wenn Saldo = 0") werden im Service
+				# geprueft; die UI zeigt hier nur die Fehlermeldung an.
 				error = account_controller.close_account(account_id)
 				if error:
 					ui.notify(error, type="negative")
@@ -132,9 +169,13 @@ def _build_account_list(user_id: int) -> None:
 
 
 def _build_open_account_form(user_id: int) -> None:
-	"""
-	Formular zum Eröffnen eines neuen Kontos.
-	Auswahl: Privatkonto / Sparkonto.
+	"""Rendert das Formular zum Eroeffnen eines neuen Kontos.
+
+	Der Nutzer waehlt den Kontotyp (Privat/Spar). Die fachliche Validierung (z.B.
+gueltige Typen) passiert im Service.
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 
@@ -150,11 +191,13 @@ def _build_open_account_form(user_id: int) -> None:
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
 		async def handle_open_account() -> None:
-			"""Eröffnet ein neues Konto."""
+			"""Eroeffnet ein neues Konto ueber den Controller."""
 			payload = {
 				"user_id": user_id,
 				"account_type": type_select.value,
 			}
+
+			# Validierung des Kontotyps passiert im Service; die UI uebergibt nur die Auswahl.
 
 			error = account_controller.open_account(payload)
 
@@ -169,7 +212,7 @@ def _build_open_account_form(user_id: int) -> None:
 
 
 def _build_sidebar() -> None:
-	"""Baut die Navigation."""
+	"""Baut die Sidebar-Navigation (Links zu den Views)."""
 	from nicegui import ui
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
 
@@ -191,7 +234,7 @@ def _build_sidebar() -> None:
 
 
 def _logout() -> None:
-	"""Meldet den User ab."""
+	"""Meldet den User ab (setzt `app_state` zurueck) und navigiert zum Login."""
 	from nicegui import ui
 	app_state["current_user"] = None
 	app_state["user_id"] = None
@@ -200,6 +243,14 @@ def _logout() -> None:
 
 
 def _open_settings_dialog(user_id: int) -> None:
+	"""Oeffnet den Kontoeinstellungen-Dialog (aktuell nur Anzeige).
+
+	Die Daten kommen aus dem `UserController`. In dieser View werden Telefonnummer
+	und Adresse nur angezeigt; Aenderungen werden als "beantragt" simuliert.
+
+	Args:
+		user_id: ID des eingeloggten Users.
+	"""
 	from nicegui import ui
 	from src.ui.controllers.user_controller import user_controller
 

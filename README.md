@@ -460,6 +460,14 @@ Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten u
 
 * **Persistente Dashboard-Tabelle:** Die Implementierung enthält keine persistente `dashboard`-Tabelle; Dashboards werden dynamisch berechnet und über das `DashboardSummary`-DTO geliefert.
 
+## 👥 Arbeitsaufteilung
+
+| Mitglied | Schwerpunkt |
+|---|---|
+| Asithan Supendran | Projektsetup & Infrastruktur, Business-Logik (Account, Auth, Budget, Dashboard, Payment, Transaction), Passwort-Sicherheit, Tests, README |
+| Filmon Samy | Softwarearchitektur, Business-Logik (Recurring, Category, CreditcardBilling), MVC-Refactoring (Controller-Schicht), Code-Dokumentation & Kommentare |
+| Janath Balasubramaniam | UI/Views (NiceGUI), Business-Logik (Card-Service), Kontoeinstellungen, Kartenmanagement, Dauerauftrags-UI |
+
 ## ✅ Project Requirements
 Dieses Projekt erfüllt die Kernanforderungen wie folgt:
 

@@ -117,8 +117,10 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 	category_options = category_controller.list_categories()
 
-	# Controller liefert je nach Pfad ORM-Objekte oder Dicts (z.B. in Tests).
-	# Deshalb wird hier defensiv mit `hasattr(...)` gearbeitet.
+	# hasattr() prueft, ob ein Objekt ein bestimmtes Attribut hat.
+	# Warum noetig: Im echten Betrieb kommen die Daten als Python-Objekte (ORM-Modelle)
+	# aus der Datenbank. In Tests kommen sie manchmal als einfache Dicts.
+	# Mit hasattr() koennen wir beides lesen, ohne dass der Code abstuerzt.
 	#
 	# Konten laden (nur aktive Konten werden als Quelle angeboten).
 	result = account_controller.list_accounts(user_id)
@@ -177,6 +179,8 @@ def _build_domestic_payment_form(user_id: int) -> None:
 			Raises:
 				ValueError: Wenn der Datepicker keinen gueltigen ISO-Datumsstring enthaelt.
 			"""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 			execution_date = date.fromisoformat(execution_date_picker.value)
 			# UI-Regel: Zahlungen duerfen nicht rueckdatiert werden.
 			if execution_date < date.today():
@@ -424,6 +428,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 					Der Controller erwartet die Datumswerte als ISO-String und normalisiert
 					sie intern zu `datetime.date`.
 				"""
+					# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+					# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 					# Pflichtfeldprüfung
 					if (not amount_input.value or not category_select.value
 							or not account_select.value or not iban_input.value
@@ -653,6 +659,8 @@ ausreichender Kontostand, etc.).
 
 		async def handle_transfer() -> None:
 			"""Fuehrt die Umbuchung ueber den `PaymentController` aus."""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 			payload = {
 				"from_account_id": from_account_select.value,
 				"to_account_id": to_account_select.value,
@@ -763,6 +771,9 @@ def _build_transaction_list(user_id: int) -> None:
 			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
 				ui.label("Transaktion bearbeiten").classes("text-subtitle1 font-semibold mb-4")
 
+				# Hinweis: Das Label "€" ist hier ein Ueberbleibsel aus einer frueheren Version.
+				# Die App arbeitet durchgehend mit CHF — diese Anzeige ist nur ein Label-Fehler
+				# und hat keinen Einfluss auf die gespeicherten Daten.
 				amount_edit = ui.number(label="Betrag (€)", value=float(row.get("amount", "0").replace(",", "").replace(".", ".")), min=0.01, step=0.01).props("outlined")
 				amount_edit.classes("w-full mb-4")
 
@@ -1033,6 +1044,8 @@ def _build_statement_section(user_id: int) -> None:
 			Raises:
 				ValueError: Wenn einer der Datepicker keinen gueltigen ISO-Datumsstring enthaelt.
 			"""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 			start_date = date.fromisoformat(start_date_picker.value)
 			end_date = date.fromisoformat(end_date_picker.value)
 

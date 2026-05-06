@@ -97,7 +97,11 @@ def _build_debit_cards_section(user_id: int) -> None:
 				ui.notify(result, type="negative")
 				account_options = {}
 			else:
-				# Nur Privatkonten filtern
+				# hasattr() prueft, ob ein Objekt ein bestimmtes Attribut hat.
+				# Warum noetig: Im echten Betrieb kommen die Daten als Python-Objekte (ORM-Modelle)
+				# aus der Datenbank. In Tests kommen sie manchmal als einfache Dicts.
+				# Mit hasattr() koennen wir beides lesen, ohne dass der Code abstuerzt.
+				# Hier filtern wir zusaetzlich nur Privatkonten.
 				account_options = {
 					(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
 					((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
@@ -119,6 +123,8 @@ def _build_debit_cards_section(user_id: int) -> None:
 				Die UI uebergibt nur die Auswahl (Konto). Fachliche Regeln (z.B.
 				"max. 1 aktive Debitkarte") werden im Service geprueft.
 				"""
+				# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+				# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 				# Der Service prueft u.a. "max. 1 aktive Debitkarte" und ob das Konto
 				# wirklich geeignet ist. Die UI zeigt hier nur den Fehlertext an.
 				error = card_controller.order_debit_card(account_select.value)
@@ -271,6 +277,8 @@ def _build_credit_cards_section(user_id: int) -> None:
 				Die Limit-Regel (max. 10'000) ist eine UI-Vorpruefung; die echte
 				Validierung liegt im Service.
 				"""
+				# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+				# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 				if (limit_input.value or 0) > 10000:
 					error_label.set_text("Das maximale Kreditlimit beträgt CHF 10'000.")
 					return
@@ -463,6 +471,8 @@ def _build_credit_cards_section(user_id: int) -> None:
 						Das Abrechnungskonto ist notwendig, damit spaeter eine Monatsabrechnung
 						fuer die Kreditkarte erstellt werden kann.
 						"""
+						# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+						# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 						if not card_select.value or not account_select.value:
 							error_label.set_text("Bitte Kreditkarte und Konto auswählen.")
 							ui.notify("Bitte Kreditkarte und Konto auswählen", type="warning")

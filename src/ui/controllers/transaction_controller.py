@@ -33,6 +33,9 @@ class TransactionController:
 
         Returns:
             `None` bei Erfolg, sonst Fehlertext.
+
+        Raises:
+            Keine. Fehler werden als String zur UI zurueckgegeben.
         """
         try:
             # Datum von String (UI) in Python Date-Objekt umwandeln
@@ -54,6 +57,9 @@ class TransactionController:
 
         Returns:
             `None` bei Erfolg, sonst Fehlertext.
+
+        Raises:
+            Keine. Fehler werden als String zur UI zurueckgegeben.
         """
         try:
             # Datum von String (UI) in Python Date-Objekt umwandeln
@@ -71,12 +77,16 @@ class TransactionController:
 
         Das Flag `confirm` ist eine UI-Schutzmassnahme, damit nicht versehentlich
         geloescht wird.
+
         Args:
             transaction_id: ID der zu loeschenden Transaktion.
             confirm: UI-Schutzflag; muss aktiv gesetzt werden, damit geloescht wird.
 
         Returns:
             `None` bei Erfolg, sonst Fehlertext.
+
+        Raises:
+            Keine. Fehler werden als String zur UI zurueckgegeben.
         """
         try:
             transaction_service.delete_transaction(transaction_id, confirm)
@@ -96,6 +106,7 @@ class TransactionController:
 
         Die View bekommt hier keine ORM-Objekte, sondern serialisierbare Dicts mit
         bereits formatierten Strings (Datum/Typ), damit UI-Logik einfach bleibt.
+
         Args:
             start_date: Optionaler Start (inkl.).
             end_date: Optionales Ende (inkl.).
@@ -104,6 +115,9 @@ class TransactionController:
 
         Returns:
             Liste serialisierbarer Dicts oder Fehlertext als String.
+
+        Raises:
+            Keine. Fehler werden als String zur UI zurueckgegeben.
         """
         try:
             transactions = transaction_service.filter_transactions(

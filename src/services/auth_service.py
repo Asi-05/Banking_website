@@ -17,8 +17,6 @@ from src.data_access.db import engine
 from src.data_access.repositories.user_repository import UserRepository
 from src.services.recurring_service import recurring_service
 from src.services.creditcard_billing_service import creditcard_billing_service
-
-# 1. HIER HAST DU DEN IMPORT ERGÄNZT:
 from src.utils.validators import verify_password, hash_password
 
 

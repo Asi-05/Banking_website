@@ -195,6 +195,10 @@ class CreditCardBillingService:
 
 		Returns:
 			Anzahl der erfolgreich abgerechneten Kreditkarten.
+
+		Raises:
+			Keine. Fehler bei einzelnen Karten werden abgefangen, damit die
+			Verarbeitung fuer andere Karten weiterlaufen kann.
 		"""
 		processed = 0
 
@@ -268,6 +272,15 @@ class CreditCardBillingService:
 
 		Strategie: "Freizeit" ist gut sichtbar in der UI. Falls nicht vorhanden,
 		nehmen wir einfach die erste Kategorie.
+
+		Args:
+			category_repository: Repository fuer Kategorien.
+
+		Returns:
+			Die ausgewaehlte `category_id`.
+
+		Raises:
+			ValueError: Wenn keine Kategorien existieren oder keine ID verfuegbar ist.
 		"""
 		categories = category_repository.list_all()
 		if not categories:
@@ -281,7 +294,15 @@ class CreditCardBillingService:
 
 	# Gibt den ersten Tag eines relativ verschobenen Monats zurueck.
 	def _first_day_of_shifted_month(self, base_date: date, month_shift: int) -> date:
-		"""Gibt den 1. Tag des um `month_shift` verschobenen Monats zurueck."""
+		"""Gibt den 1. Tag des um `month_shift` verschobenen Monats zurueck.
+
+		Args:
+			base_date: Ausgangsdatum.
+			month_shift: Monatsverschiebung (z.B. -1 fuer den Vormonat).
+
+		Returns:
+			Datum des 1. Tages im Zielmonat.
+		"""
 		total_month = (base_date.year * 12) + (base_date.month - 1) + month_shift
 		year = total_month // 12
 		month = (total_month % 12) + 1
@@ -289,7 +310,15 @@ class CreditCardBillingService:
 
 	# Gibt den letzten Tag eines Monats zurueck.
 	def _last_day_of_month(self, year: int, month: int) -> date:
-		"""Gibt den letzten Tag eines Monats zurueck (z.B. 28/29/30/31)."""
+		"""Gibt den letzten Tag eines Monats zurueck (z.B. 28/29/30/31).
+
+		Args:
+			year: Jahr.
+			month: Monat (1-12).
+
+		Returns:
+			Letzter Tag des Monats als `date`.
+		"""
 		last_day = calendar.monthrange(year, month)[1]
 		return date(year, month, last_day)
 	
@@ -300,6 +329,13 @@ class CreditCardBillingService:
 		Die Abrechnungsregel ist absichtlich einfach: Es wird pro Monat/Jahr nur eine
 		Abrechnung zugelassen. Das Datum `last_billed` wird daher nur als Marker fuer
 		"in diesem Monat schon erledigt" genutzt.
+
+		Args:
+			credit_card: Kreditkarte, die geprueft wird.
+			reference_date: Stichtag (Monat/Jahr), fuer den geprueft wird.
+
+		Returns:
+			`True`, wenn eine Abrechnung in diesem Monat/Jahr noch offen ist.
 		"""
 		if credit_card.last_billed is None:
 			return True

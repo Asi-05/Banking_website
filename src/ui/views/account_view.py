@@ -192,6 +192,8 @@ gueltige Typen) passiert im Service.
 
 		async def handle_open_account() -> None:
 			"""Eroeffnet ein neues Konto ueber den Controller."""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 			payload = {
 				"user_id": user_id,
 				"account_type": type_select.value,

@@ -14,7 +14,7 @@ from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 
-# DTO for chart values in dashboard views (not a database table)
+# DTO fuer Diagrammwerte im Dashboard (keine Datenbanktabelle)
 class ChartData(SQLModel, table=False):
 	"""DTO für einen einzelnen Datenpunkt im Dashboard-Chart.
 
@@ -31,7 +31,7 @@ class ChartData(SQLModel, table=False):
 	expenses: float
 
 
-# DTO for dashboard result summary (not a database table)
+# DTO fuer die Dashboard-Zusammenfassung (keine Datenbanktabelle)
 class DashboardSummary(SQLModel, table=False):
 	"""DTO für die komplette Dashboard-Zusammenfassung.
 
@@ -51,7 +51,7 @@ class DashboardSummary(SQLModel, table=False):
 	chart_data: list[ChartData] = Field(default_factory=list)
 
 
-# Stores banking users for authentication and ownership of data
+# Speichert Bank-User fuer Login und Besitz (Ownership) von Daten
 class User(SQLModel, table=True):
 	"""Benutzerkonto der BetterBank (Datenbanktabelle `users`).
 
@@ -78,21 +78,22 @@ class User(SQLModel, table=True):
 
 	
 	def login(self, password: str) -> bool:
-		"""(Legacy/Platzhalter) Prüft Login-Daten direkt am Model.
+		"""(Legacy/Platzhalter) Prueft Login-Daten direkt am Model.
 
-	In einer sauberen Architektur liegt Authentifizierung in der Service-Schicht.
-	Diese Methode ist hier als sehr einfacher Platzhalter vorhanden.
+		In einer sauberen Architektur liegt Authentifizierung in der Service-Schicht
+		(z.B. `AuthService`). Diese Methode ist hier nur als sehr einfacher
+		Platzhalter vorhanden.
 
-	Args:
-		password: Passwort-Eingabe.
+		Args:
+			password: Passwort-Eingabe.
 
-	Returns:
-		True/False je nachdem, ob die Prüfung erfolgreich ist.
-	"""
+		Returns:
+			`True`/`False` je nachdem, ob die Pruefung erfolgreich ist.
+		"""
 		return bool(password) and self.password_hash == password
 
 
-# Stores user bank accounts like private or savings accounts
+# Speichert Bankkonten (z.B. Privatkonto oder Sparkonto)
 class Account(SQLModel, table=True):
 	"""Bankkonto eines Users (Datenbanktabelle `accounts`).
 
@@ -137,7 +138,7 @@ class Account(SQLModel, table=True):
 		self.status = "geschlossen"
 
 
-# Stores debit cards that belong to one account
+# Speichert Debitkarten, die zu genau einem Konto gehoeren
 class DebitCard(SQLModel, table=True):
 	"""Debitkarte eines Kontos (Datenbanktabelle `debit_cards`).
 
@@ -164,7 +165,7 @@ class DebitCard(SQLModel, table=True):
 		self.status = "ersetzt"
 
 
-# Stores independent credit cards linked to a user
+# Speichert Kreditkarten, die einem User zugeordnet sind
 class CreditCard(SQLModel, table=True):
 	"""Unabhängige Kreditkarte eines Users (Datenbanktabelle `credit_cards`).
 
@@ -211,7 +212,7 @@ class CreditCard(SQLModel, table=True):
 		self.status = "ersetzt"
 
 
-# Stores fixed categories used for transactions and budgets
+# Speichert Kategorien fuer Transaktionen und Budgets
 class Category(SQLModel, table=True):
 	"""Kategorie für Ausgaben/Einnahmen (Datenbanktabelle `categories`).
 
@@ -230,7 +231,7 @@ class Category(SQLModel, table=True):
 	)
 
 
-# Stores all base transaction fields for income and expense records
+# Speichert die Basisdaten einer Transaktion (Einnahme/Ausgabe)
 class Transaction(SQLModel, table=True):
 	"""Transaktion (Einnahme oder Ausgabe) als Basistabelle `transactions`.
 
@@ -269,7 +270,13 @@ class Transaction(SQLModel, table=True):
 	)
 
 	def create(self) -> None:
-		"""(Platzhalter) Erstellung passiert in der Service-/Repository-Schicht."""
+		"""(Platzhalter) Erstellung passiert in der Service-/Repository-Schicht.
+
+		Warum ist das hier leer?
+		- SQLModel-Modelle sind hauptsaechlich Datenstrukturen.
+		- Die App erzeugt/validiert Transaktionen zentral im Service (z.B.
+		  `TransactionService.create_transaction`).
+		"""
 		return None
 
 	def edit(self) -> None:
@@ -277,15 +284,19 @@ class Transaction(SQLModel, table=True):
 		return None
 
 	def filter(self) -> None:
-		"""(Platzhalter) Filtern passiert über Repository-Queries."""
+		"""(Platzhalter) Filtern passiert ueber Repository-Queries.
+
+		In der App wird gefiltert, indem Repositories SQL-Queries bauen (z.B.
+		`TransactionRepository.filter_transactions`).
+		"""
 		return None
 
 	def delete(self) -> None:
-		"""(Platzhalter) Löschen passiert in der Service-/Repository-Schicht."""
+		"""(Platzhalter) Loeschen passiert in der Service-/Repository-Schicht."""
 		return None
 
 
-# Stores transfer-specific fields and links back to one base transaction
+# Speichert Umbuchungs-spezifische Felder und verweist auf eine Basis-Transaktion
 class Transfer(SQLModel, table=True):
 	"""Umbuchung zwischen zwei eigenen Konten (Tabelle `transfers`).
 
@@ -312,7 +323,7 @@ class Transfer(SQLModel, table=True):
 	)
 
 
-# Stores domestic payment-specific fields and links back to one base transaction
+# Speichert Zahlungs-spezifische Felder und verweist auf eine Basis-Transaktion
 class Payment(SQLModel, table=True):
 	"""Inlandszahlung mit Empfänger-IBAN (Tabelle `payments`).
 
@@ -331,7 +342,7 @@ class Payment(SQLModel, table=True):
 	transaction: "Transaction" = Relationship(back_populates="payment")
 
 
-# Stores monthly/yearly budget settings, optionally per category
+# Speichert Monatsbudgets (optional pro Kategorie)
 class Budget(SQLModel, table=True):
 	"""Monatsbudget eines Users (Tabelle `budgets`).
 
@@ -361,11 +372,15 @@ class Budget(SQLModel, table=True):
 	category: Optional["Category"] = Relationship(back_populates="budgets")
 
 	def isexceeded(self) -> bool:
-		"""(Platzhalter) Ob ein Budget überschritten ist, wird in Services berechnet."""
+		"""(Platzhalter) Ob ein Budget ueberschritten ist, wird im Service berechnet.
+
+		Der Budgetverbrauch haengt von Transaktionen im Zeitraum ab und wird daher
+		im `BudgetService`/`DashboardService` berechnet, nicht im Datenmodell.
+		"""
 		return False
 
 
-# Stores recurring payment data linked to one base transaction record
+# Speichert Dauerauftraege (wiederkehrende Zahlungen) und verknuepft sie mit einer Basis-Transaktion
 class RecurringTransaction(SQLModel, table=True):
 	"""Dauerauftrag (Tabelle `recurring_transactions`).
 
@@ -393,6 +408,6 @@ class RecurringTransaction(SQLModel, table=True):
 	transaction: "Transaction" = Relationship(back_populates="recurring_transaction")
 
 
-# NOTE: Persisted dashboard snapshots were removed by decision (not needed).
-# If you want to re-enable persisted snapshots later, add a Dashboard model
-# here with fields like snapshot_date, total_balance, total_income, total_expenses.
+# Hinweis: Persistierte Dashboard-Snapshots wurden bewusst entfernt (nicht noetig).
+# Wenn du das spaeter wieder einfuehren willst, kannst du hier ein Dashboard-Model
+# ergaenzen, z.B. mit Feldern wie snapshot_date, total_balance, total_income, total_expenses.

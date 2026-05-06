@@ -20,8 +20,16 @@ class DashboardController:
     def get_dashboard(self, user_id: int, start_date: date, end_date: date):
         """Liefert Dashboard-Aggregationen fuer einen Zeitraum.
 
+        Args:
+            user_id: ID des eingeloggten Users.
+            start_date: Startdatum (inkl.).
+            end_date: Enddatum (inkl.).
+
         Returns:
             Ein `DashboardSummary`-Objekt oder eine Fehlermeldung als String.
+
+        Raises:
+            Keine. Fehler werden als String zur UI zurueckgegeben.
         """
         try:
             return dashboard_service.dashboard(user_id, start_date, end_date)

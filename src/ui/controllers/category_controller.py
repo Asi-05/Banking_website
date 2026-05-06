@@ -18,8 +18,15 @@ class CategoryController:
     def list_categories(self) -> dict:
         """Listet alle Kategorien als Mapping `category_id -> name`.
 
+        Die Views brauchen Kategorien oft als Dropdown-Optionen. Ein Dict ist fuer
+        NiceGUI praktisch, weil `ui.select(options=...)` direkt damit arbeiten kann.
+
         Returns:
-            Ein Dict fuer UI-Komponenten. Bei Fehler wird ein leeres Dict geliefert.
+            Ein Dict fuer UI-Komponenten.
+            Bei Fehlern: ein leeres Dict.
+
+        Raises:
+            Keine. Fehler werden abgefangen und als leeres Dict abgebildet.
         """
         try:
             categories = category_service.list_categories()

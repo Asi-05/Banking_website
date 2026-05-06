@@ -151,7 +151,18 @@ class BudgetService:
 
 	# Gibt alle Budgets eines Users zurueck.
 	def list_budgets(self, user_id: int) -> list[Budget]:
-		"""Listet alle Budgets eines Users."""
+		"""Listet alle Budgets eines Users.
+
+		Args:
+			user_id: ID des Users, dessen Budgets geladen werden sollen.
+
+		Returns:
+			Liste von `Budget`-Objekten (kann leer sein, wenn keine Budgets existieren).
+
+		Raises:
+			Keine fachlichen Exceptions. Technische Fehler (z.B. Datenbankfehler) werden
+			nicht abgefangen und wuerden nach oben weitergegeben.
+		"""
 		with Session(engine) as session:
 			budget_repository = BudgetRepository(session)
 			return budget_repository.list_by_user(user_id)

@@ -150,6 +150,8 @@ global fuer alle Kategorien.
 				Der Service kann deshalb ein vorhandenes Budget fuer den gleichen
 				Zeitraum/die gleiche Kategorie aktualisieren (Upsert).
 			"""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 			# Ein Budget ist eindeutig ueber (user_id, month, year, category_id).
 			# Wenn `category_id` None ist, bedeutet das: globales Budget (alle Kategorien).
 			payload = {

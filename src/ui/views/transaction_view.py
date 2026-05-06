@@ -1,7 +1,29 @@
-"""
-Transaction View - Betterbank Banking App
-Implementiert US1, US2, US3: Transaktionen erfassen, bearbeiten, löschen, filtern
-Route: /transactions
+"""src.ui.views.transaction_view
+
+Transaktions-View (NiceGUI) als Sammelseite rund um Zahlungen und Bewegungen.
+
+Diese Datei gehoert zur **UI-View-Schicht**. Die View ist zustaendig fuer:
+
+- Rendern von Tabs und Formularen
+- Einlesen von Nutzereingaben
+- Aufruf von Controllern (die wiederum Services nutzen)
+- Anzeigen von Fehlern/Success-Meldungen in der UI
+
+Die Transaktions-View deckt u.a. folgende Use-Cases ab:
+
+- Inlandszahlung: Externe Zahlung (Ausgabe-Transaktion + Payment-Daten)
+- Bewegungen: gebuchte (bis heute) und geplante (ab morgen) Zahlungen
+- Dauerauftraege: anlegen, anzeigen, bearbeiten, loeschen
+- Uebertrag: Umbuchung zwischen eigenen Konten
+- Kontoauszug: PDF-Auszug fuer ein Konto und einen Zeitraum
+
+Wichtige Zusammenarbeit:
+
+- Controller kapseln Service-Aufrufe und geben Fehler meist als String zurueck.
+- Fachlogik (Validierungen, Salden, etc.) liegt in den Services.
+- `app_state` steuert den Login-Guard fuer geschuetzte Seiten.
+
+Route: `/transactions`
 """
 
 from datetime import date, timedelta
@@ -11,12 +33,17 @@ from src.ui.app_state import app_state
 
 
 def show() -> None:
-	"""
-	Zeigt Transaktions-Erfassungsformular und Transaktionsliste mit Filtern.
+	"""Rendert die Transaktions-Seite (Tabs fuer Zahlungen, Bewegungen, ...).
+
+	Die Seite ist geschuetzt: Ohne Login wird zur Startseite umgeleitet.
+
+	Hinweis:
+		Die View baut ein Tab-Layout auf. Die eigentlichen Inhalte pro Tab werden
+		in Hilfsfunktionen erzeugt (z.B. `_build_domestic_payment_form`).
 	"""
 	from nicegui import ui
 
-	# Sicherheitsprüfung
+	# Sicherheitspruefung: ohne Login zur Startseite.
 	if app_state.get("current_user") is None:
 		ui.navigate.to("/")
 		return
@@ -27,7 +54,7 @@ def show() -> None:
 	with ui.left_drawer():
 		_build_sidebar()
 
-	# ===== TOP-RIGHT: LOGOUT =====
+	# ===== TOP-RIGHT: SETTINGS + LOGOUT =====
 	with ui.header():
 		with ui.row().classes("w-full justify-end items-center gap-2"):
 			with ui.button(icon="settings").props("flat round").classes("text-white"):
@@ -74,9 +101,13 @@ def show() -> None:
 
 
 def _build_domestic_payment_form(user_id: int) -> None:
-	"""
-	Formular für Inlandszahlung (US10).
-	Eingabe: Ziel-IBAN, Betrag, Von-Konto, Zweck, Kategorie, Ausführungsdatum.
+	"""Rendert das Formular fuer eine neue Inlandszahlung (US10).
+
+	Die Eingaben werden gesammelt und als Payload an den `PaymentController`
+	weitergegeben.
+
+	Args:
+		user_id: ID des eingeloggten Users (wird u.a. fuer die Kontoliste benoetigt).
 	"""
 	from nicegui import ui
 
@@ -86,7 +117,12 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 	category_options = category_controller.list_categories()
 
-	# Konten laden
+	# hasattr() prueft, ob ein Objekt ein bestimmtes Attribut hat.
+	# Warum noetig: Im echten Betrieb kommen die Daten als Python-Objekte (ORM-Modelle)
+	# aus der Datenbank. In Tests kommen sie manchmal als einfache Dicts.
+	# Mit hasattr() koennen wir beides lesen, ohne dass der Code abstuerzt.
+	#
+	# Konten laden (nur aktive Konten werden als Quelle angeboten).
 	result = account_controller.list_accounts(user_id)
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
@@ -134,8 +170,19 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
 		async def handle_create_payment() -> None:
-			"""Führt die Zahlung aus."""
+			"""Validiert die UI-Felder und fuehrt die Zahlung aus.
+
+			Die NiceGUI-Button-Callbacks koennen `async` sein. Das erlaubt es, spaeter
+			(z.B. bei echten Netzwerk-/DB-Operationen) nicht-blockierende Ablaufe zu
+			nutzen.
+
+			Raises:
+				ValueError: Wenn der Datepicker keinen gueltigen ISO-Datumsstring enthaelt.
+			"""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 			execution_date = date.fromisoformat(execution_date_picker.value)
+			# UI-Regel: Zahlungen duerfen nicht rueckdatiert werden.
 			if execution_date < date.today():
 				error = "Ausführungsdatum darf nicht in der Vergangenheit liegen"
 				error_label.set_text(error)
@@ -148,6 +195,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 				"from_account_id": from_account_select.value,
 				"category_id": category_select.value,
 				"purpose": purpose_input.value,
+				# Der Controller normalisiert ISO-Strings zu `datetime.date`.
 				"date": execution_date_picker.value,
 			}
 
@@ -170,9 +218,14 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 
 def _build_recurring_payments_section(user_id: int) -> None:
-	"""
-	Daueraufträge (US6).
-	Liste aller Daueraufträge + Formular für neue.
+	"""Rendert den Tab "Dauerauftraege" (US6).
+
+	Der Tab besteht aus:
+	- einer Tabelle mit bestehenden Dauerauftraegen (inkl. Edit/Delete)
+	- einem ausklappbaren Formular zum Erstellen eines neuen Dauerauftrags
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 
@@ -196,18 +249,30 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		# === TABELLE: DAUERAUFTRÄGE (direkt sichtbar, kein Klick nötig) ===
 
 		def refresh_recurring_table():
+			"""Laedt Dauerauftraege neu und befuellt die Tabelle.
+
+			Der Controller kann Eintraege je nach Pfad als ORM-Objekte oder als Dicts
+			liefern (z.B. in Tests). Deshalb wird hier robust mit `hasattr(...)`
+			gelesen.
+			"""
 			recurring_list = recurring_controller.list_recurring(user_id)
 			if isinstance(recurring_list, str):
 				ui.notify(recurring_list, type="negative")
 				return
 			rows = []
 			for rec in recurring_list:
+				# Dauerauftraege koennen als ORM-Objekte oder als Dicts kommen.
+				# Wir lesen die Felder deshalb robust aus.
 				amount_val = rec.amount if hasattr(rec, 'amount') else rec.get('amount')
 				interval_val = rec.interval if hasattr(rec, 'interval') else rec.get('interval')
 				last_executed = rec.last_executed if hasattr(rec, 'last_executed') else rec.get('last_executed')
+				# In manchen Pfaden kann `last_executed` als ISO-String vorliegen.
 				if isinstance(last_executed, str):
 					last_executed = date.fromisoformat(last_executed)
+				# Naechste Ausfuehrung wird aus (last_executed, interval) berechnet.
 				next_exec = recurring_controller.get_next_execution_date(last_executed, interval_val)
+				# Falls ein Termin "heute oder frueher" ist, zeigen wir die *naechste* Ausfuehrung,
+				# damit die Anzeige nicht wie "ueberfaellig" wirkt.
 				if next_exec <= date.today():
 					next_exec = recurring_controller.get_next_execution_date(next_exec, interval_val)
 				rows.append({
@@ -246,6 +311,11 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		""")
 
 		def handle_delete_recurring(e) -> None:
+			"""Bestaetigt und loescht einen Dauerauftrag.
+
+			Args:
+				e: NiceGUI-Event; relevante Daten stehen in `e.args` (die Tabellenzeile).
+			"""
 			row = e.args
 			recurring_id = row.get("recurring_id")
 			with ui.dialog() as confirm_dialog, ui.card():
@@ -267,6 +337,11 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		recurring_table.on("delete_recurring", handle_delete_recurring)
 
 		def handle_edit_recurring(e) -> None:
+			"""Oeffnet einen Dialog zum Bearbeiten eines Dauerauftrags.
+
+			Args:
+				e: NiceGUI-Event; relevante Daten stehen in `e.args` (die Tabellenzeile).
+			"""
 			row = e.args
 			recurring_id = row.get("recurring_id")
 			current_recurring = recurring_controller.get_by_id(recurring_id)
@@ -296,6 +371,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				with ui.row().classes("gap-4"):
 					ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
 					def do_edit(rid=recurring_id):
+						"""Speichert Aenderungen und aktualisiert danach die Tabelle."""
 						payload = {
 							"amount": amount_edit.value or 0,
 							"category_id": category_edit.value,
@@ -347,6 +423,13 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				error_label = ui.label("").classes("text-red-600")
 
 				async def handle_create_recurring() -> None:
+					"""Legt einen neuen Dauerauftrag an.
+
+					Der Controller erwartet die Datumswerte als ISO-String und normalisiert
+					sie intern zu `datetime.date`.
+				"""
+					# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+					# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 					# Pflichtfeldprüfung
 					if (not amount_input.value or not category_select.value
 							or not account_select.value or not iban_input.value
@@ -364,6 +447,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						"account_id": account_select.value,
 						"target_iban": iban_input.value,
 						"interval": interval_select.value,
+						# Controller normalisiert ISO-String -> `date`.
 						"start_date": start_date_picker.value,
 					}
 					error = recurring_controller.create_recurring(payload)
@@ -385,6 +469,11 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 
 def _build_bewegungen_section(user_id: int) -> None:
+	"""Rendert den Tab "Bewegungen" (gebucht vs. geplant).
+
+	Gebucht: alle Transaktionen bis einschliesslich heute.
+	Geplant: alle Transaktionen ab morgen (z.B. vorgeplante Zahlungen).
+	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
 
@@ -405,6 +494,9 @@ def _build_bewegungen_section(user_id: int) -> None:
 
 					with ui.column().classes("gap-1"):
 						ui.label("Bis").classes("text-sm text-gray-500")
+						# Designentscheidung: Enddatum ist fix "heute" und nicht editierbar.
+						# Das vermeidet Missverstaendnisse bei "gebucht": gebuchte Zahlungen
+						# sind per Definition nicht in der Zukunft.
 						ui.label(date.today().strftime("%d.%m.%Y")).classes(
 							"text-body1 font-semibold text-gray-700 px-2 py-1 bg-gray-100 rounded"
 						)
@@ -459,6 +551,7 @@ def _build_bewegungen_section(user_id: int) -> None:
 				""")
 
 				def handle_edit_planned(e) -> None:
+					"""Event-Handler: bearbeitet eine geplante (zukuenftige) Zahlung."""
 					row = e.args
 					transaction_id = row.get("transaction_id")
 					with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
@@ -488,6 +581,7 @@ def _build_bewegungen_section(user_id: int) -> None:
 					edit_dialog.open()
 
 				def handle_delete_planned(e) -> None:
+					"""Event-Handler: storniert eine geplante Zahlung (Loeschen mit Confirm)."""
 					row = e.args
 					transaction_id = row.get("transaction_id")
 					with ui.dialog() as confirm_dialog, ui.card():
@@ -513,15 +607,22 @@ def _build_bewegungen_section(user_id: int) -> None:
 
 
 def _build_transfer_form(user_id: int) -> None:
-	"""
-	Formular für Übertrag zwischen eigenen Konten.
+	"""Rendert das Formular fuer einen Uebertrag zwischen eigenen Konten.
+
+	Ein Uebertrag ist eine Umbuchung zwischen zwei eigenen Konten (Quelle -> Ziel).
+Die fachliche Validierung passiert im Service (z.B. Existenz der Konten,
+ausreichender Kontostand, etc.).
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 
 	from src.ui.controllers.account_controller import account_controller
 	from src.ui.controllers.payment_controller import payment_controller
 
-	# Konten laden
+	# Konten laden (nur aktive Konten koennen Quelle/Ziel sein).
+	# Fachliche Validierung (z.B. "nur eigene Konten") passiert im Service.
 	result = account_controller.list_accounts(user_id)
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
@@ -557,7 +658,9 @@ def _build_transfer_form(user_id: int) -> None:
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
 		async def handle_transfer() -> None:
-			"""Führt Übertrag aus."""
+			"""Fuehrt die Umbuchung ueber den `PaymentController` aus."""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 			payload = {
 				"from_account_id": from_account_select.value,
 				"to_account_id": to_account_select.value,
@@ -577,9 +680,13 @@ def _build_transfer_form(user_id: int) -> None:
 
 
 def _build_transaction_list(user_id: int) -> None:
-	"""
-	Baut Transaktionsliste mit Filtern (Datum, Kategorie).
-	Zeigt Edit/Delete-Buttons.
+	"""Rendert eine Transaktionsliste mit Filtern (Datum, Kategorie).
+
+	Die Tabelle bietet Aktionen zum Bearbeiten und Loeschen einzelner
+	Transaktionen.
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
@@ -631,11 +738,14 @@ def _build_transaction_list(user_id: int) -> None:
 
 		# Löschen mit Bestätigung (FR-FIN-05)
 		def handle_delete(e) -> None:
+			"""Event-Handler: bestaetigt und loescht eine Transaktion."""
 			row = e.args
 			transaction_id = row.get("transaction_id")
 
 			with ui.dialog() as confirm_dialog, ui.card():
 				ui.label("Transaktion wirklich löschen?").classes("text-subtitle1 font-semibold")
+				# Hinweis: Das Euro-Zeichen stammt aus einer frueheren Version; die App nutzt
+				# in der Regel CHF. (Nur Anzeige, keine fachliche Logik.)
 				ui.label(f"Datum: {row.get('date')}  |  Betrag: {row.get('amount')} €").classes("text-gray-600")
 				with ui.row().classes("gap-4 mt-4"):
 					ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
@@ -654,12 +764,16 @@ def _build_transaction_list(user_id: int) -> None:
 
 		# Bearbeiten-Dialog (FR-FIN-05)
 		def handle_edit(e) -> None:
+			"""Event-Handler: oeffnet Dialog zum Bearbeiten einer Transaktion."""
 			row = e.args
 			transaction_id = row.get("transaction_id")
 
 			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
 				ui.label("Transaktion bearbeiten").classes("text-subtitle1 font-semibold mb-4")
 
+				# Hinweis: Das Label "€" ist hier ein Ueberbleibsel aus einer frueheren Version.
+				# Die App arbeitet durchgehend mit CHF — diese Anzeige ist nur ein Label-Fehler
+				# und hat keinen Einfluss auf die gespeicherten Daten.
 				amount_edit = ui.number(label="Betrag (€)", value=float(row.get("amount", "0").replace(",", "").replace(".", ".")), min=0.01, step=0.01).props("outlined")
 				amount_edit.classes("w-full mb-4")
 
@@ -696,8 +810,17 @@ def _refresh_transaction_list(
 	category_filter,
 	transactions_table=None,
 ) -> None:
-	"""
-	Lädt Transaktionsliste neu und aktualisiert die Tabelle.
+	"""Laedt Transaktionsliste neu und aktualisiert die Tabelle.
+
+	Args:
+		user_id: ID des eingeloggten Users.
+		start_date_picker: NiceGUI-Datepicker; ISO-Datum in `.value`.
+		end_date_picker: NiceGUI-Datepicker; ISO-Datum in `.value`.
+		category_filter: Select-Element; `None` bedeutet "alle Kategorien".
+		transactions_table: Tabelle, deren `rows` neu gesetzt werden.
+
+	Raises:
+		ValueError: Wenn einer der Datepicker keinen gueltigen ISO-Datumsstring enthaelt.
 	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
@@ -706,6 +829,7 @@ def _refresh_transaction_list(
 	end_date = date.fromisoformat(end_date_picker.value)
 	category_id = category_filter.value if category_filter.value is not None else None
 
+	# Controller liefert serialisierbare Dicts (Datum/Typ bereits formatiert).
 	result = transaction_controller.filter_transactions(
 		start_date=start_date,
 		end_date=end_date,
@@ -719,7 +843,7 @@ def _refresh_transaction_list(
 
 	category_names = category_controller.list_categories()
 
-	# Transaktionen in Tabellenformat konvertieren
+	# Transaktionen in Tabellenformat konvertieren.
 	rows = []
 	for txn in result:
 		category_name = category_names.get(txn['category_id'], f"ID {txn['category_id']}")
@@ -737,7 +861,12 @@ def _refresh_transaction_list(
 
 
 def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
-	"""Loads transactions with date <= today."""
+	"""Laedt gebuchte Zahlungen (Datum <= heute) und befuellt die Tabelle.
+
+	Die obere UI laesst den Nutzer nur ein Startdatum waehlen. Das Enddatum ist
+	fix auf "heute" gesetzt (siehe Tab-Layout), damit "gebuchte" Zahlungen nicht
+	versehentlich in die Zukunft gefiltert werden.
+	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
 	result = transaction_controller.filter_transactions(
@@ -761,7 +890,11 @@ def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
 
 
 def _refresh_planned(user_id, cat_filter, table) -> None:
-	"""Loads transactions with date > today (ab morgen)."""
+	"""Laedt geplante Zahlungen (Datum > heute, ab morgen) und befuellt die Tabelle.
+
+	Wir filtern hier bewusst ab morgen bis zu einem weit in der Zukunft liegenden
+	Datum, um "zukuenftige" Transaktionen zu bekommen.
+	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
 	result = transaction_controller.filter_transactions(
@@ -785,7 +918,7 @@ def _refresh_planned(user_id, cat_filter, table) -> None:
 
 
 def _build_sidebar() -> None:
-	"""Baut die Navigation."""
+	"""Baut die Navigation (Sidebar) fuer die Transaktions-View."""
 	from nicegui import ui
 	ui.label("BetterBank").classes("text-h6 font-bold p-4")
 
@@ -807,7 +940,7 @@ def _build_sidebar() -> None:
 
 
 def _logout() -> None:
-	"""Meldet den User ab."""
+	"""Meldet den User ab und navigiert zur Startseite."""
 	from nicegui import ui
 	app_state["current_user"] = None
 	app_state["user_id"] = None
@@ -816,6 +949,11 @@ def _logout() -> None:
 
 
 def _open_settings_dialog(user_id: int) -> None:
+	"""Oeffnet einen einfachen Dialog mit Kontoeinstellungen.
+
+	Die Daten kommen aus dem `UserController`. In dieser View werden Telefon und
+	Adresse aktuell nur angezeigt; Aenderungen werden als "beantragt" simuliert.
+	"""
 	from nicegui import ui
 	from src.ui.controllers.user_controller import user_controller
 
@@ -855,9 +993,13 @@ def _open_settings_dialog(user_id: int) -> None:
 
 
 def _build_statement_section(user_id: int) -> None:
-	"""
-	Kontoauszug-Generator (US12).
-	Konto-Auswahl, Zeitraum, PDF-Download.
+	"""Rendert den Kontoauszug-Generator (US12).
+
+	Der Nutzer waehlt ein Konto und einen Zeitraum. Danach wird ueber den
+	`PaymentController` ein PDF erzeugt und zum Download angeboten.
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 
@@ -897,16 +1039,25 @@ def _build_statement_section(user_id: int) -> None:
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
 		async def handle_generate_statement() -> None:
-			"""Generiert einen Kontoauszug als PDF und bietet Download an."""
+			"""Generiert einen Kontoauszug als PDF und bietet einen Download an.
+
+			Raises:
+				ValueError: Wenn einer der Datepicker keinen gueltigen ISO-Datumsstring enthaelt.
+			"""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 			start_date = date.fromisoformat(start_date_picker.value)
 			end_date = date.fromisoformat(end_date_picker.value)
 
+			# Service schreibt die PDF in das `statements/`-Verzeichnis und gibt den Pfad zurueck.
 			result = payment_controller.generate_statement(
 				account_select.value,
 				start_date,
 				end_date,
 			)
 
+			# UI-Heuristik: Erfolgsfall liefert einen Pfad, der auf ".pdf" endet.
+			# Fehlerfaelle sind im Controller als Fehlermeldung (String) vereinheitlicht.
 			if isinstance(result, str) and result.endswith(".pdf"):
 				ui.download(result, filename=f"kontoauszug_{start_date}_{end_date}.pdf")
 				ui.notify("Kontoauszug erfolgreich generiert", type="positive")

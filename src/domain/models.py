@@ -1,3 +1,12 @@
+"""Domänenmodelle (Domain-Schicht) der BetterBank-Anwendung.
+
+Dieses Modul definiert die zentralen Datenstrukturen der App: einerseits echte
+SQLModel-Tabellen (jede Instanz entspricht einer Datenbankzeile) und andererseits
+DTOs ("Data Transfer Objects" = einfache Transport-Objekte) für das Dashboard.
+Die Models werden von Repositories (DB-Zugriff) und Services (Fachlogik) genutzt
+und sind die gemeinsame "Sprache" zwischen allen Schichten.
+"""
+
 from datetime import date
 from typing import Optional
 
@@ -5,23 +14,54 @@ from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 
-# DTO for chart values in dashboard views (not a database table)
+# DTO fuer Diagrammwerte im Dashboard (keine Datenbanktabelle)
 class ChartData(SQLModel, table=False):
+	"""DTO für einen einzelnen Datenpunkt im Dashboard-Chart.
+
+	Das ist **keine** Datenbanktabelle (table=False), sondern ein reines Python-
+	Objekt, das der `dashboard_service` berechnet und an die UI weitergibt.
+
+	Attributes:
+		label: X-Achsen-Label, z. B. "2026-04".
+		income: Summe der Einnahmen im Zeitraum/Monat.
+		expenses: Summe der Ausgaben im Zeitraum/Monat.
+	"""
 	label: str
 	income: float
 	expenses: float
 
 
-# DTO for dashboard result summary (not a database table)
+# DTO fuer die Dashboard-Zusammenfassung (keine Datenbanktabelle)
 class DashboardSummary(SQLModel, table=False):
+	"""DTO für die komplette Dashboard-Zusammenfassung.
+
+	Auch dieses Objekt wird nicht persistiert, sondern beim Laden des Dashboards
+	immer neu berechnet. Es bündelt die wichtigsten Kennzahlen, damit die UI nicht
+	mehrere einzelne Service-Calls machen muss.
+
+	Attributes:
+		total_balance: Gesamtsaldo über alle Konten.
+		total_income: Gesamteinnahmen im gewählten Zeitraum.
+		total_expenses: Gesamtausgaben im gewählten Zeitraum.
+		chart_data: Zeitreihe für Diagramme.
+	"""
 	total_balance: float
 	total_income: float
 	total_expenses: float
 	chart_data: list[ChartData] = Field(default_factory=list)
 
 
-# Stores banking users for authentication and ownership of data
+# Speichert Bank-User fuer Login und Besitz (Ownership) von Daten
 class User(SQLModel, table=True):
+	"""Benutzerkonto der BetterBank (Datenbanktabelle `users`).
+
+	Jede Instanz entspricht einer Zeile in der Datenbank. Ein User besitzt mehrere
+	Konten, Kreditkarten und Budgets. Authentifizierung basiert auf einer
+	Vertragsnummer (`contract_number`) und einem gespeicherten Passwort-Hash.
+
+	Wichtig: Das echte Passwort wird nie gespeichert. Stattdessen wird ein Hash
+	abgelegt (siehe `src/utils/validators.py` und `auth_service`).
+	"""
 	__tablename__ = "users"
 
 	user_id: Optional[int] = Field(default=None, primary_key=True)
@@ -38,11 +78,29 @@ class User(SQLModel, table=True):
 
 	
 	def login(self, password: str) -> bool:
+		"""(Legacy/Platzhalter) Prueft Login-Daten direkt am Model.
+
+		In einer sauberen Architektur liegt Authentifizierung in der Service-Schicht
+		(z.B. `AuthService`). Diese Methode ist hier nur als sehr einfacher
+		Platzhalter vorhanden.
+
+		Args:
+			password: Passwort-Eingabe.
+
+		Returns:
+			`True`/`False` je nachdem, ob die Pruefung erfolgreich ist.
+		"""
 		return bool(password) and self.password_hash == password
 
 
-# Stores user bank accounts like private or savings accounts
+# Speichert Bankkonten (z.B. Privatkonto oder Sparkonto)
 class Account(SQLModel, table=True):
+	"""Bankkonto eines Users (Datenbanktabelle `accounts`).
+
+	Ein Account repräsentiert ein echtes Konto (z. B. Privatkonto oder Sparkonto)
+	mit IBAN, Saldo (`balance`) und Status. Über Relationships hängen daran
+	Transaktionen, Debitkarten, Daueraufträge und Umbuchungen.
+	"""
 	__tablename__ = "accounts"
 
 	account_id: Optional[int] = Field(default=None, primary_key=True)
@@ -72,14 +130,21 @@ class Account(SQLModel, table=True):
 	)
 
 	def open(self) -> None:
+		"""Setzt den Kontostatus auf "aktiv"."""
 		self.status = "aktiv"
 
 	def close(self) -> None:
+		"""Setzt den Kontostatus auf "geschlossen"."""
 		self.status = "geschlossen"
 
 
-# Stores debit cards that belong to one account
+# Speichert Debitkarten, die zu genau einem Konto gehoeren
 class DebitCard(SQLModel, table=True):
+	"""Debitkarte eines Kontos (Datenbanktabelle `debit_cards`).
+
+	Eine Debitkarte ist immer genau einem Konto zugeordnet. Zahlungen über eine
+	Debitkarte belasten indirekt den Kontostand (über die Transaktionslogik).
+	"""
 	__tablename__ = "debit_cards"
 
 	card_id: Optional[int] = Field(default=None, primary_key=True)
@@ -92,14 +157,26 @@ class DebitCard(SQLModel, table=True):
 	transactions: list["Transaction"] = Relationship(back_populates="card")
 
 	def block(self) -> None:
+		"""Markiert die Karte als gesperrt (z. B. bei Verlust)."""
 		self.status = "gesperrt"
 
 	def replace(self) -> None:
+		"""Markiert die Karte als ersetzt (alte Karte ist nicht mehr aktiv)."""
 		self.status = "ersetzt"
 
 
-# Stores independent credit cards linked to a user
+# Speichert Kreditkarten, die einem User zugeordnet sind
 class CreditCard(SQLModel, table=True):
+	"""Unabhängige Kreditkarte eines Users (Datenbanktabelle `credit_cards`).
+
+	Wichtig für Anfänger: Eine Kreditkarte hat hier **zwei** wichtige Geldwerte:
+	- `limit`: der Kreditrahmen (wie viel maximal "auf Kredit" möglich ist)
+	- `balance`: der aktuell genutzte Kredit (wie viel schon ausgegeben wurde)
+
+	Dieser `balance` ist **nicht** der Kontostand eines Kontos. Bei der monatlichen
+	Abrechnung wird dieser Betrag vom `billing_account` abgebucht und danach wieder
+	auf 0 gesetzt (siehe `creditcard_billing_service`).
+	"""
 	__tablename__ = "credit_cards"
 
 	creditcard_id: Optional[int] = Field(default=None, primary_key=True)
@@ -123,17 +200,25 @@ class CreditCard(SQLModel, table=True):
 	transactions: list["Transaction"] = Relationship(back_populates="creditcard")
 
 	def create(self) -> None:
+		"""Setzt den Status auf "aktiv" (z. B. nach Bestellung)."""
 		self.status = "aktiv"
 
 	def block(self) -> None:
+		"""Markiert die Karte als gesperrt."""
 		self.status = "gesperrt"
 
 	def replace(self) -> None:
+		"""Markiert die Karte als ersetzt."""
 		self.status = "ersetzt"
 
 
-# Stores fixed categories used for transactions and budgets
+# Speichert Kategorien fuer Transaktionen und Budgets
 class Category(SQLModel, table=True):
+	"""Kategorie für Ausgaben/Einnahmen (Datenbanktabelle `categories`).
+
+	Kategorien werden in Transaktionen gespeichert (damit man filtern/analysieren
+	kann) und optional auch in Budgets (damit Budgets pro Kategorie möglich sind).
+	"""
 	__tablename__ = "categories"
 
 	category_id: Optional[int] = Field(default=None, primary_key=True)
@@ -146,8 +231,19 @@ class Category(SQLModel, table=True):
 	)
 
 
-# Stores all base transaction fields for income and expense records
+# Speichert die Basisdaten einer Transaktion (Einnahme/Ausgabe)
 class Transaction(SQLModel, table=True):
+	"""Transaktion (Einnahme oder Ausgabe) als Basistabelle `transactions`.
+
+	Diese Tabelle enthält die gemeinsamen Felder für alle Geldbewegungen:
+	Betrag, Datum, Typ (income/expense), Kategorie und genau **eine** Quelle
+	(Konto, Debitkarte oder Kreditkarte).
+
+	Zusätzliche Details hängen je nach Art über 1:1-Beziehungen dran:
+	- `Transfer` (Umbuchung zwischen eigenen Konten)
+	- `Payment` (Inlandszahlung mit Ziel-IBAN)
+	- `RecurringTransaction` (Dauerauftrag)
+	"""
 	__tablename__ = "transactions"
 
 	transaction_id: Optional[int] = Field(default=None, primary_key=True)
@@ -174,20 +270,40 @@ class Transaction(SQLModel, table=True):
 	)
 
 	def create(self) -> None:
+		"""(Platzhalter) Erstellung passiert in der Service-/Repository-Schicht.
+
+		Warum ist das hier leer?
+		- SQLModel-Modelle sind hauptsaechlich Datenstrukturen.
+		- Die App erzeugt/validiert Transaktionen zentral im Service (z.B.
+		  `TransactionService.create_transaction`).
+		"""
 		return None
 
 	def edit(self) -> None:
+		"""(Platzhalter) Bearbeitung passiert in der Service-/Repository-Schicht."""
 		return None
 
 	def filter(self) -> None:
+		"""(Platzhalter) Filtern passiert ueber Repository-Queries.
+
+		In der App wird gefiltert, indem Repositories SQL-Queries bauen (z.B.
+		`TransactionRepository.filter_transactions`).
+		"""
 		return None
 
 	def delete(self) -> None:
+		"""(Platzhalter) Loeschen passiert in der Service-/Repository-Schicht."""
 		return None
 
 
-# Stores transfer-specific fields and links back to one base transaction
+# Speichert Umbuchungs-spezifische Felder und verweist auf eine Basis-Transaktion
 class Transfer(SQLModel, table=True):
+	"""Umbuchung zwischen zwei eigenen Konten (Tabelle `transfers`).
+
+	Eine Umbuchung ist fachlich eine spezielle Transaktion: sie belastet ein Konto
+	und erhöht gleichzeitig ein anderes Konto. Darum referenziert `Transfer` immer
+	genau eine Zeile in `transactions` über `transaction_id`.
+	"""
 	__tablename__ = "transfers"
 
 	transfer_id: Optional[int] = Field(default=None, primary_key=True)
@@ -207,8 +323,14 @@ class Transfer(SQLModel, table=True):
 	)
 
 
-# Stores domestic payment-specific fields and links back to one base transaction
+# Speichert Zahlungs-spezifische Felder und verweist auf eine Basis-Transaktion
 class Payment(SQLModel, table=True):
+	"""Inlandszahlung mit Empfänger-IBAN (Tabelle `payments`).
+
+	Auch eine Zahlung ist eine spezielle Transaktion: die Basisdaten (Betrag, Datum,
+	Typ, Kategorie, Quelle) liegen in `transactions`, und zahlungsspezifische Daten
+	(Ziel-IBAN, Verwendungszweck, Status) liegen hier.
+	"""
 	__tablename__ = "payments"
 
 	payment_id: Optional[int] = Field(default=None, primary_key=True)
@@ -220,8 +342,14 @@ class Payment(SQLModel, table=True):
 	transaction: "Transaction" = Relationship(back_populates="payment")
 
 
-# Stores monthly/yearly budget settings, optionally per category
+# Speichert Monatsbudgets (optional pro Kategorie)
 class Budget(SQLModel, table=True):
+	"""Monatsbudget eines Users (Tabelle `budgets`).
+
+	Ein Budget kann optional an eine Kategorie gebunden sein. Der UniqueConstraint
+	sorgt dafür, dass ein User nicht aus Versehen zwei Budgets für denselben
+	Monat/Jahr und dieselbe Kategorie anlegt (doppelte Regeln wären widersprüchlich).
+	"""
 	__tablename__ = "budgets"
 	__table_args__ = (
 		UniqueConstraint(
@@ -244,11 +372,24 @@ class Budget(SQLModel, table=True):
 	category: Optional["Category"] = Relationship(back_populates="budgets")
 
 	def isexceeded(self) -> bool:
+		"""(Platzhalter) Ob ein Budget ueberschritten ist, wird im Service berechnet.
+
+		Der Budgetverbrauch haengt von Transaktionen im Zeitraum ab und wird daher
+		im `BudgetService`/`DashboardService` berechnet, nicht im Datenmodell.
+		"""
 		return False
 
 
-# Stores recurring payment data linked to one base transaction record
+# Speichert Dauerauftraege (wiederkehrende Zahlungen) und verknuepft sie mit einer Basis-Transaktion
 class RecurringTransaction(SQLModel, table=True):
+	"""Dauerauftrag (Tabelle `recurring_transactions`).
+
+	Ein Dauerauftrag beschreibt eine wiederkehrende Zahlung mit Intervall.
+	Technisch ist er ebenfalls an eine Basis-Transaktion gekoppelt (`transaction_id`),
+	damit die Ausführung als normale Transaktion in der Historie sichtbar ist.
+	Die Service-Schicht berechnet beim Login, ob etwas fällig ist und erstellt dann
+	entsprechende Transaktionen (siehe `auth_service`/`recurring_service`).
+	"""
 	__tablename__ = "recurring_transactions"
 
 	recurring_id: Optional[int] = Field(default=None, primary_key=True)
@@ -267,6 +408,6 @@ class RecurringTransaction(SQLModel, table=True):
 	transaction: "Transaction" = Relationship(back_populates="recurring_transaction")
 
 
-# NOTE: Persisted dashboard snapshots were removed by decision (not needed).
-# If you want to re-enable persisted snapshots later, add a Dashboard model
-# here with fields like snapshot_date, total_balance, total_income, total_expenses.
+# Hinweis: Persistierte Dashboard-Snapshots wurden bewusst entfernt (nicht noetig).
+# Wenn du das spaeter wieder einfuehren willst, kannst du hier ein Dashboard-Model
+# ergaenzen, z.B. mit Feldern wie snapshot_date, total_balance, total_income, total_expenses.

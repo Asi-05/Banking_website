@@ -43,15 +43,17 @@ def show() -> None:
 	with ui.left_drawer():
 		_build_sidebar()
 
-	# ===== TOP-RIGHT: LOGOUT =====
+	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
-		with ui.row().classes("w-full justify-end items-center gap-2"):
-			with ui.button(icon="settings").props("flat round").classes("text-white"):
-				with ui.menu():
-					ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
-			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
-				.props("flat no-caps") \
-				.classes("text-white font-semibold")
+		with ui.row().classes("w-full items-center justify-between"):
+			ui.label("BetterBank").classes("text-h6 font-bold text-white")
+			with ui.row().classes("items-center gap-2"):
+				with ui.button(icon="settings").props("flat round").classes("text-white"):
+					with ui.menu():
+						ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
+				ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
+					.props("flat no-caps") \
+					.classes("text-white font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -216,8 +218,6 @@ gueltige Typen) passiert im Service.
 def _build_sidebar() -> None:
 	"""Baut die Sidebar-Navigation (Links zu den Views)."""
 	from nicegui import ui
-	ui.label("BetterBank").classes("text-h6 font-bold p-4")
-
 	user_id = app_state.get("user_id")
 	if user_id:
 		from src.ui.controllers.auth_controller import auth_controller
@@ -227,7 +227,7 @@ def _build_sidebar() -> None:
 
 	ui.separator()
 
-	with ui.column().classes("gap-2 p-4"):
+	with ui.column().classes("gap-2 px-4 pb-4 pt-0"):
 		ui.button("📊 Dashboard", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("💳 Transaktionen", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated").classes("w-full justify-start")
 		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated").classes("w-full justify-start")

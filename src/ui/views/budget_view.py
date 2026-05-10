@@ -45,7 +45,7 @@ def show() -> None:
 	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
 		with ui.row().classes("w-full items-center justify-between"):
-			ui.label("BetterBank").classes("text-h6 font-bold text-white")
+			ui.label("BetterBank").classes("text-h5 font-bold text-white pl-4")
 			with ui.row().classes("items-center gap-2"):
 				with ui.button(icon="settings").props("flat round").classes("text-white"):
 					with ui.menu():

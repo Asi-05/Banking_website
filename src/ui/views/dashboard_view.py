@@ -73,9 +73,8 @@ def _refresh_dashboard(user_id: int, main_container=None) -> None:
 					ui.label(f"CHF {format_chf(summary.total_expenses)}").classes("text-h4 font-bold text-red-600")
 					ui.label("Laufender Monat").classes("text-sm text-gray-400")
 
-			# ===== ZEILE 2: KONTENÜBERSICHT + KREISDIAGRAMM =====
-			with ui.row().classes("w-full gap-4 items-start"):
-
+				# ===== ZEILE 2: KONTENÜBERSICHT + HISTOGRAMM =====
+			with ui.row().classes("w-full gap-4 items-stretch"):
 				# Kontenübersicht (links)
 				with ui.card().classes("flex-1"):
 					ui.label("Kontenübersicht").classes("text-subtitle1 font-semibold mb-3")
@@ -87,7 +86,7 @@ def _refresh_dashboard(user_id: int, main_container=None) -> None:
 								ui.label(account["iban"]).classes("text-sm text-gray-500")
 							ui.label(f"CHF {format_chf(account['balance'])}").classes("font-bold")
 
-				# Ausgaben / Einnahmen (rechts)
+				# Ausgaben / Einnahmen (HISTOGRAMM)
 				with ui.card().classes("flex-1"):
 					ui.label(f"Einnahmen & Ausgaben ({month_name})").classes("text-subtitle1 font-semibold mb-3")
 					ui.echart(options={
@@ -154,7 +153,7 @@ def show() -> None:
 	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
 		with ui.row().classes("w-full items-center justify-between"):
-			ui.label("BetterBank").classes("text-h6 font-bold text-white")
+			ui.label("BetterBank").classes("text-h5 font-bold text-white pl-4")
 			with ui.row().classes("items-center gap-2"):
 				with ui.button(icon="settings").props("flat round").classes("text-white"):
 					with ui.menu():

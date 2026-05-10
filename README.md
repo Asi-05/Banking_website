@@ -460,6 +460,14 @@ Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten u
 
 * **Persistente Dashboard-Tabelle:** Die Implementierung enthält keine persistente `dashboard`-Tabelle; Dashboards werden dynamisch berechnet und über das `DashboardSummary`-DTO geliefert.
 
+## 👥 Arbeitsaufteilung
+
+| Mitglied | Schwerpunkt |
+|---|---|
+| Asithan Supendran | Projektsetup & Infrastruktur, Business-Logik (Account, Auth, Budget, Dashboard, Payment, Transaction), Passwort-Sicherheit, Tests, README |
+| Filmon Samy | Softwarearchitektur, Business-Logik (Recurring, Category, CreditcardBilling), MVC-Refactoring (Controller-Schicht), Code-Dokumentation & Kommentare |
+| Janath Balasubramaniam | UI/Views (NiceGUI), Business-Logik (Card-Service), Kontoeinstellungen, Kartenmanagement, Dauerauftrags-UI |
+
 ## ✅ Project Requirements
 Dieses Projekt erfüllt die Kernanforderungen wie folgt:
 
@@ -490,16 +498,38 @@ Alle fachlichen Daten werden über SQLModel/SQLAlchemy verwaltet (u. a. User, Ko
 
 ### How to run
 
-1. Abhängigkeiten installieren:
-  `python3 -m pip install -r requirements.txt`
-2. Anwendung starten:
-  `python3 main.py`
-3. Im Browser öffnen:
-  `http://localhost:8080/`
+> Voraussetzung: **Python 3.11 oder neuer**
+
+1. (Optional, empfohlen) Virtuelle Umgebung erstellen und aktivieren:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate   # macOS/Linux
+   .venv\Scripts\activate      # Windows
+   ```
+2. Abhängigkeiten installieren:
+   ```bash
+   python3 -m pip install -r requirements.txt
+   ```
+3. Anwendung starten:
+   ```bash
+   python3 main.py
+   ```
+4. Im Browser öffnen: `http://localhost:8080/`
+
+> Die Demo-Daten (User, Konten, Karten) werden beim ersten Start **automatisch** angelegt.
+
+### Demo-Zugangsdaten
+
+| Vertragsnummer | Passwort      | Name           |
+|----------------|---------------|----------------|
+| BB-100001      | Dummy_hash_1  | Hermann Grieder |
+| BB-100002      | Dummy_hash_2  | Felix Haerer   |
 
 ### Tests ausführen
 
-`python3 -m pytest -q`
+```bash
+python3 -m pytest -q
+```
 
 
 

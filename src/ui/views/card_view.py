@@ -43,15 +43,15 @@ def show() -> None:
 
 	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
-		with ui.row().classes("w-full items-center justify-between"):
+		with ui.row().classes("w-full items-center justify-end"):
 			ui.label("BetterBank").classes("text-h5 font-bold text-white pl-4")
 			with ui.row().classes("items-center gap-2"):
-				with ui.button(icon="settings").props("flat round").classes("text-white"):
+				with ui.button(icon="settings").props("flat round color=primary"):
 					with ui.menu():
 						ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
 				ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
-					.props("flat no-caps") \
-					.classes("text-white font-semibold")
+					.props("flat no-caps color=primary") \
+					.classes("font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -63,7 +63,7 @@ def show() -> None:
 			tab_debit = ui.tab("Debitkarten")
 			tab_credit = ui.tab("Kreditkarten")
 
-		with ui.tab_panels(tabs, value=tab_debit):
+		with ui.tab_panels(tabs, value=tab_debit).classes("w-full"):
 
 			# ===== TAB 1: DEBITKARTEN =====
 			with ui.tab_panel(tab_debit):
@@ -91,7 +91,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 	with ui.column().classes("w-full gap-6"):
 
 		# === NEUE DEBITKARTE BESTELLEN ===
-		with ui.expansion("Neue Debitkarte bestellen").classes("w-full"):
+		with ui.expansion("Neue Debitkarte bestellen", value=True).classes("w-full"):
 
 			# Konto-Auswahl (nur Privatkonten)
 			result = account_controller.list_accounts(user_id)
@@ -265,7 +265,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 	with ui.column().classes("w-full gap-6"):
 
 		# === NEUE KREDITKARTE BEANTRAGEN ===
-		with ui.expansion("Neue Kreditkarte beantragen").classes("w-full"):
+		with ui.expansion("Neue Kreditkarte beantragen", value=True).classes("w-full"):
 
 			# Gewünschtes Limit
 			limit_input = ui.number(label="Gewünschtes Limit (CHF)", min=100, step=100).props("outlined")
@@ -274,17 +274,9 @@ def _build_credit_cards_section(user_id: int) -> None:
 			error_label = ui.label("").classes("text-red-600 mb-4")
 
 			async def handle_create_credit_card() -> None:
-				"""Event-Handler: beantragt eine Kreditkarte.
-
-				Die Limit-Regel (max. 10'000) ist eine UI-Vorpruefung; die echte
-				Validierung liegt im Service.
-				"""
+				"""Event-Handler: beantragt eine Kreditkarte."""
 				# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 				# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
-				if (limit_input.value or 0) > 10000:
-					error_label.set_text("Das maximale Kreditlimit beträgt CHF 10'000.")
-					return
-
 				payload = {
 					"user_id": user_id,
 					"desired_limit": limit_input.value or 1000,
@@ -580,21 +572,22 @@ def _build_sidebar() -> None:
 	"""
 	from nicegui import ui
 	user_id = app_state.get("user_id")
+
+	ui.label("BetterBank").classes("text-h6 font-bold text-white px-4 pt-4 pb-0")
 	if user_id:
 		from src.ui.controllers.auth_controller import auth_controller
 		username = auth_controller.get_username(user_id)
 		if username:
-			ui.label("Willkommen,").classes("text-xs text-gray-500 px-4 pt-2")
-			ui.label(username).classes("text-sm font-semibold text-gray-500 px-4 pb-2")
+			ui.label(username).classes("text-sm text-white px-4 pb-3")
 
 	ui.separator()
 
-	with ui.column().classes("gap-2 px-4 pb-4 pt-0"):
+	with ui.column().classes("gap-1 px-2 pb-4 pt-2"):
 		ui.button("Dashboard", icon="home", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Transaktionen", icon="show_chart", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Budget", icon="savings", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Konten", icon="account_balance", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated align=left").classes("w-full justify-start")
-		ui.button("Karten", icon="credit_card", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Karten", icon="credit_card", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated align=left").classes("w-full justify-start sidebar-active")
 
 
 def _logout() -> None:

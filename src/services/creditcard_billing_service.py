@@ -27,13 +27,13 @@ from __future__ import annotations
 import calendar
 from datetime import date
 
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from src.data_access.db import engine
 from src.data_access.repositories.account_repository import AccountRepository
 from src.data_access.repositories.card_repository import CardRepository
 from src.data_access.repositories.category_repository import CategoryRepository
-from src.domain.models import Category, CreditCard
+from src.domain.models import CreditCard
 from src.services.transaction_service import transaction_service
 
 

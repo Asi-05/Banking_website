@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(/Users/filly/Desktop/Studium/Programmieren/Banking Project/Banking_website/src/**)",
+      "Write(/Users/filly/Desktop/Studium/Programmieren/Banking Project/Banking_website/src/**)"
+    ]
+  }
+}

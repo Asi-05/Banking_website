@@ -152,15 +152,15 @@ def show() -> None:
 
 	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
-		with ui.row().classes("w-full items-center justify-between"):
+		with ui.row().classes("w-full items-center justify-end"):
 			ui.label("BetterBank").classes("text-h5 font-bold text-white pl-4")
 			with ui.row().classes("items-center gap-2"):
-				with ui.button(icon="settings").props("flat round").classes("text-white"):
+				with ui.button(icon="settings").props("flat round color=primary"):
 					with ui.menu():
 						ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
 				ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
-					.props("flat no-caps") \
-					.classes("text-white font-semibold")
+					.props("flat no-caps color=primary") \
+					.classes("font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -187,18 +187,18 @@ def _build_sidebar() -> None:
 	"""
 	from nicegui import ui
 	user_id = app_state.get("user_id")
+
+	ui.label("BetterBank").classes("text-h6 font-bold text-white px-4 pt-4 pb-0")
 	if user_id:
 		from src.ui.controllers.auth_controller import auth_controller
-		# Username wird ueber den Controller geladen (Service-Logik bleibt ausserhalb der View).
 		username = auth_controller.get_username(user_id)
 		if username:
-			ui.label("Willkommen,").classes("text-xs text-gray-500 px-4 pt-2")
-			ui.label(username).classes("text-sm font-semibold text-gray-500 px-4 pb-2")
+			ui.label(username).classes("text-sm text-white px-4 pb-3")
 
 	ui.separator()
 
-	with ui.column().classes("gap-2 px-4 pb-4 pt-0"):
-		ui.button("Dashboard", icon="home", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated align=left").classes("w-full justify-start")
+	with ui.column().classes("gap-1 px-2 pb-4 pt-2"):
+		ui.button("Dashboard", icon="home", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated align=left").classes("w-full justify-start sidebar-active")
 		ui.button("Transaktionen", icon="show_chart", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Budget", icon="savings", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Konten", icon="account_balance", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated align=left").classes("w-full justify-start")

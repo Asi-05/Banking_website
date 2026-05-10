@@ -56,15 +56,15 @@ def show() -> None:
 
 	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
-		with ui.row().classes("w-full items-center justify-between"):
+		with ui.row().classes("w-full items-center justify-end"):
 			ui.label("BetterBank").classes("text-h5 font-bold text-white pl-4")
 			with ui.row().classes("items-center gap-2"):
-				with ui.button(icon="settings").props("flat round").classes("text-white"):
+				with ui.button(icon="settings").props("flat round color=primary"):
 					with ui.menu():
 						ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
 				ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
-					.props("flat no-caps") \
-					.classes("text-white font-semibold")
+					.props("flat no-caps color=primary") \
+					.classes("font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -77,7 +77,7 @@ def show() -> None:
 			tab_recurring = ui.tab("Daueraufträge")
 			tab_transfer = ui.tab("Übertrag")
 
-		with ui.tab_panels(tabs, value=tab_domestic):
+		with ui.tab_panels(tabs, value=tab_domestic).classes("w-full"):
 
 			# ===== TAB 1: NEUE INLANDSZAHLUNG =====
 			with ui.tab_panel(tab_domestic):
@@ -127,7 +127,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 			if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"
 		}
 
-	with ui.card().classes("w-full max-w-md"):
+	with ui.card().classes("w-full"):
 		# Ziel-IBAN
 		iban_input = ui.input(label="Ziel-IBAN").props("outlined")
 		iban_input.classes("w-full mb-4")
@@ -173,14 +173,6 @@ def _build_domestic_payment_form(user_id: int) -> None:
 			"""
 			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
-			execution_date = date.fromisoformat(execution_date_picker.value)
-			# UI-Regel: Zahlungen duerfen nicht rueckdatiert werden.
-			if execution_date < date.today():
-				error = "Ausführungsdatum darf nicht in der Vergangenheit liegen"
-				error_label.set_text(error)
-				ui.notify(error, type="negative")
-				return
-
 			payload = {
 				"target_iban": iban_input.value,
 				"amount": amount_input.value or 0,
@@ -282,16 +274,17 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				})
 			recurring_table.rows = rows
 
-		recurring_table = ui.table(columns=[
-			{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
-			{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
-			{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
-			{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
-			{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
-			{"name": "account_iban", "label": "Belastungskonto", "field": "account_iban", "align": "left"},
-			{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-		], rows=[]).props("dense")
-		recurring_table.classes("w-full")
+		with ui.card().classes("w-full"):
+			recurring_table = ui.table(columns=[
+				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
+				{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
+				{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
+				{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
+				{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
+				{"name": "account_iban", "label": "Belastungskonto", "field": "account_iban", "align": "left"},
+				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
+			], rows=[]).props("dense")
+			recurring_table.classes("w-full")
 
 		recurring_table.add_slot("body-cell-actions", """
 			<q-td :props="props">
@@ -387,7 +380,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 		refresh_recurring_table()
 
 		# === FORMULAR: NEUEN DAUERAUFTRAG ERSTELLEN (unter der Tabelle) ===
-		with ui.expansion("Neuen Dauerauftrag erstellen").classes("w-full"):
+		with ui.expansion("Neuen Dauerauftrag erstellen", value=True).classes("w-full"):
 
 			category_options = category_controller.list_categories()
 
@@ -427,9 +420,6 @@ def _build_recurring_payments_section(user_id: int) -> None:
 							or not account_select.value or not iban_input.value
 							or not interval_select.value):
 						error_label.set_text("Bitte alle Felder ausfüllen.")
-						return
-					if start_date_picker.value < date.today().isoformat():
-						error_label.set_text("Startdatum darf nicht in der Vergangenheit liegen.")
 						return
 					error_label.set_text("")
 					payload = {
@@ -487,7 +477,7 @@ ausreichender Kontostand, etc.).
 			if (a.status if hasattr(a, "status") else a.get("status")) == "aktiv"
 		}
 
-	with ui.card().classes("w-full max-w-md"):
+	with ui.card().classes("w-full"):
 
 		# Von-Konto
 		from_account_select = ui.select(
@@ -714,18 +704,19 @@ def _build_sidebar() -> None:
 	"""Baut die Navigation (Sidebar) fuer die Transaktions-View."""
 	from nicegui import ui
 	user_id = app_state.get("user_id")
+
+	ui.label("BetterBank").classes("text-h6 font-bold text-white px-4 pt-4 pb-0")
 	if user_id:
 		from src.ui.controllers.auth_controller import auth_controller
 		username = auth_controller.get_username(user_id)
 		if username:
-			ui.label("Willkommen,").classes("text-xs text-gray-500 px-4 pt-2")
-			ui.label(username).classes("text-sm font-semibold text-gray-500 px-4 pb-2")
+			ui.label(username).classes("text-sm text-white px-4 pb-3")
 
 	ui.separator()
 
-	with ui.column().classes("gap-2 px-4 pb-4 pt-0"):
+	with ui.column().classes("gap-1 px-2 pb-4 pt-2"):
 		ui.button("Dashboard", icon="home", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated align=left").classes("w-full justify-start")
-		ui.button("Transaktionen", icon="show_chart", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Transaktionen", icon="show_chart", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated align=left").classes("w-full justify-start sidebar-active")
 		ui.button("Budget", icon="savings", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Konten", icon="account_balance", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Karten", icon="credit_card", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated align=left").classes("w-full justify-start")

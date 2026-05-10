@@ -74,7 +74,6 @@ def show() -> None:
 		# Tab-Layout
 		with ui.tabs() as tabs:
 			tab_domestic = ui.tab("Neue Inlandszahlung")
-			tab_list = ui.tab("Bewegungen")
 			tab_recurring = ui.tab("Daueraufträge")
 			tab_transfer = ui.tab("Übertrag")
 
@@ -84,15 +83,11 @@ def show() -> None:
 			with ui.tab_panel(tab_domestic):
 				_build_domestic_payment_form(user_id)
 
-			# ===== TAB 2: BEWEGUNGEN =====
-			with ui.tab_panel(tab_list):
-				_build_bewegungen_section(user_id)
-
-			# ===== TAB 3: DAUERAUFTRÄGE =====
+			# ===== TAB 2: DAUERAUFTRÄGE =====
 			with ui.tab_panel(tab_recurring):
 				_build_recurring_payments_section(user_id)
 
-			# ===== TAB 4: ÜBERTRAG =====
+			# ===== TAB 3: ÜBERTRAG =====
 			with ui.tab_panel(tab_transfer):
 				_build_transfer_form(user_id)
 
@@ -463,146 +458,6 @@ def _build_recurring_payments_section(user_id: int) -> None:
 
 				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring).classes("w-full")
 
-
-
-def _build_bewegungen_section(user_id: int) -> None:
-	"""Rendert den Tab "Bewegungen" (gebucht vs. geplant).
-
-	Gebucht: alle Transaktionen bis einschliesslich heute.
-	Geplant: alle Transaktionen ab morgen (z.B. vorgeplante Zahlungen).
-	"""
-	from nicegui import ui
-	from src.ui.controllers.category_controller import category_controller
-
-	category_options = category_controller.list_categories()
-
-	with ui.tabs() as sub_tabs:
-		tab_booked = ui.tab("Gebuchte Zahlungen")
-		tab_planned = ui.tab("Geplante Zahlungen")
-
-	with ui.tab_panels(sub_tabs, value=tab_booked):
-
-		# ===== GEBUCHTE ZAHLUNGEN (date <= today, mit Von/Bis Filter) =====
-		with ui.tab_panel(tab_booked):
-			with ui.card().classes("w-full"):
-				with ui.row().classes("gap-4 mb-4 items-end"):
-					booked_start = ui.date(value=(date.today() - timedelta(days=30)).isoformat()).props("outlined first-day-of-week=1")
-					booked_start.label = "Von"
-
-					with ui.column().classes("gap-1"):
-						ui.label("Bis").classes("text-sm text-gray-500")
-						# Designentscheidung: Enddatum ist fix "heute" und nicht editierbar.
-						# Das vermeidet Missverstaendnisse bei "gebucht": gebuchte Zahlungen
-						# sind per Definition nicht in der Zukunft.
-						ui.label(date.today().strftime("%d.%m.%Y")).classes(
-							"text-body1 font-semibold text-gray-700 px-2 py-1 bg-gray-100 rounded"
-						)
-					booked_cat_filter = ui.select(
-						options={None: "Alle Kategorien", **category_options},
-						value=None, label="Kategorie",
-					).props("outlined")
-					ui.button("Filter anwenden", on_click=lambda: _refresh_booked(
-						user_id, booked_start, booked_cat_filter, booked_table
-					)).props("unelevated color=primary size=sm")
-
-				booked_table = ui.table(columns=[
-					{"name": "date", "label": "Datum", "field": "date", "align": "left"},
-					{"name": "type", "label": "Typ", "field": "type", "align": "left"},
-					{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
-					{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
-					{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
-				], rows=[]).props("dense")
-				booked_table.classes("w-full")
-
-				_refresh_booked(user_id, booked_start, booked_cat_filter, booked_table)
-
-		# ===== GEPLANTE ZAHLUNGEN (date > heute, automatisch ab morgen) =====
-		with ui.tab_panel(tab_planned):
-			with ui.card().classes("w-full"):
-				with ui.row().classes("gap-4 mb-4"):
-					planned_cat_filter = ui.select(
-						options={None: "Alle Kategorien", **category_options},
-						value=None, label="Kategorie",
-					).props("outlined")
-					ui.button("Aktualisieren", on_click=lambda: _refresh_planned(
-						user_id, planned_cat_filter, planned_table
-					)).props("flat size=sm")
-
-				planned_table = ui.table(columns=[
-					{"name": "date", "label": "Datum", "field": "date", "align": "left"},
-					{"name": "type", "label": "Typ", "field": "type", "align": "left"},
-					{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
-					{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
-					{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
-					{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-				], rows=[]).props("dense")
-				planned_table.classes("w-full")
-
-				planned_table.add_slot("body-cell-actions", """
-					<q-td :props="props">
-						<q-btn label="Ändern" color="primary" size="sm" flat
-							@click="$parent.$emit('edit_planned', props.row)" />
-						<q-btn label="Stornieren" color="negative" size="sm" flat
-							@click="$parent.$emit('delete_planned', props.row)" />
-					</q-td>
-				""")
-
-				def handle_edit_planned(e) -> None:
-					"""Event-Handler: bearbeitet eine geplante (zukuenftige) Zahlung."""
-					row = e.args
-					transaction_id = row.get("transaction_id")
-					with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
-						ui.label("Geplante Zahlung bearbeiten").classes("text-subtitle1 font-semibold mb-4")
-						amount_edit = ui.number(
-							label="Betrag (CHF)",
-							value=float(str(row.get("amount", "0")).replace(",", "")),
-							min=0.01, step=0.01
-						).props("outlined").classes("w-full mb-4")
-						note_edit = ui.textarea(
-							label="Notiz",
-							value=row.get("note") if row.get("note") != "-" else ""
-						).props("outlined").classes("w-full mb-4")
-						with ui.row().classes("gap-4"):
-							ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
-							def do_edit(tid=transaction_id):
-								error = transaction_controller.edit_transaction(
-									tid, {"amount": amount_edit.value or 0, "note": note_edit.value}
-								)
-								edit_dialog.close()
-								if error:
-									ui.notify(error, type="negative")
-								else:
-									ui.notify("Gespeichert", type="positive")
-									_refresh_planned(user_id, planned_cat_filter, planned_table)
-							ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
-					edit_dialog.open()
-
-				def handle_delete_planned(e) -> None:
-					"""Event-Handler: storniert eine geplante Zahlung (Loeschen mit Confirm)."""
-					row = e.args
-					transaction_id = row.get("transaction_id")
-					with ui.dialog() as confirm_dialog, ui.card():
-						ui.label("Zahlung stornieren?").classes("text-subtitle1 font-semibold")
-						with ui.row().classes("gap-4 mt-4"):
-							ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
-							def do_delete(tid=transaction_id):
-								error = transaction_controller.delete_transaction(tid, confirm=True)
-								confirm_dialog.close()
-								if error:
-									ui.notify(error, type="negative")
-								else:
-									ui.notify("Storniert", type="positive")
-									_refresh_planned(user_id, planned_cat_filter, planned_table)
-							ui.button("Stornieren", on_click=do_delete).props("color=negative unelevated")
-					confirm_dialog.open()
-
-				planned_table.on("edit_planned", handle_edit_planned)
-				planned_table.on("delete_planned", handle_delete_planned)
-
-				_refresh_planned(user_id, planned_cat_filter, planned_table)
-
-
-
 def _build_transfer_form(user_id: int) -> None:
 	"""Rendert das Formular fuer einen Uebertrag zwischen eigenen Konten.
 
@@ -855,65 +710,6 @@ def _refresh_transaction_list(
 
 	if transactions_table:
 		transactions_table.rows = rows
-
-
-def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
-	"""Laedt gebuchte Zahlungen (Datum <= heute) und befuellt die Tabelle.
-
-	Die obere UI laesst den Nutzer nur ein Startdatum waehlen. Das Enddatum ist
-	fix auf "heute" gesetzt (siehe Tab-Layout), damit "gebuchte" Zahlungen nicht
-	versehentlich in die Zukunft gefiltert werden.
-	"""
-	from nicegui import ui
-	from src.ui.controllers.category_controller import category_controller
-	result = transaction_controller.filter_transactions(
-		start_date=date.fromisoformat(start_picker.value),
-		end_date=date.today(),
-		category_id=cat_filter.value,
-		user_id=user_id,
-	)
-	if isinstance(result, str):
-		ui.notify(result, type="negative")
-		return
-	cats = category_controller.list_categories()
-	table.rows = [{
-		"transaction_id": t["transaction_id"],
-		"date": str(t["date"]).replace("-", "."),
-		"type": t["type"],
-		"amount": f"{t['amount']:,.2f}",
-		"category": cats.get(t["category_id"], "—"),
-		"note": t["note"] or "-",
-	} for t in result]
-
-
-def _refresh_planned(user_id, cat_filter, table) -> None:
-	"""Laedt geplante Zahlungen (Datum > heute, ab morgen) und befuellt die Tabelle.
-
-	Wir filtern hier bewusst ab morgen bis zu einem weit in der Zukunft liegenden
-	Datum, um "zukuenftige" Transaktionen zu bekommen.
-	"""
-	from nicegui import ui
-	from src.ui.controllers.category_controller import category_controller
-	result = transaction_controller.filter_transactions(
-		start_date=date.today() + timedelta(days=1),
-		end_date=date(2099, 12, 31),
-		category_id=cat_filter.value,
-		user_id=user_id,
-	)
-	if isinstance(result, str):
-		ui.notify(result, type="negative")
-		return
-	cats = category_controller.list_categories()
-	table.rows = [{
-		"transaction_id": t["transaction_id"],
-		"date": str(t["date"]).replace("-", "."),
-		"type": t["type"],
-		"amount": f"{t['amount']:,.2f}",
-		"category": cats.get(t["category_id"], "—"),
-		"note": t["note"] or "-",
-	} for t in result]
-
-
 def _build_sidebar() -> None:
 	"""Baut die Navigation (Sidebar) fuer die Transaktions-View."""
 	from nicegui import ui
@@ -927,11 +723,11 @@ def _build_sidebar() -> None:
 	ui.separator()
 
 	with ui.column().classes("gap-2 px-4 pb-4 pt-0"):
-		ui.button("📊 Dashboard", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💳 Transaktionen", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("🏦 Konten", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("🎫 Karten", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated").classes("w-full justify-start")
+		ui.button("📊 Dashboard", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("💳 Transaktionen", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("🏦 Konten", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("🎫 Karten", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated align=left").classes("w-full justify-start")
 
 
 def _logout() -> None:

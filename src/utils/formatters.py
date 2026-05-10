@@ -43,3 +43,15 @@ aber die UI soll lesbare Begriffe anzeigen.
 		falls der Code unbekannt ist.
 	"""
 	return TRANSACTION_TYPE_LABELS.get(transaction_type, transaction_type)
+
+
+def format_chf(value: float) -> str:
+	"""Formatiert einen Geldbetrag im CHF-Format mit Schweizer Tausendertrennzeichen.
+
+	Args:
+		value: Geldbetrag.
+
+	Returns:
+		Formatierter Betrag, z. B. ``8'500.00``.
+	"""
+	return f"{value:,.2f}".replace(",", "'")

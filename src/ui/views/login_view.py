@@ -105,5 +105,8 @@ def show() -> None:
 				else:
 					error_label.set_text(result.get("message", "Anmeldung fehlgeschlagen"))
 
+			contract_number_input.on('keydown.enter', handle_login)
+			password_input.on('keydown.enter', handle_login)
+
 			login_button = ui.button("Anmelden", on_click=handle_login).classes("w-full")
 			login_button.props("unelevated color=primary")

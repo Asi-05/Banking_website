@@ -12,7 +12,7 @@ from datetime import date
 from sqlmodel import Session, select
 
 from src.data_access.db import create_db_and_tables, engine
-from src.domain.models import Account, Category, CreditCard, DebitCard, User
+from src.domain.models import Account, Category, CreditCard, DebitCard, Transaction, User
 from src.utils.validators import generate_ch_iban
 
 
@@ -28,6 +28,7 @@ CATEGORY_NAMES = [
 	"Well-being",
 	"Kontouebertrag",
 	"Sonstiges",
+	"Gehalt",
 ]
 
 
@@ -240,6 +241,62 @@ def seed_credit_cards_for_users(session: Session, users: list[User]) -> None:
 	session.commit()
 
 
+# For each predefined user, create monthly salary income transactions
+def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
+	"""Legt pro User eine monatliche Gehaltsbuchung von CHF 8'500 an.
+
+	Buchungen werden für jeden Monat von Januar bis zum aktuellen Monat
+	des laufenden Jahres erstellt. Die Funktion ist idempotent.
+
+	Args:
+		session: Offene Datenbank-Session.
+		users: Die User, für die Gehaltsbuchungen erstellt werden sollen.
+	"""
+	gehalt_category = session.exec(
+		select(Category).where(Category.name == "Gehalt")
+	).first()
+	if gehalt_category is None:
+		return
+
+	today = date.today()
+
+	for user in users:
+		privat_account = session.exec(
+			select(Account).where(
+				Account.user_id == user.user_id,
+				Account.account_type == "privat",
+			)
+		).first()
+		if privat_account is None:
+			continue
+
+		for month in range(1, today.month + 1):
+			salary_date = date(today.year, month, 1)
+
+			existing = session.exec(
+				select(Transaction).where(
+					Transaction.account_id == privat_account.account_id,
+					Transaction.date == salary_date,
+					Transaction.type == "income",
+					Transaction.note == "Monatsgehalt",
+				)
+			).first()
+			if existing is not None:
+				continue
+
+			session.add(Transaction(
+				amount=8500.0,
+				date=salary_date,
+				type="income",
+				note="Monatsgehalt",
+				category_id=gehalt_category.category_id,
+				account_id=privat_account.account_id,
+			))
+			privat_account.balance += 8500.0
+
+	session.commit()
+
+
 # Public function to run complete database seeding process
 def seed_database() -> None:
 	"""Führt den kompletten Seeding-Prozess aus (Tabellen + Demo-Daten)."""
@@ -251,6 +308,7 @@ def seed_database() -> None:
 		seed_accounts_for_users(session, users)
 		seed_debit_cards_for_users(session, users)
 		seed_credit_cards_for_users(session, users)
+		seed_monthly_income_for_users(session, users)
 
 
 if __name__ == "__main__":

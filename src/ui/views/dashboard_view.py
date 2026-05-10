@@ -192,7 +192,8 @@ def _build_sidebar() -> None:
 		# Username wird ueber den Controller geladen (Service-Logik bleibt ausserhalb der View).
 		username = auth_controller.get_username(user_id)
 		if username:
-			ui.label(username).classes("text-sm text-gray-500 px-4 pb-2")
+			ui.label("Willkommen,").classes("text-xs text-gray-500 px-4 pt-2")
+			ui.label(username).classes("text-sm font-semibold text-gray-500 px-4 pb-2")
 
 	ui.separator()
 

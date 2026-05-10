@@ -424,7 +424,8 @@ def _build_sidebar() -> None:
 		from src.ui.controllers.auth_controller import auth_controller
 		username = auth_controller.get_username(user_id)
 		if username:
-			ui.label(username).classes("text-sm text-gray-500 px-4 pb-2")
+			ui.label("Willkommen,").classes("text-xs text-gray-500 px-4 pt-2")
+			ui.label(username).classes("text-sm font-semibold text-gray-500 px-4 pb-2")
 
 	ui.separator()
 

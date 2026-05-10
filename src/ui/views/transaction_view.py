@@ -77,7 +77,6 @@ def show() -> None:
 			tab_list = ui.tab("Bewegungen")
 			tab_recurring = ui.tab("Daueraufträge")
 			tab_transfer = ui.tab("Übertrag")
-			tab_statement = ui.tab("Kontoauszug")
 
 		with ui.tab_panels(tabs, value=tab_domestic):
 
@@ -96,10 +95,6 @@ def show() -> None:
 			# ===== TAB 4: ÜBERTRAG =====
 			with ui.tab_panel(tab_transfer):
 				_build_transfer_form(user_id)
-
-			# ===== TAB 5: KONTOAUSZUG =====
-			with ui.tab_panel(tab_statement):
-				_build_statement_section(user_id)
 
 
 def _build_domestic_payment_form(user_id: int) -> None:
@@ -992,77 +987,4 @@ def _open_settings_dialog(user_id: int) -> None:
 	dlg.open()
 
 
-def _build_statement_section(user_id: int) -> None:
-	"""Rendert den Kontoauszug-Generator (US12).
-
-	Der Nutzer waehlt ein Konto und einen Zeitraum. Danach wird ueber den
-	`PaymentController` ein PDF erzeugt und zum Download angeboten.
-
-	Args:
-		user_id: ID des eingeloggten Users.
-	"""
-	from nicegui import ui
-
-	from src.ui.controllers.account_controller import account_controller
-	from src.ui.controllers.payment_controller import payment_controller
-
-	# Konten laden
-	result = account_controller.list_accounts(user_id)
-	if isinstance(result, str):
-		ui.notify(result, type="negative")
-		account_options = {}
-	else:
-		account_options = {
-			(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
-			((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
-			for a in result
-		}
-
-	with ui.card().classes("w-full max-w-md"):
-
-		# Konto-Auswahl
-		account_select = ui.select(
-			options=account_options,
-			label="Konto auswählen",
-		).props("outlined")
-		account_select.classes("w-full mb-4")
-
-		# Zeitraum
-		start_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
-		start_date_picker.label = "Von"
-		start_date_picker.classes("w-full mb-4")
-
-		end_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
-		end_date_picker.label = "Bis"
-		end_date_picker.classes("w-full mb-4")
-
-		error_label = ui.label("").classes("text-red-600 mb-4")
-
-		async def handle_generate_statement() -> None:
-			"""Generiert einen Kontoauszug als PDF und bietet einen Download an.
-
-			Raises:
-				ValueError: Wenn einer der Datepicker keinen gueltigen ISO-Datumsstring enthaelt.
-			"""
-			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
-			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
-			start_date = date.fromisoformat(start_date_picker.value)
-			end_date = date.fromisoformat(end_date_picker.value)
-
-			# Service schreibt die PDF in das `statements/`-Verzeichnis und gibt den Pfad zurueck.
-			result = payment_controller.generate_statement(
-				account_select.value,
-				start_date,
-				end_date,
-			)
-
-			# UI-Heuristik: Erfolgsfall liefert einen Pfad, der auf ".pdf" endet.
-			# Fehlerfaelle sind im Controller als Fehlermeldung (String) vereinheitlicht.
-			if isinstance(result, str) and result.endswith(".pdf"):
-				ui.download(result, filename=f"kontoauszug_{start_date}_{end_date}.pdf")
-				ui.notify("Kontoauszug erfolgreich generiert", type="positive")
-			else:
-				error_label.set_text(result)
-				ui.notify(result, type="negative")
-
-		ui.button("Kontoauszug generieren", on_click=handle_generate_statement).classes("w-full")
+    

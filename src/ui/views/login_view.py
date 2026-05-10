@@ -34,8 +34,9 @@ def show() -> None:
 	with ui.column().classes("w-full h-screen items-center justify-center"):
 		with ui.card().classes("w-96"):
 			# Titel
-			ui.label("💰 BetterBank").classes("text-h4 text-center font-bold")
-			ui.label("E-Banking für persönliche Finanzplanung").classes("text-center text-gray-600 mb-8")
+			with ui.column().classes("w-full items-center mb-2"):
+				ui.label("💰 BetterBank").classes("text-h4 font-bold")
+				ui.label("E-Banking für persönliche Finanzplanung").classes("text-primary mb-6")
 
 			ui.separator()
 

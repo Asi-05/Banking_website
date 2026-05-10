@@ -57,9 +57,66 @@ def main() -> None:
 		Startseite: Login-Form (US13)
 		Zeigt Anmelde-Interface mit Vertragsnummer und Passwort-Eingabe.
 		"""
-		# Styling (einmalig beim ersten Page Load)
-		ui.colors(primary="#1976d2", secondary="#26a69a")
-		
+		ui.colors(primary="#1a3c7e", secondary="#26a69a")
+		ui.add_head_html("""
+		<style>
+		/* ===== BetterBank Design Theme ===== */
+
+		/* Drawer: dunkelblau, volle Höhe */
+		.q-drawer {
+			background: #1a3c7e !important;
+			border-right: none !important;
+			top: 0 !important;
+			z-index: 3000 !important;
+		}
+		/* ALLE Elemente im Drawer weiss */
+		.q-drawer * { color: rgba(255,255,255,0.95) !important; }
+
+		/* Hover-Effekt Sidebar-Buttons */
+		.q-drawer .q-btn:hover {
+			background: rgba(255,255,255,0.12) !important;
+			border-radius: 8px !important;
+		}
+		/* Aktiver Sidebar-Eintrag */
+		.sidebar-active {
+			background: rgba(255,255,255,0.18) !important;
+			border-radius: 8px !important;
+		}
+		/* Trennlinie in Sidebar */
+		.q-drawer .q-separator {
+			background: rgba(255,255,255,0.2) !important;
+			opacity: 1 !important;
+			border: none !important;
+		}
+
+		/* Header: weiss mit feinem Schatten, nur rechts vom Drawer */
+		.q-header {
+			background: white !important;
+			box-shadow: 0 1px 4px rgba(26,60,126,0.10) !important;
+			border-bottom: 1px solid #dde3ea !important;
+			left: 300px !important;
+		}
+		/* BetterBank-Label im Header ausblenden (steht schon in der Sidebar) */
+		.q-header .text-h5 { display: none !important; }
+		/* Settings- und Logout-Buttons: kräftiges Dunkelblau */
+		.q-header .q-btn { color: #1a3c7e !important; }
+		.q-header .q-btn:hover {
+			background: rgba(26,60,126,0.08) !important;
+			border-radius: 8px !important;
+		}
+
+		/* Seitenhintergrund hellgrau */
+		.q-page-container, .q-page { background: #f0f4f8; }
+
+		/* Datepicker: Header und aktiver Tag im neuen Blau */
+		.q-date__header { background: #1a3c7e !important; }
+		.q-date__today .q-btn { color: #1a3c7e !important; }
+		.q-date__calendar-item--active .q-btn {
+			background: #1a3c7e !important;
+			color: white !important;
+		}
+		</style>
+		""", shared=True)
 		from src.ui.views import login_view
 		login_view.show()
 
@@ -70,6 +127,7 @@ def main() -> None:
 		Zeigt Gesamtbilanz, Summen und Diagramme für wählbaren Zeitraum.
 		Geschützt: Leitet zu Login weiter falls nicht angemeldet.
 		"""
+		ui.colors(primary="#1a3c7e", secondary="#26a69a")
 		from src.ui.views import dashboard_view
 		dashboard_view.show()
 
@@ -81,6 +139,7 @@ def main() -> None:
 		Transaktionsliste mit Filtern (Datum, Kategorie),
 		Edit/Delete-Funktionen pro Zeile.
 		"""
+		ui.colors(primary="#1a3c7e", secondary="#26a69a")
 		from src.ui.views import transaction_view
 		transaction_view.show()
 
@@ -91,6 +150,7 @@ def main() -> None:
 		Setzen von monatlichen Limits, optional pro Kategorie,
 		Budget-Übersicht mit Status (OK / ÜBERSCHRITTEN).
 		"""
+		ui.colors(primary="#1a3c7e", secondary="#26a69a")
 		from src.ui.views import budget_view
 		budget_view.show()
 
@@ -101,6 +161,7 @@ def main() -> None:
 		Konten eröffnen/schließen, Umbuchungen zwischen eigenen Konten,
 		Konten-Übersicht mit IBAN, Typ, Saldo, Status.
 		"""
+		ui.colors(primary="#1a3c7e", secondary="#26a69a")
 		from src.ui.views import account_view
 		account_view.show()
 
@@ -112,6 +173,7 @@ def main() -> None:
 		Kreditkarten: Beantragen (mit Limit), Sperren, Ersetzen,
 		Zeige verfügbares Limit und genutzter Betrag.
 		"""
+		ui.colors(primary="#1a3c7e", secondary="#26a69a")
 		from src.ui.views import card_view
 		card_view.show()
 

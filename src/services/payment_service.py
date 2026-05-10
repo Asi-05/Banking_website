@@ -94,6 +94,12 @@ class PaymentService:
 		validate_iban(target_iban)
 		validate_positive_amount(amount)
 
+		payment_date = payload.get("date", date.today())
+		if isinstance(payment_date, str):
+			payment_date = date.fromisoformat(payment_date)
+		if payment_date < date.today():
+			raise ValueError("Ausführungsdatum darf nicht in der Vergangenheit liegen")
+
 		with Session(engine) as session:
 			account_repository = AccountRepository(session)
 			from_account = account_repository.get_by_id(from_account_id)

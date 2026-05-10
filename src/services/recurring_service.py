@@ -85,6 +85,11 @@ class RecurringService:
 		validate_iban(target_iban)
 		validate_recurring_interval(interval)
 
+		if isinstance(start_date, str):
+			start_date = date.fromisoformat(start_date)
+		if start_date < date.today():
+			raise ValueError("Startdatum darf nicht in der Vergangenheit liegen")
+
 		with Session(engine) as session:
 			account_repository = AccountRepository(session)
 			# DB-Read: Konto muss existieren und aktiv sein.

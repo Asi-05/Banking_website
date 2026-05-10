@@ -54,7 +54,7 @@ def _build_statement_section(user_id: int) -> None:
 			for a in result
 		}
 
-	with ui.card().classes("w-full max-w-md"):
+	with ui.card().classes("w-full"):
 
 		# Konto-Auswahl
 		account_select = ui.select(
@@ -124,15 +124,15 @@ def show() -> None:
 
 	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
-		with ui.row().classes("w-full items-center justify-between"):
+		with ui.row().classes("w-full items-center justify-end"):
 			ui.label("BetterBank").classes("text-h5 font-bold text-white pl-4")
 			with ui.row().classes("items-center gap-2"):
-				with ui.button(icon="settings").props("flat round").classes("text-white"):
+				with ui.button(icon="settings").props("flat round color=primary"):
 					with ui.menu():
 						ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
 				ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
-					.props("flat no-caps") \
-					.classes("text-white font-semibold")
+					.props("flat no-caps color=primary") \
+					.classes("font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -146,7 +146,7 @@ def show() -> None:
 			tab_bewegungen = ui.tab("Bewegungen")
 			tab_statement = ui.tab("Kontoauszug")
 
-		with ui.tab_panels(tabs, value=tab_overview):
+		with ui.tab_panels(tabs, value=tab_overview).classes("w-full"):
 
 			# ===== TAB 1: KONTEN-ÜBERSICHT =====
 			with ui.tab_panel(tab_overview):
@@ -270,7 +270,7 @@ gueltige Typen) passiert im Service.
 	"""
 	from nicegui import ui
 
-	with ui.card().classes("w-full max-w-md"):
+	with ui.card().classes("w-full"):
 
 		# Kontotyp-Auswahl
 		type_select = ui.select(
@@ -505,20 +505,21 @@ def _build_sidebar() -> None:
 	"""Baut die Sidebar-Navigation (Links zu den Views)."""
 	from nicegui import ui
 	user_id = app_state.get("user_id")
+
+	ui.label("BetterBank").classes("text-h6 font-bold text-white px-4 pt-4 pb-0")
 	if user_id:
 		from src.ui.controllers.auth_controller import auth_controller
 		username = auth_controller.get_username(user_id)
 		if username:
-			ui.label("Willkommen,").classes("text-xs text-gray-500 px-4 pt-2")
-			ui.label(username).classes("text-sm font-semibold text-gray-500 px-4 pb-2")
+			ui.label(username).classes("text-sm text-white px-4 pb-3")
 
 	ui.separator()
 
-	with ui.column().classes("gap-2 px-4 pb-4 pt-0"):
+	with ui.column().classes("gap-1 px-2 pb-4 pt-2"):
 		ui.button("Dashboard", icon="home", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Transaktionen", icon="show_chart", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated align=left").classes("w-full justify-start")
 		ui.button("Budget", icon="savings", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated align=left").classes("w-full justify-start")
-		ui.button("Konten", icon="account_balance", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Konten", icon="account_balance", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated align=left").classes("w-full justify-start sidebar-active")
 		ui.button("Karten", icon="credit_card", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated align=left").classes("w-full justify-start")
 
 

@@ -9,7 +9,8 @@ Diese Datei gehoert zur **Data-Access-Schicht**.
     - Pro User: 1 Privatkonto + 1 Sparkonto
     - Pro User: 1 Debitkarte (ans Privatkonto gebunden)
     - Pro User: 1 Kreditkarte
-    - Pro User: Monatliche Gehaltsbuchungen (CHF 8'500 ab Januar des aktuellen Jahres)
+    - Hermann: Monatliche Gehaltsbuchungen (CHF 8'500 ab Januar des aktuellen Jahres)
+    - Felix:   Gehaltsbuchungen (CHF 7'860, Jan-Mai 2026) + Lastschriften
 
 === WAS BEDEUTET "IDEMPOTENT"? ===
 Idempotent = kann mehrfach ausgefuehrt werden, ohne Duplikate zu erzeugen.
@@ -42,7 +43,7 @@ Anmeldung mit:
     src/__main__.py → seed_database()
     → seed_categories, seed_users, seed_accounts_for_users,
       seed_debit_cards_for_users, seed_credit_cards_for_users,
-      seed_monthly_income_for_users
+      seed_monthly_income_for_users, seed_felix_income
     → SQL: INSERT INTO ... (nur wenn Datensatz noch nicht existiert)
 """
 
@@ -330,6 +331,10 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
     today = date.today()
 
     for user in users:
+        # Felix hat eigene Einnahmen via seed_felix_income_and_expenses.
+        if user.contract_number == "BB-100002":
+            continue
+
         # Privatkonto des Users laden (Gehalt geht aufs Privatkonto).
         privat_account = session.exec(
             select(Account).where(
@@ -371,6 +376,143 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
     session.commit()
 
 
+def seed_felix_income(session: Session, felix: User) -> None:
+    """Legt Felix's Einnahmen und Lastschriften (Jan-Apr 2026) an (idempotent).
+
+    ABLAUF:
+        1. Alte 8'500-Buchungen loeschen, falls noch vorhanden (einmalige Bereinigung).
+        2. Neue Gehaltsbuchungen CHF 7'860 fuer Jan-Apr 2026 anlegen.
+        3. Monatliche Lastschriften anlegen (Miete, Krankenkasse, Einkauf, ...).
+
+    Args:
+        session: Offene Datenbank-Session.
+        felix: Felix-User-Objekt.
+    """
+    categories = {c.name: c for c in session.exec(select(Category)).all()}
+
+    privat1_iban = generate_ch_iban("09000", f"{felix.user_id:010d}01")
+    privat1 = session.exec(select(Account).where(Account.iban == privat1_iban)).first()
+    if privat1 is None or "Gehalt" not in categories:
+        return
+
+    # Einmalige Bereinigung: alte 8'500-Buchungen loeschen.
+    old_txns = session.exec(
+        select(Transaction).where(
+            Transaction.account_id == privat1.account_id,
+            Transaction.type == "income",
+            Transaction.note == "Monatsgehalt",
+            Transaction.amount == 8500.0,
+        )
+    ).all()
+    if old_txns:
+        for txn in old_txns:
+            privat1.balance -= 8500.0
+            session.delete(txn)
+        session.commit()
+        session.refresh(privat1)
+
+    # Gehalt Jan-Mai 2026 anlegen.
+    for month in range(1, 6):
+        salary_date = date(2026, month, 1)
+        if session.exec(
+            select(Transaction).where(
+                Transaction.account_id == privat1.account_id,
+                Transaction.date == salary_date,
+                Transaction.type == "income",
+                Transaction.note == "Monatsgehalt",
+            )
+        ).first() is None:
+            session.add(
+                Transaction(
+                    amount=7860.0,
+                    date=salary_date,
+                    type="income",
+                    note="Monatsgehalt",
+                    category_id=categories["Gehalt"].category_id,
+                    account_id=privat1.account_id,
+                )
+            )
+            privat1.balance += 7860.0
+    session.commit()
+
+    # Monatliche Lastschriften (Miete, Krankenkasse, Einkauf, Freizeit, ...).
+    expense_data = [
+        # --- Januar ---
+        (date(2026, 1,  1), 1650.00, "Miete Januar",            "Miete"),
+        (date(2026, 1,  1),  290.00, "Krankenkasse",            "Versicherungen"),
+        (date(2026, 1,  1),   95.00, "OeV Monatsabo",           "Transport"),
+        (date(2026, 1,  9),  113.40, "Coop Wocheneinkauf",      "Einkaeufe"),
+        (date(2026, 1, 14),   87.20, "Migros Einkauf",          "Einkaeufe"),
+        (date(2026, 1, 16),   70.00, "Fitness Abo",             "Well-being"),
+        (date(2026, 1, 20),   34.90, "Spotify & Netflix",       "Freizeit"),
+        (date(2026, 1, 23),   92.60, "Migros Einkauf 2",        "Einkaeufe"),
+        (date(2026, 1, 27),   65.00, "Restaurant Feierabend",   "Freizeit"),
+        (date(2026, 1, 31),  155.00, "Strom & Nebenkosten",     "Sonstiges"),
+        # --- Februar ---
+        (date(2026, 2,  1), 1650.00, "Miete Februar",           "Miete"),
+        (date(2026, 2,  1),  290.00, "Krankenkasse",            "Versicherungen"),
+        (date(2026, 2,  1),   95.00, "OeV Monatsabo",           "Transport"),
+        (date(2026, 2,  7),  108.50, "Coop Einkauf",            "Einkaeufe"),
+        (date(2026, 2, 12),   79.80, "Migros Einkauf",          "Einkaeufe"),
+        (date(2026, 2, 16),   89.00, "Valentinstag Dinner",     "Freizeit"),
+        (date(2026, 2, 19),   96.30, "Migros Einkauf 2",        "Einkaeufe"),
+        (date(2026, 2, 25),   55.00, "Kino & Bar",              "Freizeit"),
+        (date(2026, 2, 27),   34.90, "Spotify & Netflix",       "Freizeit"),
+        (date(2026, 2, 28),  155.00, "Strom & Nebenkosten",     "Sonstiges"),
+        # --- Maerz ---
+        (date(2026, 3,  1), 1650.00, "Miete Maerz",             "Miete"),
+        (date(2026, 3,  1),  290.00, "Krankenkasse",            "Versicherungen"),
+        (date(2026, 3,  1),   95.00, "OeV Monatsabo",           "Transport"),
+        (date(2026, 3,  6),  121.70, "Coop Einkauf",            "Einkaeufe"),
+        (date(2026, 3, 13),   83.40, "Migros Einkauf",          "Einkaeufe"),
+        (date(2026, 3, 15),   70.00, "Fitness Abo",             "Well-being"),
+        (date(2026, 3, 19),   98.20, "Migros Einkauf 2",        "Einkaeufe"),
+        (date(2026, 3, 22),  145.00, "Kleider Shopping H&M",    "Sonstiges"),
+        (date(2026, 3, 27),   72.50, "Restaurant mit Kollegen", "Freizeit"),
+        (date(2026, 3, 29),   34.90, "Spotify & Netflix",       "Freizeit"),
+        (date(2026, 3, 31),  160.00, "Strom & Nebenkosten",     "Sonstiges"),
+        # --- April ---
+        (date(2026, 4,  1), 1650.00, "Miete April",             "Miete"),
+        (date(2026, 4,  1),  290.00, "Krankenkasse",            "Versicherungen"),
+        (date(2026, 4,  1),   95.00, "OeV Monatsabo",           "Transport"),
+        (date(2026, 4,  4),  103.60, "Coop Einkauf",            "Einkaeufe"),
+        (date(2026, 4,  9),   88.90, "Migros Einkauf",          "Einkaeufe"),
+        (date(2026, 4, 13),   48.50, "Ostern Feier",            "Freizeit"),
+        (date(2026, 4, 17),   70.00, "Fitness Abo",             "Well-being"),
+        (date(2026, 4, 21),   99.70, "Migros Einkauf 2",        "Einkaeufe"),
+        (date(2026, 4, 24),   42.80, "Apotheke",                "Well-being"),
+        (date(2026, 4, 27),   34.90, "Spotify & Netflix",       "Freizeit"),
+        (date(2026, 4, 30),  155.00, "Strom & Nebenkosten",     "Sonstiges"),
+        # --- Mai (bis 11.05) ---
+        (date(2026, 5,  1), 1650.00, "Miete Mai",               "Miete"),
+        (date(2026, 5,  1),  290.00, "Krankenkasse",            "Versicherungen"),
+        (date(2026, 5,  1),   95.00, "OeV Monatsabo",           "Transport"),
+        (date(2026, 5,  7),  109.20, "Coop Einkauf",            "Einkaeufe"),
+        (date(2026, 5, 10),   81.50, "Migros Einkauf",          "Einkaeufe"),
+    ]
+    for exp_date, amount, note, cat_name in expense_data:
+        if session.exec(
+            select(Transaction).where(
+                Transaction.account_id == privat1.account_id,
+                Transaction.date == exp_date,
+                Transaction.amount == amount,
+                Transaction.note == note,
+            )
+        ).first() is None:
+            session.add(
+                Transaction(
+                    amount=amount,
+                    date=exp_date,
+                    type="expense",
+                    note=note,
+                    category_id=categories[cat_name].category_id,
+                    account_id=privat1.account_id,
+                )
+            )
+            privat1.balance -= amount
+    session.commit()
+
+
 def seed_database() -> None:
     """Fuehrt den kompletten Seeding-Prozess aus.
 
@@ -382,7 +524,8 @@ def seed_database() -> None:
         → seed_accounts_for_users(session, users)
         → seed_debit_cards_for_users(session, users)
         → seed_credit_cards_for_users(session, users)
-        → seed_monthly_income_for_users(session, users)
+        → seed_monthly_income_for_users(session, users)  [nur Hermann]
+        → seed_felix_income(session, felix)
 
     ALLE SCHRITTE SIND IDEMPOTENT: mehrfaches Ausfuehren erzeugt keine Duplikate.
     """
@@ -396,6 +539,8 @@ def seed_database() -> None:
         seed_debit_cards_for_users(session, users)
         seed_credit_cards_for_users(session, users)
         seed_monthly_income_for_users(session, users)
+        felix = next(u for u in users if u.contract_number == "BB-100002")
+        seed_felix_income(session, felix)
 
 
 # Wird ausgefuehrt wenn `python -m src.data_access.seed` aufgerufen wird.

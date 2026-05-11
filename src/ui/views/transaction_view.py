@@ -1,27 +1,75 @@
 """src.ui.views.transaction_view
 
-Transaktions-View (NiceGUI) als Sammelseite rund um Zahlungen und Bewegungen.
+Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
 
-Diese Datei gehoert zur **UI-View-Schicht**. Die View ist zustaendig fuer:
+=== WAS KANN DER USER AUF DIESER SEITE TUN? ===
+    Tab 1 – Neue Inlandszahlung (US10):
+        Externe Zahlung ausfuehren:
+        Ziel-IBAN + Betrag + Von-Konto + Kategorie + Zweck + Datum.
+        → Erstellt EINE Ausgabe-Transaktion + EINEN Payment-Datensatz in der DB.
 
-- Rendern von Tabs und Formularen
-- Einlesen von Nutzereingaben
-- Aufruf von Controllern (die wiederum Services nutzen)
-- Anzeigen von Fehlern/Success-Meldungen in der UI
+    Tab 2 – Daueraufträge (US6):
+        - Bestehende Dauerauftraege anzeigen (inkl. naechste Ausfuehrung)
+        - Bearbeiten (Betrag, Kategorie, Konto, Intervall, Ziel-IBAN)
+        - Loeschen (mit Bestaetigung)
+        - Neuen Dauerauftrag erstellen (Betrag, IBAN, Intervall, Startdatum)
 
-Die Transaktions-View deckt u.a. folgende Use-Cases ab:
+    Tab 3 – Übertrag (Kontoumbuchung):
+        Geld zwischen eigenen Konten umbuchen.
+        → Erstellt ZWEI Transaktionen: eine Ausgabe (Von-Konto) + eine
+          Einnahme (Zu-Konto). Beide werden als "Kontoumbuchung" markiert und
+          im Dashboard NICHT gezaehlt.
 
-- Inlandszahlung: Externe Zahlung (Ausgabe-Transaktion + Payment-Daten)
-- Bewegungen: gebuchte (bis heute) und geplante (ab morgen) Zahlungen
-- Dauerauftraege: anlegen, anzeigen, bearbeiten, loeschen
-- Uebertrag: Umbuchung zwischen eigenen Konten
-- Kontoauszug: PDF-Auszug fuer ein Konto und einen Zeitraum
+=== WAS DIESE VIEW NICHT TUT ===
+Sie enthaelt KEINE fachlichen Regeln. Alle Regeln liegen in den Services:
+    - "Betrag darf Kontostand nicht uebersteigen" → TransactionService
+    - "Genau eine Belastungsquelle" → validate_exactly_one_source()
+    - "Naechste Ausfuehrungs-Datum berechnen" → RecurringService._next_due_date()
 
-Wichtige Zusammenarbeit:
+=== AUFRUF-KETTE: INLANDSZAHLUNG ===
+    User klickt "Zahlung ausführen"
+    → handle_create_payment()                    [diese View]
+    → payment_controller.create_payment(payload) [PaymentController]
+    → PaymentService.create_payment(payload)     [Validierung + Transaktion anlegen]
+    → TransactionService.create_transaction(...)  [Saldo aendern]
+    → TransactionRepository.create()             [DB INSERT]
+    → None bei Erfolg, String bei Fehler
 
-- Controller kapseln Service-Aufrufe und geben Fehler meist als String zurueck.
-- Fachlogik (Validierungen, Salden, etc.) liegt in den Services.
-- `app_state` steuert den Login-Guard fuer geschuetzte Seiten.
+=== AUFRUF-KETTE: DAUERAUFTRAG ERSTELLEN ===
+    User klickt "Dauerauftrag erstellen"
+    → handle_create_recurring()                        [diese View]
+    → recurring_controller.create_recurring(payload)   [RecurringController]
+    → RecurringService.create_recurring(payload)       [_previous_due_date berechnen]
+    → RecurringRepository.create()                     [DB INSERT]
+    → None bei Erfolg, String bei Fehler
+
+=== AUFRUF-KETTE: KONTOUMBUCHUNG ===
+    User klickt "Umbuchen"
+    → handle_transfer()                              [diese View]
+    → payment_controller.create_transfer(payload)    [PaymentController]
+    → PaymentService.create_transfer(payload)        [2 Transaktionen anlegen]
+    → TransactionService.create_transaction(...)     [je einmal fuer Von/Zu-Konto]
+    → TransactionRepository.create() x2             [2x DB INSERT]
+    → None bei Erfolg, String bei Fehler
+
+=== NAECHSTE AUSFUEHRUNG FUER DAUERAUFTRAEGE ===
+    In der Tabelle wird die naechste Ausfuehrung angezeigt:
+    → recurring_controller.get_next_execution_date(last_executed, interval)
+    → RecurringService._next_due_date(last_executed, interval)
+    Falls die naechste Ausfuehrung bereits "heute oder frueher" ist (z.B. weil
+    der Auftrag heute beim Login schon ausgefuehrt wurde), wird die uebernachste
+    berechnet, damit die Anzeige nicht wie "ueberfaellig" wirkt.
+
+=== LOGIN-GUARD ===
+    if app_state.get("current_user") is None:
+        ui.navigate.to("/")    # kein User eingeloggt → zurueck zum Login
+        return
+
+=== ARCHITEKTUR-KETTE ===
+    Route "/transactions" → show()
+    → Tab 1: _build_domestic_payment_form() → payment_controller
+    → Tab 2: _build_recurring_payments_section() → recurring_controller
+    → Tab 3: _build_transfer_form() → payment_controller
 
 Route: `/transactions`
 """
@@ -521,185 +569,6 @@ ausreichender Kontostand, etc.).
 		ui.button("Umbuchen", on_click=handle_transfer).classes("w-full")
 
 
-def _build_transaction_list(user_id: int) -> None:
-	"""Rendert eine Transaktionsliste mit Filtern (Datum, Kategorie).
-
-	Die Tabelle bietet Aktionen zum Bearbeiten und Loeschen einzelner
-	Transaktionen.
-
-	Args:
-		user_id: ID des eingeloggten Users.
-	"""
-	from nicegui import ui
-	from src.ui.controllers.category_controller import category_controller
-
-	category_options = category_controller.list_categories()
-
-	with ui.card().classes("w-full"):
-
-		# Filter-Bereich
-		with ui.row().classes("gap-4 mb-4"):
-			start_date_picker = ui.date(value=(date.today() - timedelta(days=30)).isoformat()).props("outlined first-day-of-week=1")
-			start_date_picker.label = "Von"
-
-			end_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
-			end_date_picker.label = "Bis"
-
-			category_filter = ui.select(
-				options={None: "Alle Kategorien", **category_options},
-				value=None,
-				label="Kategorie",
-			).props("outlined")
-			ui.button("Filter anwenden", on_click=lambda: _refresh_transaction_list(
-				user_id,
-				start_date_picker,
-				end_date_picker,
-				category_filter,
-				transactions_table,
-			))
-		# Transaktionsliste (Tabelle)
-		transactions_table = ui.table(columns=[
-			{"name": "date", "label": "Datum", "field": "date", "align": "left"},
-			{"name": "type", "label": "Typ", "field": "type", "align": "left"},
-			{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
-			{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
-			{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
-			{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-		], rows=[]).props("dense")
-		transactions_table.classes("w-full")
-
-		# Button-Slot für Aktionen
-		transactions_table.add_slot("body-cell-actions", """
-			<q-td :props="props">
-				<q-btn label="Ändern" color="primary" size="sm" flat
-					@click="$parent.$emit('edit_transaction', props.row)" />
-				<q-btn label="Löschen" color="negative" size="sm" flat
-					@click="$parent.$emit('delete_transaction', props.row)" />
-			</q-td>
-		""")
-
-		# Löschen mit Bestätigung (FR-FIN-05)
-		def handle_delete(e) -> None:
-			"""Event-Handler: bestaetigt und loescht eine Transaktion."""
-			row = e.args
-			transaction_id = row.get("transaction_id")
-
-			with ui.dialog() as confirm_dialog, ui.card():
-				ui.label("Transaktion wirklich löschen?").classes("text-subtitle1 font-semibold")
-				# Hinweis: Das Euro-Zeichen stammt aus einer frueheren Version; die App nutzt
-				# in der Regel CHF. (Nur Anzeige, keine fachliche Logik.)
-				ui.label(f"Datum: {row.get('date')}  |  Betrag: {row.get('amount')} €").classes("text-gray-600")
-				with ui.row().classes("gap-4 mt-4"):
-					ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
-					def do_delete(tid=transaction_id):
-						error = transaction_controller.delete_transaction(tid, confirm=True)
-						confirm_dialog.close()
-						if error:
-							ui.notify(error, type="negative")
-						else:
-							ui.notify("Transaktion gelöscht", type="positive")
-							_refresh_transaction_list(user_id, start_date_picker, end_date_picker, category_filter, transactions_table)
-					ui.button("Löschen", on_click=do_delete).props("color=negative unelevated")
-			confirm_dialog.open()
-
-		transactions_table.on("delete_transaction", handle_delete)
-
-		# Bearbeiten-Dialog (FR-FIN-05)
-		def handle_edit(e) -> None:
-			"""Event-Handler: oeffnet Dialog zum Bearbeiten einer Transaktion."""
-			row = e.args
-			transaction_id = row.get("transaction_id")
-
-			with ui.dialog() as edit_dialog, ui.card().classes("w-96"):
-				ui.label("Transaktion bearbeiten").classes("text-subtitle1 font-semibold mb-4")
-
-				# Hinweis: Das Label "€" ist hier ein Ueberbleibsel aus einer frueheren Version.
-				# Die App arbeitet durchgehend mit CHF — diese Anzeige ist nur ein Label-Fehler
-				# und hat keinen Einfluss auf die gespeicherten Daten.
-				amount_edit = ui.number(label="Betrag (€)", value=float(row.get("amount", "0").replace(",", "").replace(".", ".")), min=0.01, step=0.01).props("outlined")
-				amount_edit.classes("w-full mb-4")
-
-				note_edit = ui.textarea(label="Notiz", value=row.get("note") if row.get("note") != "-" else "").props("outlined")
-				note_edit.classes("w-full mb-4")
-
-				with ui.row().classes("gap-4"):
-					ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
-					def do_edit(tid=transaction_id):
-						payload = {
-							"amount": amount_edit.value or 0,
-							"note": note_edit.value,
-						}
-						error = transaction_controller.edit_transaction(tid, payload)
-						edit_dialog.close()
-						if error:
-							ui.notify(error, type="negative")
-						else:
-							ui.notify("Transaktion gespeichert", type="positive")
-							_refresh_transaction_list(user_id, start_date_picker, end_date_picker, category_filter, transactions_table)
-					ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
-			edit_dialog.open()
-
-		transactions_table.on("edit_transaction", handle_edit)
-
-		# Initiales Laden
-		_refresh_transaction_list(user_id, start_date_picker, end_date_picker, category_filter, transactions_table)
-
-
-def _refresh_transaction_list(
-	user_id: int,
-	start_date_picker,
-	end_date_picker,
-	category_filter,
-	transactions_table=None,
-) -> None:
-	"""Laedt Transaktionsliste neu und aktualisiert die Tabelle.
-
-	Args:
-		user_id: ID des eingeloggten Users.
-		start_date_picker: NiceGUI-Datepicker; ISO-Datum in `.value`.
-		end_date_picker: NiceGUI-Datepicker; ISO-Datum in `.value`.
-		category_filter: Select-Element; `None` bedeutet "alle Kategorien".
-		transactions_table: Tabelle, deren `rows` neu gesetzt werden.
-
-	Raises:
-		ValueError: Wenn einer der Datepicker keinen gueltigen ISO-Datumsstring enthaelt.
-	"""
-	from nicegui import ui
-	from src.ui.controllers.category_controller import category_controller
-
-	start_date = date.fromisoformat(start_date_picker.value)
-	end_date = date.fromisoformat(end_date_picker.value)
-	category_id = category_filter.value if category_filter.value is not None else None
-
-	# Controller liefert serialisierbare Dicts (Datum/Typ bereits formatiert).
-	result = transaction_controller.filter_transactions(
-		start_date=start_date,
-		end_date=end_date,
-		category_id=category_id,
-		user_id=user_id,
-	)
-
-	if isinstance(result, str):
-		ui.notify(result, type="negative")
-		return
-
-	category_names = category_controller.list_categories()
-
-	# Transaktionen in Tabellenformat konvertieren.
-	rows = []
-	for txn in result:
-		category_name = category_names.get(txn['category_id'], f"ID {txn['category_id']}")
-		rows.append({
-			"transaction_id": txn["transaction_id"],
-			"date": str(txn["date"]).replace("-", "."),
-			"type": txn["type"],
-			"amount": f"{txn['amount']:,.2f}",
-			"category": category_name,
-			"note": txn["note"] or "-",
-		})
-
-	if transactions_table:
-		transactions_table.rows = rows
 def _build_sidebar() -> None:
 	"""Baut die Navigation (Sidebar) fuer die Transaktions-View."""
 	from nicegui import ui

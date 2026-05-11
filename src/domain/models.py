@@ -1,10 +1,100 @@
-"""Domänenmodelle (Domain-Schicht) der BetterBank-Anwendung.
+"""src.domain.models
 
-Dieses Modul definiert die zentralen Datenstrukturen der App: einerseits echte
-SQLModel-Tabellen (jede Instanz entspricht einer Datenbankzeile) und andererseits
-DTOs ("Data Transfer Objects" = einfache Transport-Objekte) für das Dashboard.
-Die Models werden von Repositories (DB-Zugriff) und Services (Fachlogik) genutzt
-und sind die gemeinsame "Sprache" zwischen allen Schichten.
+Dieses Modul gehoert zur **Domain-Schicht** der BetterBank-Anwendung.
+
+=== WAS MACHT DIESE DATEI? ===
+Sie definiert alle zentralen Datenstrukturen der App in zwei Kategorien:
+
+    1. DATENBANKTABELLEN (table=True):
+       Jede Python-Klasse mit `table=True` entspricht genau einer Tabelle in der
+       SQLite-Datenbank `betterbank.db`. Eine Instanz der Klasse = eine Zeile in
+       der Tabelle.
+
+    2. DTOs (table=False):
+       "Data Transfer Objects" = einfache Python-Objekte, die NUR zum Transport
+       von Daten zwischen Schichten dienen. Sie werden NICHT in der Datenbank
+       gespeichert. Beispiel: `ChartData` und `DashboardSummary` werden vom
+       `DashboardService` berechnet und an die View weitergegeben.
+
+=== WAS IST SQLMODEL? ===
+SQLModel verbindet zwei Python-Bibliotheken:
+    - SQLAlchemy: kommuniziert mit der Datenbank (SQL-Abfragen)
+    - Pydantic: validiert Python-Typen (int, str, float, Optional[...])
+
+Das Ergebnis: Man schreibt eine Python-Klasse, und SQLModel erstellt daraus
+automatisch eine Datenbanktabelle + Python-Objekte zum Arbeiten.
+
+=== ENTITY-RELATIONSHIP-UEBERSICHT ===
+Welche Modelle haengen zusammen? (vereinfacht)
+
+    User (1) ─────────────────────────── Account (n)
+                  user_id FK                     │
+                                                 ├── DebitCard (n) via account_id FK
+                                                 ├── Transaction (n) via account_id FK
+                                                 ├── RecurringTransaction (n) via account_id FK
+                                                 ├── Transfer "Ausgang" (n) via from_account_id FK
+                                                 └── Transfer "Eingang" (n) via to_account_id FK
+
+    User (1) ─────────────────────────── CreditCard (n) via user_id FK
+                                                 └── Transaction (n) via creditcard_id FK
+
+    User (1) ─────────────────────────── Budget (n) via user_id FK
+
+    Category (1) ─────────────────────── Transaction (n) via category_id FK
+    Category (1) ─────────────────────── Budget (n) via category_id FK
+    Category (1) ─────────────────────── RecurringTransaction (n) via category_id FK
+
+    Transaction (1) ──────────────────── Transfer (0..1) via transaction_id FK
+    Transaction (1) ──────────────────── Payment (0..1) via transaction_id FK
+    Transaction (1) ──────────────────── RecurringTransaction (0..1) via transaction_id FK
+
+    DebitCard (1) ────────────────────── Transaction (n) via card_id FK
+
+=== WARUM `Optional[int]` FUER PRIMARY KEYS? ===
+    user_id: Optional[int] = Field(default=None, primary_key=True)
+
+    Beim Erstellen eines Objekts in Python (User(...)) ist die ID noch nicht
+    bekannt. Die Datenbank vergibt die ID erst nach `session.commit()`.
+    Darum ist sie zu Beginn `None` und wird erst nach `session.refresh(obj)`
+    gelesen (so laden wir die neue ID aus der DB nach).
+
+=== WAS SIND `Relationship`-FELDER? ===
+Relationship-Felder sind KEINE echten Datenbankspalten. Sie sagen SQLModel:
+"Falls ich die verwandten Objekte brauche, wie lade ich sie aus der DB?"
+
+    user.accounts    → Laedt alle Account-Objekte, die `user_id == user.user_id` haben
+    account.user     → Laedt den User, zu dem dieses Konto gehoert
+
+    back_populates="..." verbindet das Relationship beidseitig:
+    user.accounts[0].user → ist dasselbe user-Objekt (kein doppelter DB-Aufruf).
+
+=== WARUM `sa_relationship_kwargs` BEI MEHRFACH-REFERENZEN? ===
+Wenn eine Tabelle ZWEI Foreign Keys auf dieselbe andere Tabelle hat
+(Beispiel: Transfer hat `from_account_id` UND `to_account_id`, beide auf `accounts`),
+muss man SQLModel sagen, welcher FK fuer welches Relationship gilt:
+
+    outgoing_transfers: Relationship(..., foreign_keys="[Transfer.from_account_id]")
+    incoming_transfers: Relationship(..., foreign_keys="[Transfer.to_account_id]")
+
+Ohne diese Angabe wuesste SQLModel nicht, welchen FK es nehmen soll.
+
+=== TRANSACTION-QUELLE: EXACTLY-ONE-REGEL ===
+Eine Transaktion kann von drei verschiedenen Quellen stammen:
+    - account_id     → direkte Kontozahlung
+    - card_id        → Debitkartenzahlung
+    - creditcard_id  → Kreditkartenzahlung
+
+Die Regel "Genau eine Quelle" wird in `src/utils/validators.py` geprueft
+(`validate_exactly_one_source`). Im Model sind alle drei Optional, weil nur
+eine davon gesetzt wird.
+
+=== ARCHITEKTUR-KETTE ===
+    domain/models.py ← wird importiert von:
+    → Repositories (data_access/repositories/*.py): lesen/schreiben Tabellen
+    → Services (services/*.py): arbeiten mit Objekten
+    → Views (ui/views/*.py): zeigen Daten an (lesen nur, schreiben nie direkt)
+    → seed.py: legt Demo-Daten an
+    → db.py: SQLModel.metadata.create_all() liest alle Klassen aus diesem Modul
 """
 
 from datetime import date
@@ -75,22 +165,6 @@ class User(SQLModel, table=True):
 	accounts: list["Account"] = Relationship(back_populates="user")
 	credit_cards: list["CreditCard"] = Relationship(back_populates="user")
 	budgets: list["Budget"] = Relationship(back_populates="user")
-
-	
-	def login(self, password: str) -> bool:
-		"""(Legacy/Platzhalter) Prueft Login-Daten direkt am Model.
-
-		In einer sauberen Architektur liegt Authentifizierung in der Service-Schicht
-		(z.B. `AuthService`). Diese Methode ist hier nur als sehr einfacher
-		Platzhalter vorhanden.
-
-		Args:
-			password: Passwort-Eingabe.
-
-		Returns:
-			`True`/`False` je nachdem, ob die Pruefung erfolgreich ist.
-		"""
-		return bool(password) and self.password_hash == password
 
 
 # Speichert Bankkonten (z.B. Privatkonto oder Sparkonto)
@@ -269,31 +343,6 @@ class Transaction(SQLModel, table=True):
 		back_populates="transaction"
 	)
 
-	def create(self) -> None:
-		"""(Platzhalter) Erstellung passiert in der Service-/Repository-Schicht.
-
-		Warum ist das hier leer?
-		- SQLModel-Modelle sind hauptsaechlich Datenstrukturen.
-		- Die App erzeugt/validiert Transaktionen zentral im Service (z.B.
-		  `TransactionService.create_transaction`).
-		"""
-		return None
-
-	def edit(self) -> None:
-		"""(Platzhalter) Bearbeitung passiert in der Service-/Repository-Schicht."""
-		return None
-
-	def filter(self) -> None:
-		"""(Platzhalter) Filtern passiert ueber Repository-Queries.
-
-		In der App wird gefiltert, indem Repositories SQL-Queries bauen (z.B.
-		`TransactionRepository.filter_transactions`).
-		"""
-		return None
-
-	def delete(self) -> None:
-		"""(Platzhalter) Loeschen passiert in der Service-/Repository-Schicht."""
-		return None
 
 
 # Speichert Umbuchungs-spezifische Felder und verweist auf eine Basis-Transaktion
@@ -371,13 +420,6 @@ class Budget(SQLModel, table=True):
 	user: "User" = Relationship(back_populates="budgets")
 	category: Optional["Category"] = Relationship(back_populates="budgets")
 
-	def isexceeded(self) -> bool:
-		"""(Platzhalter) Ob ein Budget ueberschritten ist, wird im Service berechnet.
-
-		Der Budgetverbrauch haengt von Transaktionen im Zeitraum ab und wird daher
-		im `BudgetService`/`DashboardService` berechnet, nicht im Datenmodell.
-		"""
-		return False
 
 
 # Speichert Dauerauftraege (wiederkehrende Zahlungen) und verknuepft sie mit einer Basis-Transaktion

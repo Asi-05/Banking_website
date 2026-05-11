@@ -1,22 +1,69 @@
 """src.ui.views.account_view
 
-Account-View (NiceGUI) fuer Konto-Uebersicht und Kontoeroeffnung.
+Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
 
-Diese Datei gehoert zur **UI-View-Schicht**. Sie ist zustaendig fuer die
-Darstellung und fuer das Ausloesen von Aktionen ueber Controller.
+=== WAS KANN DER USER AUF DIESER SEITE TUN? ===
+    Tab 1 – Konten-Übersicht:
+        Alle eigenen Konten anzeigen (aktiv und geschlossen).
+        Aktive Konten koennen geschlossen werden (wenn Saldo = 0).
 
-Funktionen der Seite:
-- Konten anzeigen (aktive vs. geschlossene Konten)
-- Neues Konto eroeffnen (Privat/Spar)
-- Konto schliessen (fachliche Regeln liegen im Service)
+    Tab 2 – Konto eröffnen:
+        Neues Privat- oder Sparkonto eroeffnen.
+        Die App generiert automatisch eine Schweizer IBAN.
 
-Login-Guard:
-	Die Seite ist geschuetzt und nutzt `app_state`, um zu pruefen, ob ein User
-	eingeloggt ist.
+    Tab 3 – Bewegungen:
+        Gebuchte Zahlungen (bis heute) und geplante Zahlungen (ab morgen)
+        anzeigen, mit Filter nach Zeitraum und Kategorie.
+        Geplante Zahlungen koennen bearbeitet oder storniert werden.
 
-Wichtig:
-	Alle fachlichen Regeln (z.B. "nur schliessen wenn Saldo = 0") liegen im
-	`AccountService` und werden ueber den `AccountController` aufgerufen.
+    Tab 4 – Kontoauszug:
+        PDF-Kontoauszug fuer ein Konto und einen Zeitraum herunterladen.
+
+=== WAS DIESE VIEW NICHT TUT ===
+Sie enthaelt KEINE fachlichen Regeln. Alle Regeln liegen im `AccountService`:
+    - "Konto nur schliessen wenn Saldo 0" → AccountService.close_account()
+    - "IBAN-Generierung (100 Versuche)" → AccountService._generate_iban()
+
+=== AUFRUF-KETTE: KONTO EROEFFNEN ===
+    User klickt "Konto eröffnen"
+    → handle_open_account()                      [diese View]
+    → account_controller.open_account(payload)   [AccountController]
+    → AccountService.open_account(payload)        [AccountService]
+    → AccountRepository.create(account)           [Repository → DB INSERT]
+    → None bei Erfolg, String bei Fehler
+
+=== AUFRUF-KETTE: KONTO SCHLIESSEN ===
+    User klickt "Schliessen" in Tabelle
+    → handle_close_active(e)                     [diese View]
+    → account_controller.close_account(account_id)
+    → AccountService.close_account(account_id)
+    → Pruefung: balance == 0.0? → AccountRepository.update()
+
+=== AUFRUF-KETTE: KONTOAUSZUG ===
+    User klickt "Kontoauszug generieren"
+    → handle_generate_statement()                [diese View]
+    → payment_controller.generate_statement(...)
+    → PaymentService.generate_statement(...)     [erstellt PDF-Datei]
+    → Rueckgabe: Pfad zur PDF → ui.download(pfad)
+
+=== AUFRUF-KETTE: BEWEGUNGEN (GEBUCHTE ZAHLUNGEN) ===
+    _refresh_booked(user_id, start_picker, cat_filter, table)
+    → transaction_controller.filter_transactions(start_date, today, category_id, user_id)
+    → TransactionService.filter_transactions(...)
+    → TransactionRepository.filter_transactions(...) [DB SELECT mit JOINs]
+    → Liste von Transaction-Dicts → Tabelle befuellen
+
+=== LOGIN-GUARD ===
+    if app_state.get("current_user") is None:
+        ui.navigate.to("/")    # kein User eingeloggt → zurueck zum Login
+        return
+
+=== ARCHITEKTUR-KETTE ===
+    Route "/accounts" → show()
+    → Tab 1: _build_account_list() → account_controller
+    → Tab 2: _build_open_account_form() → account_controller
+    → Tab 3: _build_bewegungen_section() → transaction_controller
+    → Tab 4: _build_statement_section() → payment_controller
 
 Route: `/accounts`
 """

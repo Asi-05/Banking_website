@@ -277,6 +277,8 @@ def _build_budget_list(user_id: int) -> None:
 		ui.label("Aktive Budgets").classes("text-subtitle1 font-semibold mb-2")
 		active_table = ui.table(columns=COLUMNS, rows=[]).props("dense")
 		active_table.classes("w-full")
+		with active_table.add_slot("no-data"):
+			ui.label("Kein aktives Budget vorhanden").classes("text-gray-500 italic")
 		active_table.add_slot("body-cell-actions", ACTION_SLOT)
 
 		def handle_edit_active(e) -> None:
@@ -301,6 +303,8 @@ def _build_budget_list(user_id: int) -> None:
 		ui.label("Abgelaufene Budgets").classes("text-subtitle1 font-semibold mb-2")
 		expired_table = ui.table(columns=EXPIRED_COLUMNS, rows=[]).props("dense")
 		expired_table.classes("w-full")
+		with expired_table.add_slot("no-data"):
+			ui.label("Kein abgelaufenes Budget vorhanden").classes("text-gray-500 italic")
 		expired_table.add_slot("body-cell-actions", EXPIRED_ACTION_SLOT)
 		def handle_delete_expired(e) -> None:
 			"""Oeffnet den Delete-Dialog fuer ein abgelaufenes Budget.

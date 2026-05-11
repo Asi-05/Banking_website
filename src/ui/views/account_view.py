@@ -12,9 +12,10 @@ Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
         Die App generiert automatisch eine Schweizer IBAN.
 
     Tab 3 – Bewegungen:
-        Gebuchte Zahlungen (bis heute) und geplante Zahlungen (ab morgen)
-        anzeigen, mit Filter nach Zeitraum und Kategorie.
-        Geplante Zahlungen koennen bearbeitet oder storniert werden.
+        Konto auswaehlen, Transaktionen des aktuellen Monats anzeigen.
+        Filter: Monat, Jahr, Kategorie (eingeklappt unter "Suchoptionen").
+        Sub-Tab "Geplante Zahlungen": zukuenftige Zahlungen anzeigen,
+        bearbeiten und stornieren.
 
     Tab 4 – Kontoauszug:
         PDF-Kontoauszug fuer ein Konto und einen Zeitraum herunterladen.
@@ -46,12 +47,37 @@ Sie enthaelt KEINE fachlichen Regeln. Alle Regeln liegen im `AccountService`:
     → PaymentService.generate_statement(...)     [erstellt PDF-Datei]
     → Rueckgabe: Pfad zur PDF → ui.download(pfad)
 
-=== AUFRUF-KETTE: BEWEGUNGEN (GEBUCHTE ZAHLUNGEN) ===
-    _refresh_booked(user_id, start_picker, cat_filter, table)
-    → transaction_controller.filter_transactions(start_date, today, category_id, user_id)
+=== AUFRUF-KETTE: BEWEGUNGEN (MONATSANSICHT) ===
+    User oeffnet Tab "Bewegungen" oder klickt "Anwenden"
+    → _refresh_bewegungen(user_id, account_id, month, year, category_id, table)
+    → transaction_controller.filter_transactions(start_date, end_date, category_id, user_id)
     → TransactionService.filter_transactions(...)
     → TransactionRepository.filter_transactions(...) [DB SELECT mit JOINs]
-    → Liste von Transaction-Dicts → Tabelle befuellen
+    → Liste von Transaction-Dicts → clientseitig nach account_id gefiltert → Tabelle befuellen
+
+    Standard beim Laden: aktueller Monat, erstes Konto des Users, keine Kategorie-Einschraenkung.
+    Die Datumsberechnung (erster/letzter Tag des Monats) passiert in _refresh_bewegungen
+    mit Pythons eingebautem `calendar.monthrange`.
+
+=== AUFRUF-KETTE: GEPLANTE ZAHLUNGEN ===
+    User oeffnet Sub-Tab "Geplante Zahlungen" oder klickt "Aktualisieren"
+    → _refresh_planned(user_id, account_id, cat_filter, table)
+    → transaction_controller.filter_transactions(morgen, 2099-12-31, category_id, user_id)
+    → TransactionService.filter_transactions(...)
+    → TransactionRepository.filter_transactions(...) [DB SELECT mit JOINs]
+    → Liste von Transaction-Dicts → clientseitig nach account_id gefiltert → Tabelle befuellen
+
+    User klickt "Ändern" in Zeile
+    → handle_edit_planned(e)                        [diese View, Dialog oeffnen]
+    → transaction_controller.edit_transaction(id, payload)
+    → TransactionService.edit_transaction(...)
+    → TransactionRepository.update()               [DB UPDATE]
+
+    User klickt "Stornieren" in Zeile
+    → handle_delete_planned(e)                      [diese View, Bestaetigung]
+    → transaction_controller.delete_transaction(id, confirm=True)
+    → TransactionService.delete_transaction(...)
+    → TransactionRepository.delete()               [DB DELETE]
 
 === LOGIN-GUARD ===
     if app_state.get("current_user") is None:
@@ -352,45 +378,99 @@ gueltige Typen) passiert im Service.
 
 
 def _build_bewegungen_section(user_id: int) -> None:
-	"""Rendert den Tab "Bewegungen" (gebucht vs. geplant).
+	"""Rendert den Tab "Bewegungen" mit Kontoauswahl, Monatsfilter und Geplanten Zahlungen.
 
-	Gebucht: alle Transaktionen bis einschliesslich heute.
-	Geplant: alle Transaktionen ab morgen (z.B. vorgeplante Zahlungen).
+	Der Tab besteht aus drei Teilen:
+
+	1. Konto-Dropdown (ganz oben, gilt fuer beide Sub-Tabs):
+	   Der User waehlt hier, fuer welches seiner Konten er die Transaktionen
+	   sehen moechte. Standard ist das erste Konto in der Liste.
+
+	2. Sub-Tab "Bewegungen":
+	   Zeigt alle Transaktionen des gewaehlten Kontos fuer einen bestimmten Monat.
+	   Unter "Suchoptionen" (eingeklappt) kann der User Monat, Jahr und Kategorie
+	   anpassen und dann auf "Anwenden" klicken. Standard beim Oeffnen: aktueller Monat.
+
+	3. Sub-Tab "Geplante Zahlungen":
+	   Zeigt Transaktionen mit einem Datum in der Zukunft (ab morgen).
+	   Der User kann diese bearbeiten (Betrag, Notiz) oder stornieren (loeschen).
+
+	AUFRUF-KETTE (vereinfacht):
+	    show() → _build_bewegungen_section(user_id)
+	    → Konto-Dropdown: account_controller.list_accounts(user_id)
+	    → Tabelle befuellen: _refresh_bewegungen(...) bzw. _refresh_planned(...)
+
+	Args:
+	    user_id: ID des eingeloggten Users. Wird benoetigt, um seine Konten und
+	             seine Transaktionen aus der Datenbank zu laden.
 	"""
 	from nicegui import ui
+	import calendar as cal_module
 	from src.ui.controllers.category_controller import category_controller
 
 	category_options = category_controller.list_categories()
 
+	# Konten laden für Auswahl
+	accounts_result = account_controller.list_accounts(user_id)
+	if isinstance(accounts_result, str) or not accounts_result:
+		account_options = {}
+	else:
+		account_options = {}
+		for a in accounts_result:
+			aid = a.account_id if hasattr(a, "account_id") else a.get("account_id")
+			atype = (a.account_type if hasattr(a, "account_type") else a.get("account_type") or "").capitalize()
+			aiban = ((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
+			account_options[aid] = f"{atype} · {aiban}"
+
+	first_account_id = next(iter(account_options), None)
+
+	# Konto-Auswahl (gilt für beide Sub-Tabs)
+	with ui.card().classes("w-full"):
+		account_select = ui.select(
+			options=account_options,
+			value=first_account_id,
+			label="Konto",
+		).props("outlined").classes("w-full")
+
+	MONTH_NAMES = {
+		1: "Januar", 2: "Februar", 3: "März", 4: "April",
+		5: "Mai", 6: "Juni", 7: "Juli", 8: "August",
+		9: "September", 10: "Oktober", 11: "November", 12: "Dezember",
+	}
+	current_year = date.today().year
+	current_month = date.today().month
+	year_options = {y: str(y) for y in range(current_year - 2, current_year + 1)}
+
 	with ui.tabs() as sub_tabs:
-		tab_booked = ui.tab("Gebuchte Zahlungen")
+		tab_booked = ui.tab("Bewegungen")
 		tab_planned = ui.tab("Geplante Zahlungen")
 
-	with ui.tab_panels(sub_tabs, value=tab_booked):
+	with ui.tab_panels(sub_tabs, value=tab_booked).classes("w-full"):
 
-		# ===== GEBUCHTE ZAHLUNGEN (date <= today, mit Von/Bis Filter) =====
+		# ===== TAB: BEWEGUNGEN =====
 		with ui.tab_panel(tab_booked):
-			with ui.card().classes("w-full"):
-				with ui.row().classes("gap-4 mb-4 items-end"):
-					booked_start = ui.date(value=(date.today() - timedelta(days=30)).isoformat()).props("outlined first-day-of-week=1")
-					booked_start.label = "Von"
-
-					with ui.column().classes("gap-1"):
-						ui.label("Bis").classes("text-sm text-gray-500")
-						# Designentscheidung: Enddatum ist fix "heute" und nicht editierbar.
-						# Das vermeidet Missverstaendnisse bei "gebucht": gebuchte Zahlungen
-						# sind per Definition nicht in der Zukunft.
-						ui.label(date.today().strftime("%d.%m.%Y")).classes(
-							"text-body1 font-semibold text-gray-700 px-2 py-1 bg-gray-100 rounded"
-						)
-					booked_cat_filter = ui.select(
+			with ui.expansion("Suchoptionen", icon="search").classes("w-full rounded-lg mb-2").props("dense"):
+				with ui.row().classes("gap-4 items-end flex-wrap p-2"):
+					month_select = ui.select(
+						options=MONTH_NAMES,
+						value=current_month,
+						label="Monat",
+					).props("outlined").classes("min-w-36")
+					year_select = ui.select(
+						options=year_options,
+						value=current_year,
+						label="Jahr",
+					).props("outlined").classes("min-w-24")
+					cat_select = ui.select(
 						options={None: "Alle Kategorien", **category_options},
-						value=None, label="Kategorie",
-					).props("outlined")
-					ui.button("Filter anwenden", on_click=lambda: _refresh_booked(
-						user_id, booked_start, booked_cat_filter, booked_table
-					)).props("unelevated color=primary size=sm")
+						value=None,
+						label="Kategorie",
+					).props("outlined").classes("min-w-40")
+					ui.button("Anwenden", on_click=lambda: _refresh_bewegungen(
+						user_id, account_select.value, month_select.value, year_select.value, cat_select.value, booked_table
+					)).props("unelevated color=primary")
 
+			with ui.card().classes("w-full"):
 				booked_table = ui.table(columns=[
 					{"name": "date", "label": "Datum", "field": "date", "align": "left"},
 					{"name": "type", "label": "Typ", "field": "type", "align": "left"},
@@ -399,10 +479,12 @@ def _build_bewegungen_section(user_id: int) -> None:
 					{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
 				], rows=[]).props("dense")
 				booked_table.classes("w-full")
+				with booked_table.add_slot("no-data"):
+					ui.label("Keine Transaktionen vorhanden").classes("text-gray-500 italic")
 
-				_refresh_booked(user_id, booked_start, booked_cat_filter, booked_table)
+			_refresh_bewegungen(user_id, first_account_id, current_month, current_year, None, booked_table)
 
-		# ===== GEPLANTE ZAHLUNGEN (date > heute, automatisch ab morgen) =====
+		# ===== TAB: GEPLANTE ZAHLUNGEN =====
 		with ui.tab_panel(tab_planned):
 			with ui.card().classes("w-full"):
 				with ui.row().classes("gap-4 mb-4"):
@@ -411,7 +493,7 @@ def _build_bewegungen_section(user_id: int) -> None:
 						value=None, label="Kategorie",
 					).props("outlined")
 					ui.button("Aktualisieren", on_click=lambda: _refresh_planned(
-						user_id, planned_cat_filter, planned_table
+						user_id, account_select.value, planned_cat_filter, planned_table
 					)).props("flat size=sm")
 
 				planned_table = ui.table(columns=[
@@ -423,6 +505,8 @@ def _build_bewegungen_section(user_id: int) -> None:
 					{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 				], rows=[]).props("dense")
 				planned_table.classes("w-full")
+				with planned_table.add_slot("no-data"):
+					ui.label("Keine geplanten Zahlungen vorhanden").classes("text-gray-500 italic")
 
 				planned_table.add_slot("body-cell-actions", """
 					<q-td :props="props">
@@ -459,7 +543,7 @@ def _build_bewegungen_section(user_id: int) -> None:
 									ui.notify(error, type="negative")
 								else:
 									ui.notify("Gespeichert", type="positive")
-									_refresh_planned(user_id, planned_cat_filter, planned_table)
+									_refresh_planned(user_id, account_select.value, planned_cat_filter, planned_table)
 							ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
 					edit_dialog.open()
 
@@ -478,29 +562,54 @@ def _build_bewegungen_section(user_id: int) -> None:
 									ui.notify(error, type="negative")
 								else:
 									ui.notify("Storniert", type="positive")
-									_refresh_planned(user_id, planned_cat_filter, planned_table)
+									_refresh_planned(user_id, account_select.value, planned_cat_filter, planned_table)
 							ui.button("Stornieren", on_click=do_delete).props("color=negative unelevated")
 					confirm_dialog.open()
 
 				planned_table.on("edit_planned", handle_edit_planned)
 				planned_table.on("delete_planned", handle_delete_planned)
 
-				_refresh_planned(user_id, planned_cat_filter, planned_table)
+				_refresh_planned(user_id, first_account_id, planned_cat_filter, planned_table)
 
 
-def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
-	"""Laedt gebuchte Zahlungen (Datum <= heute) und befuellt die Tabelle.
+def _refresh_bewegungen(user_id, account_id, month, year, category_id, table) -> None:
+	"""Laedt Transaktionen fuer den gewaehlten Monat/Jahr und befuellt die Tabelle.
 
-	Die obere UI laesst den Nutzer nur ein Startdatum waehlen. Das Enddatum ist
-	fix auf "heute" gesetzt (siehe Tab-Layout), damit "gebuchte" Zahlungen nicht
-	versehentlich in die Zukunft gefiltert werden.
+	WOHER KOMMT DER AUFRUF?
+	    - Beim ersten Laden des Tabs (Standard: aktueller Monat, erstes Konto)
+	    - Wenn der User im "Suchoptionen"-Bereich auf "Anwenden" klickt
+
+	WAS PASSIERT HIER?
+	    1. Aus Monat + Jahr wird der erste und letzte Tag berechnet
+	       (z.B. Mai 2026 → 01.05.2026 bis 31.05.2026).
+	    2. Der TransactionController holt alle Transaktionen des Users in diesem Zeitraum.
+	    3. Die Ergebnisse werden clientseitig nach account_id gefiltert, weil der
+	       Controller keinen direkten account_id-Filter unterstuetzt.
+	    4. Die fertige Liste wird in die NiceGUI-Tabelle geschrieben (table.rows).
+
+	AUFRUF-KETTE:
+	    _refresh_bewegungen(...)
+	    → transaction_controller.filter_transactions(start, end, category_id, user_id)
+	    → TransactionService.filter_transactions(...)
+	    → TransactionRepository.filter_transactions(...) [DB SELECT]
+	    → Ergebnis (Liste von Dicts) → nach account_id filtern → table.rows setzen
+
+	Args:
+	    user_id:     ID des eingeloggten Users (fuer den DB-Filter).
+	    account_id:  ID des gewaehlten Kontos; None bedeutet kein Konto-Filter.
+	    month:       Monat als Zahl (1–12).
+	    year:        Jahr als Zahl (z.B. 2026).
+	    category_id: Kategorie-ID fuer den Filter; None bedeutet alle Kategorien.
+	    table:       Das NiceGUI-Tabellenobjekt, das befuellt werden soll.
 	"""
 	from nicegui import ui
+	import calendar as cal_module
 	from src.ui.controllers.category_controller import category_controller
+	_, last_day = cal_module.monthrange(year, month)
 	result = transaction_controller.filter_transactions(
-		start_date=date.fromisoformat(start_picker.value),
-		end_date=date.today(),
-		category_id=cat_filter.value,
+		start_date=date(year, month, 1),
+		end_date=date(year, month, last_day),
+		category_id=category_id,
 		user_id=user_id,
 	)
 	if isinstance(result, str):
@@ -509,19 +618,41 @@ def _refresh_booked(user_id, start_picker, cat_filter, table) -> None:
 	cats = category_controller.list_categories()
 	table.rows = [{
 		"transaction_id": t["transaction_id"],
-		"date": str(t["date"]).replace("-", "."),
+		"date": t["date"],
 		"type": t["type"],
 		"amount": f"{t['amount']:,.2f}",
 		"category": cats.get(t["category_id"], "—"),
 		"note": t["note"] or "-",
-	} for t in result]
+	} for t in result if account_id is None or t.get("account_id") == account_id]
 
 
-def _refresh_planned(user_id, cat_filter, table) -> None:
-	"""Laedt geplante Zahlungen (Datum > heute, ab morgen) und befuellt die Tabelle.
+def _refresh_planned(user_id, account_id, cat_filter, table) -> None:
+	"""Laedt geplante Zahlungen (Datum ab morgen) gefiltert nach Konto und befuellt die Tabelle.
 
-	Wir filtern hier bewusst ab morgen bis zu einem weit in der Zukunft liegenden
-	Datum, um "zukuenftige" Transaktionen zu bekommen.
+	WOHER KOMMT DER AUFRUF?
+	    - Beim ersten Laden des Sub-Tabs "Geplante Zahlungen"
+	    - Wenn der User auf "Aktualisieren" klickt
+	    - Nach einem erfolgreichen Bearbeiten oder Stornieren einer Zahlung
+
+	WAS PASSIERT HIER?
+	    Der Controller wird mit einem Startdatum von "morgen" und einem weit in der
+	    Zukunft liegenden Enddatum (31.12.2099) aufgerufen. So kommen nur Transaktionen
+	    zurueck, die noch nicht gebucht sind. Danach wird clientseitig nach account_id
+	    gefiltert und die Tabelle wird befuellt.
+
+	AUFRUF-KETTE:
+	    _refresh_planned(...)
+	    → transaction_controller.filter_transactions(morgen, 2099-12-31, category_id, user_id)
+	    → TransactionService.filter_transactions(...)
+	    → TransactionRepository.filter_transactions(...) [DB SELECT]
+	    → Ergebnis (Liste von Dicts) → nach account_id filtern → table.rows setzen
+
+	Args:
+	    user_id:    ID des eingeloggten Users (fuer den DB-Filter).
+	    account_id: ID des gewaehlten Kontos; None bedeutet kein Konto-Filter.
+	    cat_filter: NiceGUI-Select-Element; dessen `.value` gibt die Kategorie-ID oder
+	                None (= alle) zurueck.
+	    table:      Das NiceGUI-Tabellenobjekt, das befuellt werden soll.
 	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
@@ -537,12 +668,12 @@ def _refresh_planned(user_id, cat_filter, table) -> None:
 	cats = category_controller.list_categories()
 	table.rows = [{
 		"transaction_id": t["transaction_id"],
-		"date": str(t["date"]).replace("-", "."),
+		"date": t["date"],
 		"type": t["type"],
 		"amount": f"{t['amount']:,.2f}",
 		"category": cats.get(t["category_id"], "—"),
 		"note": t["note"] or "-",
-	} for t in result]
+	} for t in result if account_id is None or t.get("account_id") == account_id]
 
 
 

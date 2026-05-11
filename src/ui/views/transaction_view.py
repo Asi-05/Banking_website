@@ -333,6 +333,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 			], rows=[]).props("dense")
 			recurring_table.classes("w-full")
+			with recurring_table.add_slot("no-data"):
+				ui.label("Kein Dauerauftrag vorhanden").classes("text-gray-500 italic")
 
 		recurring_table.add_slot("body-cell-actions", """
 			<q-td :props="props">

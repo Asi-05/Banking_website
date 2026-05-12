@@ -1,25 +1,53 @@
 """src.ui.views.dashboard_view
 
-Dashboard-View (NiceGUI) fuer die Uebersichtsseite der Banking-App.
+Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
 
-Diese Datei gehoert zur **UI-View-Schicht**. Eine View ist in diesem Projekt
-zustaendig fuer:
+=== WAS ZEIGT DAS DASHBOARD? ===
+    1. ZEILE 1 – 3 Summary-Cards:
+       - Gesamtsaldo (Summe aller Kontostaende)
+       - Einnahmen im laufenden Monat
+       - Ausgaben im laufenden Monat
 
-- Layout und UI-Elemente (Buttons, Cards, Diagramme)
-- Ausloesen von Aktionen (z.B. "Filter anwenden")
-- Anzeigen von Fehlermeldungen/Notifications
+    2. ZEILE 2 – Kontenübersicht + Histogramm:
+       - Linke Card: Liste aller aktiven Konten mit IBAN und Saldo
+       - Rechte Card: Balkendiagramm Einnahmen vs. Ausgaben (aktueller Monat)
 
-Wichtig: Die View enthaelt **keine** Fachlogik. Stattdessen fragt sie Daten
-ueber Controller/Services ab.
+    3. ZEILE 3 – Letzte Transaktionen:
+       - Letzte Transaktionen des laufenden Monats
 
-Was das Dashboard zeigt:
-- Gesamtvermoegen (Summe aller Kontostaende)
-- Einnahmen und Ausgaben im ausgewaehlten Zeitraum
-- Monatsdiagramm (Einnahmen/Ausgaben pro Monat)
+=== WAS DIESE VIEW NICHT TUT ===
+Die View enthaelt KEINE Fachlogik. Sie ruft `DashboardController` auf und
+gibt die Daten 1:1 an NiceGUI-Elemente weiter.
 
-Zusammenarbeit:
-- `DashboardController` kapselt den Zugriff auf `DashboardService`.
-- Der Login-Status wird ueber `app_state` geprueft.
+=== AUFRUF-KETTE BEIM LADEN ===
+    Route "/dashboard" in __main__.py → show()
+    → Login-Guard (app_state pruefen)
+    → _refresh_dashboard(user_id, main_container)
+    → dashboard_controller.get_dashboard_view_data(user_id)
+    → DashboardService.dashboard(user_id, start_date, end_date)
+    → AccountRepository.list_by_user(user_id)           [Kontostaende]
+    → TransactionRepository.filter_transactions(...)    [Transaktionen]
+    → DashboardSummary zurueck an View
+    → View baut NiceGUI-Elemente auf
+
+=== RUECKGABE-KETTE ===
+    DashboardService → DashboardSummary(total_balance, total_income, ...)
+    DashboardController → dict{summary, month_name, active_accounts, recent_transactions}
+    _refresh_dashboard → baut ui.card / ui.echart neu auf
+
+=== SIDEBAR / HEADER ===
+    _build_sidebar()          → linke Navigation (links zu allen Views)
+    _open_settings_dialog()   → Dialog mit Telefon/Adresse des Users
+    _logout()                 → setzt app_state zurueck, navigiert zu "/"
+
+=== LOGIN-GUARD ===
+    if app_state.get("current_user") is None:
+        ui.navigate.to("/")    # kein User eingeloggt → zurueck zum Login
+        return
+
+=== ARCHITEKTUR-KETTE ===
+    Route "/dashboard" → show()
+    → _refresh_dashboard() → dashboard_controller → DashboardService → Repositories → DB
 
 Route: `/dashboard`
 """

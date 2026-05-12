@@ -1,20 +1,67 @@
 """src.ui.views.card_view
 
-Card-View (NiceGUI) fuer die Kartenverwaltung.
+Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
 
-Diese Datei gehoert zur **UI-View-Schicht**. Die View ist zustaendig fuer die
-Darstellung (Tabs, Tabellen, Buttons) und das Ausloesen von Aktionen ueber
-Controller.
+=== WAS KANN DER USER AUF DIESER SEITE TUN? ===
+    Tab 1 – Debitkarten (US8):
+        - Neue Debitkarte bestellen (nur fuer Privatkonten)
+        - Aktive Debitkarte anzeigen (Kartennummer maskiert: "**** XXXX")
+        - Sperren + Ersetzen (zwei Schritte: erst sperren, dann Ersatzkarte)
+        - Gesperrte/Ersetzte Karten anzeigen
 
-Use-Cases:
-- Debitkarten (US8): bestellen, sperren, ersetzen
-- Kreditkarten (US9): beantragen, sperren, ersetzen, Abrechnungskonto setzen
+    Tab 2 – Kreditkarten (US9):
+        - Neue Kreditkarte beantragen (gewuenschtes Limit angeben)
+        - Aktive Kreditkarten anzeigen: Limit, Genutzt, Verfuegbar, Abrechnungskonto
+        - Sperren + Ersetzen
+        - Abrechnungskonto festlegen (notwendig fuer monatliche Abrechnung)
+        - Ersetzte Karten und offene Antraege anzeigen
 
-Wichtig fuer das Verstaendnis:
-- Fachregeln (z.B. "Debitkarte nur fuer Privatkonto", "max. 1 aktive Debitkarte",
-  Kreditkartenlimit) liegen im `CardService`.
-- Diese View ruft Regeln ausschliesslich ueber den `CardController` auf und
-  zeigt nur das Ergebnis (Success/Fehler) in der UI an.
+=== WICHTIG: KREDITKARTE `balance` = SCHULDEN ===
+Im Kreditkarten-Tab bedeutet "Genutzt (CHF)":
+    CreditCard.balance = bereits ausgegeben (Schulden)
+    Verfuegbar = limit - balance
+
+Das ist NICHT der Kontostand eines Kontos! Verwechslungsgefahr!
+Bei der monatlichen Abrechnung wird `balance` auf 0 gesetzt und der
+Betrag vom `billing_account` (Privatkonto) abgezogen.
+
+=== WAS DIESE VIEW NICHT TUT ===
+Sie enthaelt KEINE fachlichen Regeln. Alle Regeln liegen im `CardService`:
+    - "Max. 1 aktive Debitkarte pro User" → CardService._ensure_user_has_no_active_debit_card()
+    - "Debitkarte nur fuer Privatkonto" → CardService.order_debit_card()
+    - "Kreditlimit kann nicht ueberschritten werden" → CardService.create_credit_card()
+
+=== AUFRUF-KETTE: DEBITKARTE BESTELLEN ===
+    User klickt "Bestellen"
+    → handle_order_debit_card()                    [diese View]
+    → card_controller.order_debit_card(account_id) [CardController]
+    → CardService.order_debit_card(account_id)     [Fachregel-Pruefung]
+    → DebitCardRepository.create(debit_card)       [DB INSERT]
+    → None bei Erfolg, String bei Fehler
+
+=== AUFRUF-KETTE: SPERREN + ERSETZEN ===
+    User klickt "Sperren & Ersetzen"
+    → handle_block_and_replace_debit(e)
+    → card_controller.block_debit_card(card_id)  [Schritt 1: sperren]
+    → card_controller.replace_debit_card(card_id) [Schritt 2: ersetzen]
+    Beide Schritte gehen ueber CardController → CardService → Repository
+
+=== AUFRUF-KETTE: ABRECHNUNGSKONTO SETZEN ===
+    User klickt "Speichern" (Abrechnungskonto)
+    → handle_set_billing_account()
+    → card_controller.handle_set_billing_account(creditcard_id, account_id)
+    → CardService.set_billing_account(creditcard_id, account_id)
+    → CreditCardRepository.update() → DB UPDATE
+
+=== LOGIN-GUARD ===
+    if app_state.get("current_user") is None:
+        ui.navigate.to("/")    # kein User eingeloggt → zurueck zum Login
+        return
+
+=== ARCHITEKTUR-KETTE ===
+    Route "/cards" → show()
+    → Tab 1: _build_debit_cards_section() → card_controller
+    → Tab 2: _build_credit_cards_section() → card_controller + account_controller
 
 Route: `/cards`
 """

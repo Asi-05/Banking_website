@@ -2,18 +2,46 @@
 
 Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
 
-Die View ist zustaendig fuer:
+=== WAS MACHT DIESE VIEW? ===
+Sie zeigt das Login-Formular (Vertragsnummer + Passwort) und verarbeitet
+den Login-Button-Click. Nach erfolgreichem Login wird der globale `app_state`
+gesetzt und zur Dashboard-Route navigiert.
 
-- Aufbau des Login-Formulars (Eingabefelder, Button, Fehlerlabel)
-- Interaktion (Button-Click) und Anzeige von Rueckmeldungen
+=== WAS DIESE VIEW NICHT TUT ===
+Sie enthaelt KEINE Fachlogik. Sie ruft nur den `AuthController` auf und
+zeigt dessen Ergebnis in der UI an (Fehlermeldung oder Navigation).
 
-Wichtiges Zusammenspiel:
+=== AUFRUF-KETTE BEI BUTTON-CLICK ===
+    User klickt "Anmelden"
+    → handle_login()                          [diese View]
+    → auth_controller.login(nr, pw)           [AuthController]
+    → AuthService.login(nr, pw)               [AuthService]
+    → UserRepository.get_by_contract_number() [DB-Abfrage]
+    → verify_password(pw, stored_hash)        [validators.py]
+    → [bei altem Dummy-Hash: Migration zu PBKDF2]
+    → recurring_service.process_due_on_login() [Dauerauftraege pruefen]
+    → creditcard_billing_service.bill_if_needed() [Monatliche Abrechnung]
+    → Rueckgabe: dict{success, user_id, ...}
 
-- Der eigentliche Login-Use-Case liegt im `AuthService`.
-- Diese View ruft den `AuthController` auf, der Exceptions abfaengt und entweder
-	ein Ergebnis-Dict oder einen Fehlertext zurueckgibt.
-- Nach erfolgreichem Login wird `app_state` gesetzt, damit andere Views wissen,
-	welcher User aktiv ist.
+=== RUECKGABE-KETTE ===
+    AuthService → dict oder Exception
+    AuthController → dict (Erfolg) oder String (Fehler)
+    handle_login → app_state setzen + ui.navigate.to("/dashboard")
+                   ODER error_label.set_text(fehlertext)
+
+=== LOGIN-GUARD (auf DIESER Seite) ===
+Diese Seite hat KEINEN Login-Guard. Sie muss ohne Login erreichbar sein,
+da sie die Login-Seite selbst ist!
+Alle anderen Views (dashboard, transactions, ...) pruefen am Anfang ihrer
+`show()`-Funktion ob ein User eingeloggt ist:
+    if app_state.get("current_user") is None:
+        ui.navigate.to("/")
+        return
+
+=== ARCHITEKTUR-KETTE ===
+    Route "/" (in __main__.py) → login_view.show()
+    → ui.card mit Eingabefeldern
+    → handle_login() → auth_controller → app_state → /dashboard
 
 Route: `/`
 """

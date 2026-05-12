@@ -1,15 +1,37 @@
 """src.data_access.repositories.card_repository
 
-Repository fuer Debitkarten- und Kreditkarten-Datenbankzugriffe.
+Diese Datei gehoert zur **Data-Access-Schicht** (Datenbankzugriff).
 
-Dieses Repository kapselt DB-Operationen fuer zwei unterschiedliche Kartentypen:
+=== WAS SPEICHERT DIESES REPOSITORY? ===
+Zwei Kartentypen:
+    1. DebitCard  (Debitkarte)  - gehoert zu einem Konto (account_id)
+    2. CreditCard (Kreditkarte) - gehoert zu einem User (user_id)
 
-- Debitkarten (`DebitCard`) gehoeren immer zu genau einem Konto (`Account`).
-- Kreditkarten (`CreditCard`) gehoeren direkt zu einem User und haben einen
-  eigenen `balance` (genutzter Kredit). Dieser Wert ist **kein** Kontostand.
+Beide haben einen Status: "aktiv", "gesperrt" oder "ersetzt".
 
-Services (z.B. CardService und CreditCardBillingService) verwenden dieses
-Repository, um Karten zu laden, zu erstellen und Status/Saldo zu speichern.
+=== UNTERSCHIED DEBITKARTE VS. KREDITKARTE ===
+DEBITKARTE:
+    - Direkt mit einem Konto verbunden (account_id)
+    - Zahlung belastet sofort das Konto
+    - Max. 1 aktive Debitkarte pro Konto (Regel im card_service.py)
+    - Zuordnung: DebitCard.account_id → Account.account_id → Account.user_id
+
+KREDITKARTE:
+    - Direkt mit einem User verbunden (user_id), nicht mit einem Konto
+    - Hat eigenen "Kredit-Saldo" (.balance = bisher genutzer Kredit, nicht Kontostand!)
+    - Hat ein Abrechnungskonto (billing_account_id) fuer monatliche Abbuchung
+    - Max. 1 aktive Kreditkarte pro User (Regel im card_service.py)
+
+=== WARUM "via Account JOIN" fuer Debitkarten? ===
+Um alle Debitkarten EINES USERS zu finden, muss man ueber die Account-Tabelle gehen:
+User → Accounts → DebitCards (weil DebitCard kein user_id-Feld hat).
+Das SQL sieht so aus: JOIN accounts ON accounts.account_id = debit_cards.account_id
+                      WHERE accounts.user_id = :user_id
+
+    ARCHITEKTUR-KETTE:
+    View → Controller → Service → **Repository (du bist hier)** → Datenbank
+
+    Aufgerufen von: card_service.py und creditcard_billing_service.py
 """
 
 from __future__ import annotations
@@ -21,165 +43,229 @@ from src.domain.models import CreditCard, DebitCard
 
 # Kapselt reine Datenbankzugriffe fuer Debit- und Kreditkarten.
 class CardRepository:
-	"""Datenbankzugriffe fuer Debit- und Kreditkarten.
+    """Datenbankzugriffe fuer DebitCard und CreditCard.
 
-	Hinweis:
-		Die Methoden committen die Session selbst (create/save). Dadurch ist das
-		Repository leicht zu benutzen, aber Transaktionen werden nicht ueber mehrere
-		Aufrufe hinweg gebuendelt.
-	"""
-	def __init__(self, session: Session):
-		"""Initialisiert das Repository mit einer DB-Session.
+    Enthaelt Methoden zum Laden, Erstellen und Aktualisieren beider Kartentypen.
+    """
 
-		Args:
-			session: Offene SQLModel-Session.
-		"""
-		self.session = session
+    def __init__(self, session: Session):
+        """Initialisiert das Repository mit einer offenen Datenbank-Session.
 
-	# Laedt eine Debitkarte per ID.
-	def get_debit_by_id(self, card_id: int) -> DebitCard | None:
-		"""Lädt eine Debitkarte per ID.
+        Args:
+            session: Offene SQLModel-Session (aktive DB-Verbindung).
+        """
+        self.session = session
 
-		Args:
-			card_id: Primärschlüssel der Debitkarte.
+    # ===== DEBITKARTEN =====
 
-		Returns:
-			Debitkarte oder `None`.
-		"""
-		return self.session.get(DebitCard, card_id)
+    def get_debit_by_id(self, card_id: int) -> DebitCard | None:
+        """Laedt eine Debitkarte anhand ihrer ID.
 
-	# Laedt eine Kreditkarte per ID.
-	def get_credit_by_id(self, creditcard_id: int) -> CreditCard | None:
-		"""Lädt eine Kreditkarte per ID.
+        AUFRUF-KETTE:
+            card_service.block_debit_card(card_id)
+            → CardRepository.get_debit_by_id(card_id)
+            → SQL: SELECT * FROM debit_cards WHERE card_id = :card_id
 
-		Args:
-			creditcard_id: Primärschlüssel der Kreditkarte.
+        Args:
+            card_id: Primaerschluessel der Debitkarte.
 
-		Returns:
-			Kreditkarte oder `None`.
-		"""
-		return self.session.get(CreditCard, creditcard_id)
+        Returns:
+            DebitCard-Objekt wenn gefunden, None wenn nicht existent.
+        """
+        return self.session.get(DebitCard, card_id)
 
-	# Gibt alle Debitkarten eines Kontos zurueck.
-	def list_debit_by_account(self, account_id: int) -> list[DebitCard]:
-		"""Listet alle Debitkarten eines Kontos.
+    def list_debit_by_account(self, account_id: int) -> list[DebitCard]:
+        """Laedt ALLE Debitkarten eines Kontos (inkl. gesperrter/ersetzter).
 
-		Args:
-			account_id: Konto-ID.
+        AUFRUF-KETTE:
+            card_service (prueft ob Karte vorhanden)
+            → CardRepository.list_debit_by_account(account_id)
+            → SQL: SELECT * FROM debit_cards WHERE account_id = :account_id
 
-		Returns:
-			Liste der Debitkarten (unabhängig vom Status).
-		"""
-		statement = select(DebitCard).where(DebitCard.account_id == account_id)
-		return list(self.session.exec(statement).all())
+        WARUM AUCH INAKTIVE?
+            Fuer die Regel "max. 1 aktive Karte pro Konto" wird
+            list_active_debit_by_account() verwendet. Diese Methode gibt
+            ALLE zurueck (fuer historische Uebersichten).
 
-	# Gibt alle aktiven Debitkarten eines Kontos zurueck.
-	def list_active_debit_by_account(self, account_id: int) -> list[DebitCard]:
-		"""Listet nur aktive Debitkarten eines Kontos.
+        Args:
+            account_id: ID des Kontos.
 
-		Args:
-			account_id: Konto-ID.
+        Returns:
+            Alle Debitkarten dieses Kontos (egal welchen Status).
+        """
+        statement = select(DebitCard).where(DebitCard.account_id == account_id)
+        return list(self.session.exec(statement).all())
 
-		Returns:
-			Liste aktiver Debitkarten.
-		"""
-		statement = select(DebitCard).where(
-			DebitCard.account_id == account_id,
-			DebitCard.status == "aktiv",
-		)
-		return list(self.session.exec(statement).all())
+    def list_active_debit_by_account(self, account_id: int) -> list[DebitCard]:
+        """Laedt nur die aktiven Debitkarten eines Kontos.
 
-	# Legt eine Debitkarte an und persistiert sie.
-	def create_debit(self, card: DebitCard) -> DebitCard:
-		"""Erstellt eine neue Debitkarte.
+        AUFRUF-KETTE:
+            card_service.order_debit_card() (prueft: gibt es schon eine aktive?)
+            → CardRepository.list_active_debit_by_account(account_id)
+            → SQL: SELECT * FROM debit_cards WHERE account_id=? AND status='aktiv'
 
-		Args:
-			card: Neue Debitkarte.
+        GESCHAEFTSREGEL:
+            Diese Methode wird genutzt, um die Regel "max. 1 aktive Debitkarte
+            pro Konto" zu erzwingen. Wenn diese Liste nicht leer ist, darf
+            keine neue bestellt werden.
 
-		Returns:
-			Gespeicherte Debitkarte.
-		"""
-		self.session.add(card)
-		self.session.commit()
-		self.session.refresh(card)
-		return card
+        Args:
+            account_id: ID des Kontos.
 
-	# Persistiert Aenderungen einer Debitkarte.
-	def save_debit(self, card: DebitCard) -> DebitCard:
-		"""Speichert Aenderungen an einer Debitkarte (z. B. Status).
+        Returns:
+            Liste der aktiven Debitkarten (in den meisten Faellen 0 oder 1 Element).
+        """
+        statement = select(DebitCard).where(
+            DebitCard.account_id == account_id,
+            DebitCard.status == "aktiv",
+        )
+        return list(self.session.exec(statement).all())
 
-		Args:
-			card: Debitkarte mit geaenderten Feldern.
+    def create_debit(self, card: DebitCard) -> DebitCard:
+        """Legt eine neue Debitkarte in der Datenbank an.
 
-		Returns:
-			Aktualisierte Debitkarte (nach Commit/Refresh).
-		"""
-		self.session.add(card)
-		self.session.commit()
-		self.session.refresh(card)
-		return card
+        AUFRUF-KETTE:
+            card_service.order_debit_card(account_id)
+            → CardRepository.create_debit(new_card)
+            → SQL: INSERT INTO debit_cards (card_number, expire_date, status, account_id) VALUES (...)
 
-	# Gibt alle Debitkarten eines Users zurueck (via Account-Join).
-	def list_debit_by_user(self, user_id: int) -> list[DebitCard]:
-		"""Listet alle Debitkarten eines Users.
+        Args:
+            card: Neues DebitCard-Objekt (card_id noch nicht gesetzt).
 
-		Debitkarten hängen am Konto. Darum muss diese Query über `accounts` joinen,
-		um vom User zur Karte zu kommen.
+        Returns:
+            Gespeicherte DebitCard mit card_id aus der Datenbank.
+        """
+        self.session.add(card)
+        self.session.commit()
+        self.session.refresh(card)
+        return card
 
-		Args:
-			user_id: User-ID.
+    def save_debit(self, card: DebitCard) -> DebitCard:
+        """Speichert Aenderungen an einer Debitkarte (z.B. Status-Aenderung).
 
-		Returns:
-			Liste der Debitkarten.
-		"""
-		from src.domain.models import Account
-		# SELECT debit_cards JOIN accounts WHERE accounts.user_id = :user_id
-		statement = (
-			select(DebitCard)
-			.join(Account, Account.account_id == DebitCard.account_id)
-			.where(Account.user_id == user_id)
-		)
-		return list(self.session.exec(statement).all())
+        AUFRUF-KETTE:
+            card_service.block_debit_card() oder replace_debit_card()
+            → CardRepository.save_debit(card)
+            → SQL: UPDATE debit_cards SET status=... WHERE card_id=...
 
-	# Gibt alle Kreditkarten eines Users zurueck.
-	def list_credit_by_user(self, user_id: int) -> list[CreditCard]:
-		"""Listet alle Kreditkarten eines Users.
+        WANN GENUTZT:
+            - Karte sperren: card.status = "gesperrt" → save_debit(card)
+            - Karte ersetzen: alte card.status = "ersetzt" → save_debit(card)
 
-		Args:
-			user_id: User-ID.
+        Args:
+            card: DebitCard-Objekt mit geaenderten Feldern.
 
-		Returns:
-			Liste der Kreditkarten.
-		"""
-		statement = select(CreditCard).where(CreditCard.user_id == user_id)
-		return list(self.session.exec(statement).all())
+        Returns:
+            Aktualisierte DebitCard nach dem Speichern.
+        """
+        self.session.add(card)
+        self.session.commit()
+        self.session.refresh(card)
+        return card
 
-	# Legt eine Kreditkarte an und persistiert sie.
-	def create_credit(self, card: CreditCard) -> CreditCard:
-		"""Erstellt eine neue Kreditkarte.
+    def list_debit_by_user(self, user_id: int) -> list[DebitCard]:
+        """Laedt alle Debitkarten eines Users (via Account-Tabelle).
 
-		Args:
-			card: Neue Kreditkarte.
+        AUFRUF-KETTE:
+            card_service.list_debit_cards(user_id)
+            → CardRepository.list_debit_by_user(user_id)
+            → SQL: SELECT dc.* FROM debit_cards dc
+                   JOIN accounts a ON a.account_id = dc.account_id
+                   WHERE a.user_id = :user_id
 
-		Returns:
-			Gespeicherte Kreditkarte (nach Commit/Refresh).
-		"""
-		self.session.add(card)
-		self.session.commit()
-		self.session.refresh(card)
-		return card
+        WARUM JOIN?
+            Debitkarten haben keine direkte user_id. Sie gehoeren einem Konto,
+            und Konten gehoeren einem User. Der Weg ist:
+            User → Account (via Account.user_id)
+            Account → DebitCard (via DebitCard.account_id)
 
-	# Persistiert Aenderungen einer Kreditkarte.
-	def save_credit(self, card: CreditCard) -> CreditCard:
-		"""Speichert Aenderungen an einer Kreditkarte (z. B. Status, balance).
+        Args:
+            user_id: ID des Users, dessen Debitkarten geladen werden sollen.
 
-		Args:
-			card: Kreditkarte mit geaenderten Feldern.
+        Returns:
+            Alle Debitkarten des Users (egal welchen Status).
+        """
+        from src.domain.models import Account
+        # JOIN: debit_cards mit accounts verbinden, um User-Zugehoerigkeit zu pruefen
+        statement = (
+            select(DebitCard)
+            .join(Account, Account.account_id == DebitCard.account_id)
+            .where(Account.user_id == user_id)
+        )
+        return list(self.session.exec(statement).all())
 
-		Returns:
-			Aktualisierte Kreditkarte (nach Commit/Refresh).
-		"""
-		self.session.add(card)
-		self.session.commit()
-		self.session.refresh(card)
-		return card
+    # ===== KREDITKARTEN =====
+
+    def get_credit_by_id(self, creditcard_id: int) -> CreditCard | None:
+        """Laedt eine Kreditkarte anhand ihrer ID.
+
+        Args:
+            creditcard_id: Primaerschluessel der Kreditkarte.
+
+        Returns:
+            CreditCard-Objekt wenn gefunden, None wenn nicht existent.
+        """
+        return self.session.get(CreditCard, creditcard_id)
+
+    def list_credit_by_user(self, user_id: int) -> list[CreditCard]:
+        """Laedt alle Kreditkarten eines Users.
+
+        AUFRUF-KETTE:
+            card_service.list_credit_cards(user_id)
+            → CardRepository.list_credit_by_user(user_id)
+            → SQL: SELECT * FROM credit_cards WHERE user_id = :user_id
+
+        EINFACHER ALS DEBITKARTEN:
+            Kreditkarten haben eine direkte user_id, daher brauchen wir keinen JOIN.
+
+        Args:
+            user_id: ID des Users.
+
+        Returns:
+            Alle Kreditkarten des Users (egal welchen Status).
+        """
+        statement = select(CreditCard).where(CreditCard.user_id == user_id)
+        return list(self.session.exec(statement).all())
+
+    def create_credit(self, card: CreditCard) -> CreditCard:
+        """Legt eine neue Kreditkarte in der Datenbank an.
+
+        AUFRUF-KETTE:
+            card_service.create_credit_card(payload)
+            → CardRepository.create_credit(new_card)
+            → SQL: INSERT INTO credit_cards (...) VALUES (...)
+
+        Args:
+            card: Neues CreditCard-Objekt (creditcard_id noch nicht gesetzt).
+
+        Returns:
+            Gespeicherte CreditCard mit creditcard_id aus der Datenbank.
+        """
+        self.session.add(card)
+        self.session.commit()
+        self.session.refresh(card)
+        return card
+
+    def save_credit(self, card: CreditCard) -> CreditCard:
+        """Speichert Aenderungen an einer Kreditkarte (Status, Saldo, Abrechnungskonto).
+
+        AUFRUF-KETTE:
+            card_service.block_credit_card() / set_billing_account() / etc.
+            → CardRepository.save_credit(card)
+            → SQL: UPDATE credit_cards SET status=..., balance=... WHERE creditcard_id=...
+
+        WANN GENUTZT:
+            - Karte sperren: card.status = "gesperrt"
+            - Abrechnungskonto setzen: card.billing_account_id = account_id
+            - Saldo aktualisieren (nach Abrechnung): card.balance = 0.0
+
+        Args:
+            card: CreditCard-Objekt mit geaenderten Feldern.
+
+        Returns:
+            Aktualisierte CreditCard nach dem Speichern.
+        """
+        self.session.add(card)
+        self.session.commit()
+        self.session.refresh(card)
+        return card

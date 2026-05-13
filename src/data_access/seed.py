@@ -373,6 +373,90 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
             # Kontostand erhoehen (keine Session-Neuladen noetig, da gleiche Session).
             privat_account.balance += 8500.0
 
+        # Monatliche Ausgaben fuer Hermann (Jan-Mai 2026, realistisch).
+        categories = {c.name: c for c in session.exec(select(Category)).all()}
+        hermann_expenses = [
+            # --- Januar ---
+            (date(2026, 1,  1), 2100.00, "Miete Januar",              "Miete"),
+            (date(2026, 1,  1),  450.00, "Krankenkasse",              "Versicherungen"),
+            (date(2026, 1,  1),   95.00, "OeV Monatsabo",             "Transport"),
+            (date(2026, 1,  5),  134.80, "Coop Wocheneinkauf",        "Einkaeufe"),
+            (date(2026, 1, 12),   98.40, "Migros Einkauf",            "Einkaeufe"),
+            (date(2026, 1, 15),   70.00, "Fitness Abo",               "Well-being"),
+            (date(2026, 1, 18),  112.60, "Coop Einkauf 2",            "Einkaeufe"),
+            (date(2026, 1, 22),   38.20, "Apotheke",                  "Well-being"),
+            (date(2026, 1, 25),   55.00, "Spotify & Netflix",         "Freizeit"),
+            (date(2026, 1, 28),   78.50, "Restaurant Abendessen",     "Freizeit"),
+            (date(2026, 1, 29),   45.00, "Telefonrechnung",           "Sonstiges"),
+            (date(2026, 1, 31),  180.00, "Strom & Nebenkosten",       "Sonstiges"),
+            # --- Februar ---
+            (date(2026, 2,  1), 2100.00, "Miete Februar",             "Miete"),
+            (date(2026, 2,  1),  450.00, "Krankenkasse",              "Versicherungen"),
+            (date(2026, 2,  1),   95.00, "OeV Monatsabo",             "Transport"),
+            (date(2026, 2,  6),  118.20, "Coop Einkauf",              "Einkaeufe"),
+            (date(2026, 2, 13),   92.70, "Migros Einkauf",            "Einkaeufe"),
+            (date(2026, 2, 18),  105.00, "Zahnarzt",                  "Well-being"),
+            (date(2026, 2, 20),  107.40, "Coop Einkauf 2",            "Einkaeufe"),
+            (date(2026, 2, 24),   45.80, "Kino & Ausgang",            "Freizeit"),
+            (date(2026, 2, 25),   68.00, "Theaterticket",             "Freizeit"),
+            (date(2026, 2, 26),   55.00, "Spotify & Netflix",         "Freizeit"),
+            (date(2026, 2, 28),  180.00, "Strom & Nebenkosten",       "Sonstiges"),
+            # --- Maerz ---
+            (date(2026, 3,  1), 2100.00, "Miete Maerz",               "Miete"),
+            (date(2026, 3,  1),  450.00, "Krankenkasse",              "Versicherungen"),
+            (date(2026, 3,  1),   95.00, "OeV Monatsabo",             "Transport"),
+            (date(2026, 3,  4),  125.30, "Coop Einkauf",              "Einkaeufe"),
+            (date(2026, 3, 10),   87.60, "Migros Einkauf",            "Einkaeufe"),
+            (date(2026, 3, 15),   70.00, "Fitness Abo",               "Well-being"),
+            (date(2026, 3, 20),  115.90, "Coop Einkauf 2",            "Einkaeufe"),
+            (date(2026, 3, 24),  280.00, "Steuervorauszahlung",       "Steuern"),
+            (date(2026, 3, 27),   84.00, "Restaurant mit Familie",    "Freizeit"),
+            (date(2026, 3, 29),   55.00, "Spotify & Netflix",         "Freizeit"),
+            (date(2026, 3, 31),  185.00, "Strom & Nebenkosten",       "Sonstiges"),
+            # --- April ---
+            (date(2026, 4,  1), 2100.00, "Miete April",               "Miete"),
+            (date(2026, 4,  1),  450.00, "Krankenkasse",              "Versicherungen"),
+            (date(2026, 4,  1),   95.00, "OeV Monatsabo",             "Transport"),
+            (date(2026, 4,  7),  119.40, "Coop Einkauf",              "Einkaeufe"),
+            (date(2026, 4, 12),   94.20, "Migros Einkauf",            "Einkaeufe"),
+            (date(2026, 4, 17),   70.00, "Fitness Abo",               "Well-being"),
+            (date(2026, 4, 21),  108.70, "Coop Einkauf 2",            "Einkaeufe"),
+            (date(2026, 4, 23),   32.60, "Apotheke",                  "Well-being"),
+            (date(2026, 4, 24),   62.50, "Ausflug Ostern",            "Freizeit"),
+            (date(2026, 4, 26),  138.00, "Kleider Shopping",          "Sonstiges"),
+            (date(2026, 4, 27),   55.00, "Spotify & Netflix",         "Freizeit"),
+            (date(2026, 4, 30),  180.00, "Strom & Nebenkosten",       "Sonstiges"),
+            # --- Mai (bis 13.05) ---
+            (date(2026, 5,  1), 2100.00, "Miete Mai",                 "Miete"),
+            (date(2026, 5,  1),  450.00, "Krankenkasse",              "Versicherungen"),
+            (date(2026, 5,  1),   95.00, "OeV Monatsabo",             "Transport"),
+            (date(2026, 5,  8),  122.80, "Coop Einkauf",              "Einkaeufe"),
+            (date(2026, 5, 12),   91.30, "Migros Einkauf",            "Einkaeufe"),
+            (date(2026, 5, 13),   55.00, "Spotify & Netflix",         "Freizeit"),
+        ]
+        for exp_date, amount, note, cat_name in hermann_expenses:
+            if cat_name not in categories:
+                continue
+            if session.exec(
+                select(Transaction).where(
+                    Transaction.account_id == privat_account.account_id,
+                    Transaction.date == exp_date,
+                    Transaction.amount == amount,
+                    Transaction.note == note,
+                )
+            ).first() is None:
+                session.add(
+                    Transaction(
+                        amount=amount,
+                        date=exp_date,
+                        type="expense",
+                        note=note,
+                        category_id=categories[cat_name].category_id,
+                        account_id=privat_account.account_id,
+                    )
+                )
+                privat_account.balance -= amount
+
     session.commit()
 
 
@@ -483,12 +567,14 @@ def seed_felix_income(session: Session, felix: User) -> None:
         (date(2026, 4, 24),   42.80, "Apotheke",                "Well-being"),
         (date(2026, 4, 27),   34.90, "Spotify & Netflix",       "Freizeit"),
         (date(2026, 4, 30),  155.00, "Strom & Nebenkosten",     "Sonstiges"),
-        # --- Mai (bis 11.05) ---
+        # --- Mai (bis 13.05) ---
         (date(2026, 5,  1), 1650.00, "Miete Mai",               "Miete"),
         (date(2026, 5,  1),  290.00, "Krankenkasse",            "Versicherungen"),
         (date(2026, 5,  1),   95.00, "OeV Monatsabo",           "Transport"),
         (date(2026, 5,  7),  109.20, "Coop Einkauf",            "Einkaeufe"),
         (date(2026, 5, 10),   81.50, "Migros Einkauf",          "Einkaeufe"),
+        (date(2026, 5, 11),   34.90, "Spotify & Netflix",       "Freizeit"),
+        (date(2026, 5, 13),   52.40, "Restaurant Mittagessen",  "Freizeit"),
     ]
     for exp_date, amount, note, cat_name in expense_data:
         if session.exec(

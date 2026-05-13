@@ -35,6 +35,7 @@ Die View prueft dann: `if isinstance(result, str): zeige Fehler an`
 from __future__ import annotations
 
 from src.services.auth_service import auth_service
+from src.ui.app_state import app_state
 
 
 # Orchestriert Login-Use-Cases und kapselt Fehlerbehandlung fuer die UI.
@@ -91,6 +92,43 @@ class AuthController:
             # Bei jedem Fehler (User nicht gefunden, falsches Passwort, DB-Fehler)
             # wird die Exception als lesbarer Text zurueckgegeben.
             return str(error)
+
+    def logout(self) -> None:
+        """Meldet den aktuellen User ab.
+
+        WARUM GEHOERT DAS IN DEN CONTROLLER (und nicht in die View)?
+            Die View ist nur fuer Anzeige und Navigation zustaendig.
+            Das Zuruecksetzen des globalen Zustands (app_state) ist Logik –
+            also Aufgabe des Controllers. So bleibt die View schlank und
+            der Controller testbar.
+
+        WAS PASSIERT HIER GENAU?
+            1. current_user wird auf None gesetzt → alle Views erkennen
+               "niemand eingeloggt" und leiten automatisch zum Login um.
+            2. user_id wird auf None gesetzt → keine Datenbankabfragen
+               koennen mehr mit dem alten User ausgefuehrt werden.
+            3. show_logout_message = True → die Login-Seite liest dieses
+               Flag beim naechsten Laden und zeigt einmalig eine
+               Bestaetigung an (danach setzt sie es wieder auf False).
+
+        AUFRUF-KETTE:
+            [Abmelden-Button] → _logout() in der jeweiligen View
+            → auth_controller.logout()   [setzt State zurueck + Flag]
+            → ui.navigate.to("/")        [View navigiert zur Login-Seite]
+            → login_view.show()          [prueft Flag, zeigt Meldung]
+
+        Returns:
+            None
+        """
+        # Schritt 1: User-Daten aus dem globalen Zustand entfernen.
+        # Nach diesem Schritt sehen alle Views den User als "nicht eingeloggt".
+        app_state["current_user"] = None
+        app_state["user_id"] = None
+
+        # Schritt 2: Flag setzen, damit die Login-Seite weiss, dass gerade
+        # ein Logout stattgefunden hat – und eine Bestaetigung anzeigt.
+        # Die Login-Seite setzt dieses Flag nach der Anzeige wieder auf False.
+        app_state["show_logout_message"] = True
 
     def get_username(self, user_id: int) -> str:
         """Liefert den vollstaendigen Namen eines Users fuer die Anzeige in der UI.

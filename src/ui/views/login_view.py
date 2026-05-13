@@ -55,8 +55,28 @@ def show() -> None:
 
 	Die UI besteht aus einer zentrierten Card mit Vertragsnummer/Passwort und einem
 	Button. Bei Fehlern wird eine Meldung unterhalb der Eingabefelder angezeigt.
+
+	LOGOUT-BESTAETIGUNG:
+	    Wenn der User sich gerade abgemeldet hat, wurde in auth_controller.logout()
+	    das Flag app_state["show_logout_message"] = True gesetzt.
+	    Diese Funktion prueft das Flag BEIM LADEN der Login-Seite und zeigt
+	    einmalig eine Bestaetigung an.
+
+	    Warum hier und nicht in _logout()?
+	        ui.notify() direkt vor ui.navigate.to() funktioniert nicht:
+	        die Seite wechselt, bevor die Meldung sichtbar ist.
+	        Das Flag-Muster loest das: Meldung wird auf der ZIEL-Seite angezeigt.
 	"""
 	from nicegui import ui
+
+	# Logout-Bestaetigung anzeigen, falls gerade abgemeldet wurde.
+	# Das Flag wurde von auth_controller.logout() auf True gesetzt.
+	if app_state.get("show_logout_message"):
+		# Gruene Benachrichtigung oben rechts fuer 3 Sekunden.
+		ui.notify("Sie wurden erfolgreich abgemeldet.", type="positive")
+		# Flag sofort zuruecksetzen: die Meldung soll nur einmal erscheinen,
+		# nicht bei jedem weiteren Besuch der Login-Seite.
+		app_state["show_logout_message"] = False
 
 	# Container: Zentriertes Card-Layout (volle Bildschirmhöhe mit Zentrierung)
 	with ui.column().classes("w-full h-screen items-center justify-center"):

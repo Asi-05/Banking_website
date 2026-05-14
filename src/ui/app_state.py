@@ -62,4 +62,8 @@ app_state: dict = {
     "current_user": None,
     # user_id: None oder int (Datenbank-ID des eingeloggten Users)
     "user_id": None,
+    # show_logout_message: True → Login-Seite soll "Erfolgreich abgemeldet" anzeigen.
+    # Wird von auth_controller.logout() auf True gesetzt und von login_view nach
+    # der Anzeige sofort wieder auf False zurueckgesetzt (einmalige Meldung).
+    "show_logout_message": False,
 }

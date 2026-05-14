@@ -96,6 +96,7 @@ Route: `/accounts`
 
 from datetime import date, timedelta
 
+from src.ui.controllers.auth_controller import auth_controller
 from src.ui.controllers.account_controller import account_controller
 from src.ui.controllers.transaction_controller import transaction_controller
 from src.ui.app_state import app_state
@@ -702,12 +703,24 @@ def _build_sidebar() -> None:
 
 
 def _logout() -> None:
-	"""Meldet den User ab (setzt `app_state` zurueck) und navigiert zum Login."""
+	"""Meldet den User ab und navigiert zur Login-Seite.
+
+	WARUM NUR ZWEI ZEILEN?
+	    Die eigentliche Arbeit (app_state zuruecksetzen, Logout-Flag setzen)
+	    erledigt der Controller. Die View ist nur fuer die Navigation zustaendig.
+	    Trennung: Controller = Logik, View = Anzeige & Navigation.
+
+	WARUM KEIN ui.notify() HIER?
+	    ui.notify() nach ui.navigate.to("/") funktioniert nicht zuverlaessig –
+	    die Seite wechselt, bevor die Meldung angezeigt werden kann.
+	    Stattdessen setzt der Controller ein Flag (show_logout_message = True),
+	    das die Login-Seite beim Laden prueft und die Meldung dort anzeigt.
+	"""
 	from nicegui import ui
-	app_state["current_user"] = None
-	app_state["user_id"] = None
+	# Logik-Aufgabe: Controller setzt app_state zurueck und setzt das Logout-Flag.
+	auth_controller.logout()
+	# View-Aufgabe: zur Login-Seite navigieren.
 	ui.navigate.to("/")
-	ui.notify("Erfolgreich abgemeldet", type="positive")
 
 
 def _open_settings_dialog(user_id: int) -> None:

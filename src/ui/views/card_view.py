@@ -1,20 +1,84 @@
-"""
-Card View - Betterbank Banking App
-Implementiert US8, US9: Debitkarten und Kreditkarten verwalten
-Route: /cards
+"""src.ui.views.card_view
+
+Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
+
+=== WAS KANN DER USER AUF DIESER SEITE TUN? ===
+    Tab 1 – Debitkarten (US8):
+        - Neue Debitkarte bestellen (nur fuer Privatkonten)
+        - Aktive Debitkarte anzeigen (Kartennummer maskiert: "**** XXXX")
+        - Sperren + Ersetzen (zwei Schritte: erst sperren, dann Ersatzkarte)
+        - Gesperrte/Ersetzte Karten anzeigen
+
+    Tab 2 – Kreditkarten (US9):
+        - Neue Kreditkarte beantragen (gewuenschtes Limit angeben)
+        - Aktive Kreditkarten anzeigen: Limit, Genutzt, Verfuegbar, Abrechnungskonto
+        - Sperren + Ersetzen
+        - Abrechnungskonto festlegen (notwendig fuer monatliche Abrechnung)
+        - Ersetzte Karten und offene Antraege anzeigen
+
+=== WICHTIG: KREDITKARTE `balance` = SCHULDEN ===
+Im Kreditkarten-Tab bedeutet "Genutzt (CHF)":
+    CreditCard.balance = bereits ausgegeben (Schulden)
+    Verfuegbar = limit - balance
+
+Das ist NICHT der Kontostand eines Kontos! Verwechslungsgefahr!
+Bei der monatlichen Abrechnung wird `balance` auf 0 gesetzt und der
+Betrag vom `billing_account` (Privatkonto) abgezogen.
+
+=== WAS DIESE VIEW NICHT TUT ===
+Sie enthaelt KEINE fachlichen Regeln. Alle Regeln liegen im `CardService`:
+    - "Max. 1 aktive Debitkarte pro User" → CardService._ensure_user_has_no_active_debit_card()
+    - "Debitkarte nur fuer Privatkonto" → CardService.order_debit_card()
+    - "Kreditlimit kann nicht ueberschritten werden" → CardService.create_credit_card()
+
+=== AUFRUF-KETTE: DEBITKARTE BESTELLEN ===
+    User klickt "Bestellen"
+    → handle_order_debit_card()                    [diese View]
+    → card_controller.order_debit_card(account_id) [CardController]
+    → CardService.order_debit_card(account_id)     [Fachregel-Pruefung]
+    → DebitCardRepository.create(debit_card)       [DB INSERT]
+    → None bei Erfolg, String bei Fehler
+
+=== AUFRUF-KETTE: SPERREN + ERSETZEN ===
+    User klickt "Sperren & Ersetzen"
+    → handle_block_and_replace_debit(e)
+    → card_controller.block_debit_card(card_id)  [Schritt 1: sperren]
+    → card_controller.replace_debit_card(card_id) [Schritt 2: ersetzen]
+    Beide Schritte gehen ueber CardController → CardService → Repository
+
+=== AUFRUF-KETTE: ABRECHNUNGSKONTO SETZEN ===
+    User klickt "Speichern" (Abrechnungskonto)
+    → handle_set_billing_account()
+    → card_controller.handle_set_billing_account(creditcard_id, account_id)
+    → CardService.set_billing_account(creditcard_id, account_id)
+    → CreditCardRepository.update() → DB UPDATE
+
+=== LOGIN-GUARD ===
+    if app_state.get("current_user") is None:
+        ui.navigate.to("/")    # kein User eingeloggt → zurueck zum Login
+        return
+
+=== ARCHITEKTUR-KETTE ===
+    Route "/cards" → show()
+    → Tab 1: _build_debit_cards_section() → card_controller
+    → Tab 2: _build_credit_cards_section() → card_controller + account_controller
+
+Route: `/cards`
 """
 
+from src.ui.controllers.auth_controller import auth_controller
 from src.ui.controllers.card_controller import card_controller
 from src.ui.app_state import app_state
 
 
 def show() -> None:
-	"""
-	Zeigt Debitkarten- und Kreditkarten-Verwaltung.
+	"""Rendert die Karten-Seite (Tabs: Debitkarten und Kreditkarten).
+
+	Die Seite ist geschuetzt: Ohne Login wird zur Startseite umgeleitet.
 	"""
 	from nicegui import ui
 
-	# Sicherheitsprüfung
+	# Sicherheitspruefung: ohne Login zur Startseite.
 	if app_state.get("current_user") is None:
 		ui.navigate.to("/")
 		return
@@ -25,15 +89,17 @@ def show() -> None:
 	with ui.left_drawer():
 		_build_sidebar()
 
-	# ===== TOP-RIGHT: LOGOUT =====
+	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
-		with ui.row().classes("w-full justify-end items-center gap-2"):
-			with ui.button(icon="settings").props("flat round").classes("text-white"):
-				with ui.menu():
-					ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
-			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
-				.props("flat no-caps") \
-				.classes("text-white font-semibold")
+		with ui.row().classes("w-full items-center justify-end"):
+			ui.label("BetterBank").classes("text-h5 font-bold text-white pl-4")
+			with ui.row().classes("items-center gap-2"):
+				with ui.button(icon="settings").props("flat round color=primary"):
+					with ui.menu():
+						ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
+				ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
+					.props("flat no-caps color=primary") \
+					.classes("font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -45,7 +111,7 @@ def show() -> None:
 			tab_debit = ui.tab("Debitkarten")
 			tab_credit = ui.tab("Kreditkarten")
 
-		with ui.tab_panels(tabs, value=tab_debit):
+		with ui.tab_panels(tabs, value=tab_debit).classes("w-full"):
 
 			# ===== TAB 1: DEBITKARTEN =====
 			with ui.tab_panel(tab_debit):
@@ -57,9 +123,15 @@ def show() -> None:
 
 
 def _build_debit_cards_section(user_id: int) -> None:
-	"""
-	Debitkarten-Verwaltung (US8).
-	Liste aller Debitkarten, Bestellen, Sperren, Ersetzen.
+	"""Rendert den Bereich fuer Debitkarten (US8).
+
+	Der Bereich bietet:
+	- Bestellung einer neuen Debitkarte (nur fuer Privatkonten)
+	- Anzeige aktiver und inaktiver Debitkarten
+	- Aktionen wie Sperren/Ersetzen ueber den Controller
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 	from src.ui.controllers.account_controller import account_controller
@@ -67,7 +139,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 	with ui.column().classes("w-full gap-6"):
 
 		# === NEUE DEBITKARTE BESTELLEN ===
-		with ui.expansion("Neue Debitkarte bestellen").classes("w-full"):
+		with ui.expansion("Neue Debitkarte bestellen", value=True).classes("w-full"):
 
 			# Konto-Auswahl (nur Privatkonten)
 			result = account_controller.list_accounts(user_id)
@@ -75,7 +147,11 @@ def _build_debit_cards_section(user_id: int) -> None:
 				ui.notify(result, type="negative")
 				account_options = {}
 			else:
-				# Nur Privatkonten filtern
+				# hasattr() prueft, ob ein Objekt ein bestimmtes Attribut hat.
+				# Warum noetig: Im echten Betrieb kommen die Daten als Python-Objekte (ORM-Modelle)
+				# aus der Datenbank. In Tests kommen sie manchmal als einfache Dicts.
+				# Mit hasattr() koennen wir beides lesen, ohne dass der Code abstuerzt.
+				# Hier filtern wir zusaetzlich nur Privatkonten.
 				account_options = {
 					(a.account_id if hasattr(a, "account_id") else a.get("account_id")): 
 					((a.iban if hasattr(a, "iban") else a.get("iban")) or "").upper()
@@ -92,7 +168,15 @@ def _build_debit_cards_section(user_id: int) -> None:
 			error_label = ui.label("").classes("text-red-600 mb-4")
 
 			async def handle_order_debit_card() -> None:
-				"""Bestellt eine neue Debitkarte."""
+				"""Bestellt eine Debitkarte ueber den Controller.
+
+				Die UI uebergibt nur die Auswahl (Konto). Fachliche Regeln (z.B.
+				"max. 1 aktive Debitkarte") werden im Service geprueft.
+				"""
+				# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+				# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+				# Der Service prueft u.a. "max. 1 aktive Debitkarte" und ob das Konto
+				# wirklich geeignet ist. Die UI zeigt hier nur den Fehlertext an.
 				error = card_controller.order_debit_card(account_select.value)
 
 				if error:
@@ -122,6 +206,11 @@ def _build_debit_cards_section(user_id: int) -> None:
 				}
 
 			def make_row(card):
+				"""Konvertiert eine Karte in eine Tabellenzeile.
+
+				In manchen Tests/Fixtures kommen Dicts statt ORM-Objekten vor.
+				Darum wird defensiv mit `hasattr(...)`/`.get(...)` gelesen.
+				"""
 				account_iban = account_map.get(
 					card.account_id if hasattr(card, "account_id") else card.get("account_id"), "N/A"
 				)
@@ -168,7 +257,14 @@ def _build_debit_cards_section(user_id: int) -> None:
 						</q-td>
 					""")
 					def handle_block_and_replace_debit(e) -> None:
+						"""Sperrt die Karte und bestellt danach eine Ersatzkarte.
+
+						Args:
+							e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+						"""
 						card_id = e.args.get("card_id")
+						# Zwei Schritte: erst sperren (Sicherheitsmassnahme), dann ersetzen
+						# (neue Kartennummer/Gueltigkeit).
 						error = card_controller.block_debit_card(card_id)
 						if error:
 							ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
@@ -179,6 +275,11 @@ def _build_debit_cards_section(user_id: int) -> None:
 						else:
 							ui.notify("Karte gesperrt und Ersatzkarte bestellt", type="positive")
 					def handle_order_pin_debit(e) -> None:
+						"""UI-Demoaktion: PIN bestellen (hier nur Notification).
+
+						Args:
+							e: NiceGUI-Event; wird hier nicht ausgewertet.
+						"""
 						ui.notify("PIN bestellt", type="positive")
 					active_table.on("block_and_replace_debit", handle_block_and_replace_debit)
 					active_table.on("order_pin_debit", handle_order_pin_debit)
@@ -194,11 +295,17 @@ def _build_debit_cards_section(user_id: int) -> None:
 
 		except Exception as e:
 			ui.notify(f"Fehler beim Laden der Debitkarten: {str(e)}", type="negative")
+
 def _build_credit_cards_section(user_id: int) -> None:
-	"""
-	Kreditkarten-Verwaltung (US9).
-	Liste aller Kreditkarten, Beantragen, Sperren, Ersetzen.
-	Trennt aktive Kreditkarten von Anträgen.
+	"""Rendert den Bereich fuer Kreditkarten (US9).
+
+	Der Bereich umfasst:
+	- Kreditkartenantrag (gewuenschtes Limit)
+	- Anzeige aktiver/gesperrter Karten, ersetzter Karten und offener Antraege
+	- Setzen eines Abrechnungskontos fuer aktive Kreditkarten
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 	from src.ui.controllers.account_controller import account_controller
@@ -206,7 +313,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 	with ui.column().classes("w-full gap-6"):
 
 		# === NEUE KREDITKARTE BEANTRAGEN ===
-		with ui.expansion("Neue Kreditkarte beantragen").classes("w-full"):
+		with ui.expansion("Neue Kreditkarte beantragen", value=True).classes("w-full"):
 
 			# Gewünschtes Limit
 			limit_input = ui.number(label="Gewünschtes Limit (CHF)", min=100, step=100).props("outlined")
@@ -215,11 +322,9 @@ def _build_credit_cards_section(user_id: int) -> None:
 			error_label = ui.label("").classes("text-red-600 mb-4")
 
 			async def handle_create_credit_card() -> None:
-				"""Beantragt eine neue Kreditkarte."""
-				if (limit_input.value or 0) > 10000:
-					error_label.set_text("Das maximale Kreditlimit beträgt CHF 10'000.")
-					return
-
+				"""Event-Handler: beantragt eine Kreditkarte."""
+				# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+				# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 				payload = {
 					"user_id": user_id,
 					"desired_limit": limit_input.value or 1000,
@@ -243,9 +348,22 @@ def _build_credit_cards_section(user_id: int) -> None:
 				ui.notify(credit_cards, type="negative")
 				return
 
-			# Trennung: aktive Karten vs. Anträge/Pending
-			active_cards = [c for c in credit_cards if (c.status if hasattr(c, "status") else c.get("status")) in ["aktiv", "gesperrt"]]
-			pending_cards = [c for c in credit_cards if (c.status if hasattr(c, "status") else c.get("status")) not in ["aktiv", "gesperrt"]]
+			# Trennung: aktive Karten, ersetzte Karten und offene Antraege.
+			active_cards = [
+				c
+				for c in credit_cards
+				if (c.status if hasattr(c, "status") else c.get("status")) in ["aktiv", "gesperrt"]
+			]
+			replaced_cards = [
+				c
+				for c in credit_cards
+				if (c.status if hasattr(c, "status") else c.get("status")) == "ersetzt"
+			]
+			pending_cards = [
+				c
+				for c in credit_cards
+				if (c.status if hasattr(c, "status") else c.get("status")) == "beantragt"
+			]
 
 			# === AKTIVE KREDITKARTEN-LISTE ===
 			with ui.card().classes("w-full"):
@@ -278,7 +396,13 @@ def _build_credit_cards_section(user_id: int) -> None:
 					""")
 
 					def handle_block_and_replace_credit(e) -> None:
+						"""Sperrt und ersetzt eine Kreditkarte.
+
+						Args:
+							e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+						"""
 						creditcard_id = e.args.get("card_id")
+						# Sperren + Ersetzen ist ein bewusstes Sicherheitsmuster.
 						error = card_controller.block_credit_card(creditcard_id)
 						if error:
 							ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
@@ -290,6 +414,11 @@ def _build_credit_cards_section(user_id: int) -> None:
 							ui.notify("Kreditkarte gesperrt und Ersatzkarte bestellt", type="positive")
 					
 					def handle_order_pin_credit(e) -> None:
+						"""UI-Demoaktion: PIN bestellen (hier nur Notification).
+
+						Args:
+							e: NiceGUI-Event; wird hier nicht ausgewertet.
+						"""
 						ui.notify("PIN bestellt", type="positive")
 					
 					credit_table.on("block_and_replace_credit", handle_block_and_replace_credit)
@@ -300,16 +429,19 @@ def _build_credit_cards_section(user_id: int) -> None:
 					for card in active_cards:
 						limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
 						balance_val = card.balance if hasattr(card, "balance") else card.get("balance")
+						# In dieser App bedeutet `balance`: bereits genutzter Kredit.
+						# Verfuegbar = Limit - genutzter Kredit.
 						available = limit_val - balance_val
 						
-						# Abrechnungskonto anzeigen
+						# Abrechnungskonto anzeigen (optional, kann noch nicht gesetzt sein).
 						billing_account = card.billing_account if hasattr(card, "billing_account") else card.get("billing_account")
 						if billing_account is not None:
 							billing_account_display = (billing_account.iban if hasattr(billing_account, "iban") else billing_account.get("iban", "N/A")).upper()
 						else:
 							billing_account_display = "Nicht gesetzt"
 						
-						# Letzte Abrechnung anzeigen
+						# Letzte Abrechnung anzeigen. Hier kommt teils ein ISO-String aus der DB/Fixture.
+						# Wir normalisieren auf `date`, um ein einheitliches Anzeigeformat zu haben.
 						last_billed = card.last_billed if hasattr(card, "last_billed") else card.get("last_billed")
 						if last_billed is not None:
 							from datetime import date as date_type
@@ -348,6 +480,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 					}
 					
 					# Konto-Dropdown (nur Privatkonten)
+					# (Fachregel im Service: Abrechnungskonto muss aktiv sein und dem User gehoeren.)
 					result = account_controller.list_accounts(user_id)
 					if isinstance(result, str):
 						ui.notify(result, type="negative")
@@ -375,7 +508,13 @@ def _build_credit_cards_section(user_id: int) -> None:
 					error_label = ui.label("").classes("text-red-600 mb-4 w-full")
 					
 					async def handle_set_billing_account() -> None:
-						"""Setzt das Abrechnungskonto für eine Kreditkarte."""
+						"""Setzt das Abrechnungskonto fuer eine Kreditkarte.
+
+						Das Abrechnungskonto ist notwendig, damit spaeter eine Monatsabrechnung
+						fuer die Kreditkarte erstellt werden kann.
+						"""
+						# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+						# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
 						if not card_select.value or not account_select.value:
 							error_label.set_text("Bitte Kreditkarte und Konto auswählen.")
 							ui.notify("Bitte Kreditkarte und Konto auswählen", type="warning")
@@ -398,6 +537,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 					ui.button("Speichern", on_click=handle_set_billing_account).classes("w-full")
 				
 				# === WARNUNG: KEIN ABRECHNUNGSKONTO ===
+				# Ohne Billing-Account kann `CreditCardBillingService` keine Monatsabrechnung ausfuehren.
 				cards_without_billing = [
 					c for c in active_cards 
 					if (c.billing_account_id if hasattr(c, "billing_account_id") else c.get("billing_account_id")) is None
@@ -411,6 +551,33 @@ def _build_credit_cards_section(user_id: int) -> None:
 							f"{len(cards_without_billing)} Kreditkarte(n) haben kein Abrechnungskonto. "
 							"Der Monatsabschluss ist für diese Karten inaktiv."
 						).classes("text-sm text-yellow-700")
+
+			# === ERSETZTE KREDITKARTEN ===
+			with ui.card().classes("w-full"):
+
+				ui.label("Ersetzte Kreditkarten").classes("text-subtitle2 font-semibold")
+
+				if not replaced_cards:
+					ui.label("Keine ersetzten Kreditkarten.").classes("text-gray-500 italic")
+				else:
+					replaced_table = ui.table(columns=[
+						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+						{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+						{"name": "status", "label": "Status", "field": "status", "align": "left"},
+					], rows=[]).props("dense")
+					replaced_table.classes("w-full")
+
+					replaced_rows = []
+					for card in replaced_cards:
+						limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
+						replaced_rows.append({
+							"card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
+							"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
+							"limit": f"{limit_val:,.2f}",
+							"status": card.status if hasattr(card, "status") else card.get("status"),
+						})
+
+					replaced_table.rows = replaced_rows
 
 			# === KREDITKARTENANTRÄGE-LISTE ===
 			with ui.card().classes("w-full"):
@@ -447,37 +614,61 @@ def _build_credit_cards_section(user_id: int) -> None:
 
 
 def _build_sidebar() -> None:
-	"""Baut die Navigation."""
-	from nicegui import ui
-	ui.label("BetterBank").classes("text-h6 font-bold p-4")
+	"""Baut die Sidebar-Navigation (Links zu den Views).
 
+	Falls ein User eingeloggt ist, wird zusaetzlich der Username angezeigt.
+	"""
+	from nicegui import ui
 	user_id = app_state.get("user_id")
+
+	ui.label("BetterBank").classes("text-h6 font-bold text-white px-4 pt-4 pb-0")
 	if user_id:
 		from src.ui.controllers.auth_controller import auth_controller
 		username = auth_controller.get_username(user_id)
 		if username:
-			ui.label(username).classes("text-sm text-gray-500 px-4 pb-2")
+			ui.label(username).classes("text-sm text-white px-4 pb-3")
 
 	ui.separator()
 
-	with ui.column().classes("gap-2 p-4"):
-		ui.button("📊 Dashboard", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💳 Transaktionen", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("🏦 Konten", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("🎫 Karten", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated").classes("w-full justify-start")
+	with ui.column().classes("gap-1 px-2 pb-4 pt-2"):
+		ui.button("Dashboard", icon="home", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Transaktionen", icon="show_chart", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Budget", icon="savings", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Konten", icon="account_balance", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Karten", icon="credit_card", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated align=left").classes("w-full justify-start sidebar-active")
 
 
 def _logout() -> None:
-	"""Meldet den User ab."""
+	"""Meldet den User ab und navigiert zur Login-Seite.
+
+	WARUM NUR ZWEI ZEILEN?
+	    Die eigentliche Arbeit (app_state zuruecksetzen, Logout-Flag setzen)
+	    erledigt der Controller. Die View ist nur fuer die Navigation zustaendig.
+	    Trennung: Controller = Logik, View = Anzeige & Navigation.
+
+	WARUM KEIN ui.notify() HIER?
+	    ui.notify() nach ui.navigate.to("/") funktioniert nicht zuverlaessig –
+	    die Seite wechselt, bevor die Meldung angezeigt werden kann.
+	    Stattdessen setzt der Controller ein Flag (show_logout_message = True),
+	    das die Login-Seite beim Laden prueft und die Meldung dort anzeigt.
+	"""
 	from nicegui import ui
-	app_state["current_user"] = None
-	app_state["user_id"] = None
+	# Logik-Aufgabe: Controller setzt app_state zurueck und setzt das Logout-Flag.
+	auth_controller.logout()
+	# View-Aufgabe: zur Login-Seite navigieren.
 	ui.navigate.to("/")
-	ui.notify("Erfolgreich abgemeldet", type="positive")
 
 
 def _open_settings_dialog(user_id: int) -> None:
+	"""Oeffnet den Kontoeinstellungen-Dialog (aktuell nur Anzeige).
+
+	Die Daten werden ueber den `UserController` geladen. In dieser View werden
+	Telefonnummer und Adresse nur angezeigt; Aenderungen werden als "beantragt"
+	simuliert.
+
+	Args:
+		user_id: ID des eingeloggten Users.
+	"""
 	from nicegui import ui
 	from src.ui.controllers.user_controller import user_controller
 

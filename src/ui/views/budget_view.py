@@ -1,22 +1,84 @@
-"""
-Budget View - Betterbank Banking App
-Implementiert US5: Monatliche Limits setzen und Budget-Status anzeigen
-Route: /budget
+"""src.ui.views.budget_view
+
+Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
+
+=== WAS IST EIN BUDGET? ===
+Ein Budget ist ein monatliches Ausgabenlimit. Es kann:
+    - Global gelten (alle Kategorien zusammen)
+    - Pro Kategorie gelten (z.B. "maximal CHF 200 fuer Transport im Mai")
+
+Der Budget-Status zeigt "OK ✓" oder "ÜBERSCHRITTEN ⚠" je nachdem ob die
+Ausgaben in diesem Monat das Limit ueberschreiten.
+
+=== WAS KANN DER USER AUF DIESER SEITE TUN? ===
+    Tab 1 – Budget-Übersicht:
+        Alle Budgets anzeigen, getrennt nach "aktiv" (aktueller Monat oder
+        Zukunft) und "abgelaufen" (vergangene Monate).
+        Jedes Budget zeigt: Monat/Jahr, Kategorie, Limit, Genutzt, Status.
+        Aktive Budgets koennen bearbeitet oder geloescht werden.
+
+    Tab 2 – Neues Budget:
+        Neues Budget anlegen (Monat, Jahr, Limit, Kategorie optional).
+        UPSERT: wenn schon ein Budget fuer diesen Zeitraum + Kategorie
+        existiert, wird es aktualisiert statt neu angelegt.
+
+=== WAS DIESE VIEW NICHT TUT ===
+Sie enthaelt KEINE fachliche Logik. Alle Regeln liegen im `BudgetService`:
+    - UPSERT-Logik (vorhanden → update, nicht vorhanden → create)
+    - Verbrauchsberechnung (Summe aller Ausgaben im Zeitraum)
+
+=== AUFRUF-KETTE: BUDGET SETZEN ===
+    User klickt "Budget speichern"
+    → handle_set_budget()                        [diese View]
+    → budget_controller.set_budget(payload)       [BudgetController]
+    → BudgetService.set_budget(payload)           [UPSERT-Logik]
+    → BudgetRepository.get_by_scope(...)          [existiert schon?]
+    → create ODER update → DB commit
+    → None bei Erfolg, String bei Fehler
+
+=== AUFRUF-KETTE: BUDGETSTATUS PRUEFEN ===
+    _refresh_split_budget_list(...)
+    → budget_controller.list_budgets(user_id)
+    → pro Budget: budget_controller.check_budget_status(user_id, month, year, ...)
+    → BudgetService.check_budget_status(...)
+    → TransactionRepository (Ausgaben summieren)
+    → is_exceeded + current_spending zurueck → Tabelle befuellen
+
+=== AKTIV / ABGELAUFEN ===
+    Aktiv: Budget-Monat/Jahr >= heutiger Monat/Jahr
+    Abgelaufen: Budget-Monat/Jahr < heutiger Monat/Jahr
+    Diese Trennung ist reine UI-Logik (kein fachlicher Unterschied).
+
+=== LOGIN-GUARD ===
+    if app_state.get("current_user") is None:
+        ui.navigate.to("/")    # kein User eingeloggt → zurueck zum Login
+        return
+
+=== ARCHITEKTUR-KETTE ===
+    Route "/budget" → show()
+    → Tab 1: _build_budget_list() → _refresh_split_budget_list()
+             → budget_controller → BudgetService → TransactionRepository
+    → Tab 2: _build_budget_form() → budget_controller.set_budget()
+             → BudgetService → BudgetRepository → DB
+
+Route: `/budget`
 """
 
 from datetime import datetime
 
+from src.ui.controllers.auth_controller import auth_controller
 from src.ui.controllers.budget_controller import budget_controller
 from src.ui.app_state import app_state
 
 
 def show() -> None:
-	"""
-	Zeigt Budget-Erfassungsformular und Budget-Übersicht.
+	"""Rendert die Budget-Seite (Tabs: Uebersicht und neues Budget).
+
+	Die Seite ist geschuetzt: Ohne Login wird zur Startseite umgeleitet.
 	"""
 	from nicegui import ui
 
-	# Sicherheitsprüfung
+	# Sicherheitspruefung: ohne Login zur Startseite.
 	if app_state.get("current_user") is None:
 		ui.navigate.to("/")
 		return
@@ -27,15 +89,17 @@ def show() -> None:
 	with ui.left_drawer():
 		_build_sidebar()
 
-	# ===== TOP-RIGHT: LOGOUT =====
+	# ===== HEADER: BRAND LINKS + USER ACTIONS =====
 	with ui.header():
-		with ui.row().classes("w-full justify-end items-center gap-2"):
-			with ui.button(icon="settings").props("flat round").classes("text-white"):
-				with ui.menu():
-					ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
-			ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
-				.props("flat no-caps") \
-				.classes("text-white font-semibold")
+		with ui.row().classes("w-full items-center justify-end"):
+			ui.label("BetterBank").classes("text-h5 font-bold text-white pl-4")
+			with ui.row().classes("items-center gap-2"):
+				with ui.button(icon="settings").props("flat round color=primary"):
+					with ui.menu():
+						ui.menu_item("Kontoeinstellungen", on_click=lambda: _open_settings_dialog(user_id))
+				ui.button("Abmelden", icon="logout", on_click=lambda: _logout()) \
+					.props("flat no-caps color=primary") \
+					.classes("font-semibold")
 
 	# ===== MAIN CONTENT =====
 	with ui.column().classes("w-full gap-6 p-6"):
@@ -47,7 +111,7 @@ def show() -> None:
 			tab_list = ui.tab("Budget-Übersicht")
 			tab_create = ui.tab("Neues Budget")
 
-		with ui.tab_panels(tabs, value=tab_list):
+		with ui.tab_panels(tabs, value=tab_list).classes("w-full"):
 
 			# ===== TAB 1: BUDGET-LISTE =====
 			with ui.tab_panel(tab_list):
@@ -59,16 +123,21 @@ def show() -> None:
 
 
 def _build_budget_form(user_id: int) -> None:
-	"""
-	Baut Formular zum Setzen eines neuen Budgets.
-	Monat: Dropdown 1-12 mit Namen, Jahr: dynamisch 2020 bis current+2, Limit, Kategorie optional.
+	"""Rendert das Formular zum Setzen eines neuen Budgets.
+
+	Der Nutzer waehlt Monat/Jahr, ein Limit und optional eine Kategorie.
+Wenn keine Kategorie gewaehlt ist (`category_id is None`), gilt das Budget
+global fuer alle Kategorien.
+
+	Args:
+		user_id: ID des eingeloggten Users.
 	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
 
 	category_options = category_controller.list_categories()
 
-	# Monats-Optionen (deutscher Name)
+	# Monats-Optionen (deutsche Namen) fuer ein lesbares Dropdown.
 	monat_optionen = {
 		1: "Januar",
 		2: "Februar",
@@ -84,11 +153,11 @@ def _build_budget_form(user_id: int) -> None:
 		12: "Dezember",
 	}
 
-	# Jahre dynamisch berechnen
+	# Jahre dynamisch berechnen: so kann man auch Budgets fuer naechstes Jahr setzen.
 	current_year = datetime.now().year
 	jahr_optionen = list(range(2020, current_year + 3))
 
-	with ui.card().classes("w-full max-w-md"):
+	with ui.card().classes("w-full"):
 
 		# Monat
 		month_select = ui.select(
@@ -123,7 +192,17 @@ def _build_budget_form(user_id: int) -> None:
 
 		# Speichern
 		async def handle_set_budget() -> None:
-			"""Speichert das neue Budget."""
+			"""Speichert ein Budget ueber den Controller.
+
+			Hinweis:
+				Ein Budget ist eindeutig ueber (user_id, month, year, category_id).
+				Der Service kann deshalb ein vorhandenes Budget fuer den gleichen
+				Zeitraum/die gleiche Kategorie aktualisieren (Upsert).
+			"""
+			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
+			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+			# Ein Budget ist eindeutig ueber (user_id, month, year, category_id).
+			# Wenn `category_id` None ist, bedeutet das: globales Budget (alle Kategorien).
 			payload = {
 				"user_id": user_id,
 				"month": month_select.value,
@@ -146,6 +225,13 @@ def _build_budget_form(user_id: int) -> None:
 
 
 def _build_budget_list(user_id: int) -> None:
+	"""Rendert die Budget-Listen (aktive vs. abgelaufene Budgets).
+
+	Die Trennung passiert anhand des aktuellen Monats/Jahres.
+
+	Args:
+		user_id: ID des eingeloggten Users.
+	"""
 	from nicegui import ui
 	from datetime import date
 
@@ -192,11 +278,23 @@ def _build_budget_list(user_id: int) -> None:
 		ui.label("Aktive Budgets").classes("text-subtitle1 font-semibold mb-2")
 		active_table = ui.table(columns=COLUMNS, rows=[]).props("dense")
 		active_table.classes("w-full")
+		with active_table.add_slot("no-data"):
+			ui.label("Kein aktives Budget vorhanden").classes("text-gray-500 italic")
 		active_table.add_slot("body-cell-actions", ACTION_SLOT)
 
 		def handle_edit_active(e) -> None:
+			"""Oeffnet den Edit-Dialog fuer ein aktives Budget.
+
+			Args:
+				e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+			"""
 			_open_edit_dialog(e, user_id, active_table, expired_table, cur_year, cur_month)
 		def handle_delete_active(e) -> None:
+			"""Oeffnet den Delete-Dialog fuer ein aktives Budget.
+
+			Args:
+				e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+			"""
 			_open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_month)
 		active_table.on("edit_budget", handle_edit_active)
 		active_table.on("delete_budget", handle_delete_active)
@@ -206,8 +304,15 @@ def _build_budget_list(user_id: int) -> None:
 		ui.label("Abgelaufene Budgets").classes("text-subtitle1 font-semibold mb-2")
 		expired_table = ui.table(columns=EXPIRED_COLUMNS, rows=[]).props("dense")
 		expired_table.classes("w-full")
+		with expired_table.add_slot("no-data"):
+			ui.label("Kein abgelaufenes Budget vorhanden").classes("text-gray-500 italic")
 		expired_table.add_slot("body-cell-actions", EXPIRED_ACTION_SLOT)
 		def handle_delete_expired(e) -> None:
+			"""Oeffnet den Delete-Dialog fuer ein abgelaufenes Budget.
+
+			Args:
+				e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+			"""
 			_open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_month)
 		expired_table.on("delete_budget", handle_delete_expired)
 
@@ -215,6 +320,16 @@ def _build_budget_list(user_id: int) -> None:
 
 
 def _open_edit_dialog(e, user_id, active_table, expired_table, cur_year, cur_month) -> None:
+	"""Oeffnet einen Dialog zum Bearbeiten eines Budgets (Limit aendern).
+
+	Args:
+		e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+		user_id: ID des eingeloggten Users.
+		active_table: Tabelle mit aktiven Budgets (wird nach dem Speichern refreshed).
+		expired_table: Tabelle mit abgelaufenen Budgets (wird nach dem Speichern refreshed).
+		cur_year: Aktuelles Jahr (fuer die Aktiv/Abgelaufen-Sortierung).
+		cur_month: Aktueller Monat (fuer die Aktiv/Abgelaufen-Sortierung).
+	"""
 	from nicegui import ui
 	row = e.args
 	budget_id = row.get("budget_id")
@@ -228,6 +343,7 @@ def _open_edit_dialog(e, user_id, active_table, expired_table, cur_year, cur_mon
 		with ui.row().classes("gap-4"):
 			ui.button("Abbrechen", on_click=edit_dialog.close).props("flat")
 			def do_edit(bid=budget_id):
+				"""Bestaetigt das Update und aktualisiert danach die Tabellen."""
 				error = budget_controller.update_budget(bid, limit_edit.value or 0)
 				edit_dialog.close()
 				if error:
@@ -240,6 +356,16 @@ def _open_edit_dialog(e, user_id, active_table, expired_table, cur_year, cur_mon
 
 
 def _open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_month) -> None:
+	"""Oeffnet einen Dialog zum Loeschen eines Budgets.
+
+	Args:
+		e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
+		user_id: ID des eingeloggten Users.
+		active_table: Tabelle mit aktiven Budgets (wird nach dem Loeschen refreshed).
+		expired_table: Tabelle mit abgelaufenen Budgets (wird nach dem Loeschen refreshed).
+		cur_year: Aktuelles Jahr (fuer die Aktiv/Abgelaufen-Sortierung).
+		cur_month: Aktueller Monat (fuer die Aktiv/Abgelaufen-Sortierung).
+	"""
 	from nicegui import ui
 	row = e.args
 	budget_id = row.get("budget_id")
@@ -249,6 +375,7 @@ def _open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_m
 		with ui.row().classes("gap-4 mt-4"):
 			ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
 			def do_delete(bid=budget_id):
+				"""Bestaetigt das Loeschen und aktualisiert danach die Tabellen."""
 				error = budget_controller.delete_budget(bid)
 				confirm_dialog.close()
 				if error:
@@ -261,10 +388,23 @@ def _open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_m
 
 
 def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, cur_month) -> None:
+	"""Laedt Budgets neu und splittet sie in aktive/abgelaufene Tabellen.
+
+	Wichtig: Der Budgetstatus (Verbrauch/Limit) wird pro Budget ueber den
+	`BudgetController.check_budget_status(...)` abgefragt.
+
+	Args:
+		user_id: ID des eingeloggten Users.
+		active_table: Tabelle, die die aktiven Budgets angezeigt bekommt.
+		expired_table: Tabelle, die die abgelaufenen Budgets angezeigt bekommt.
+		cur_year: Aktuelles Jahr (fuer die Aktiv/Abgelaufen-Sortierung).
+		cur_month: Aktueller Monat (fuer die Aktiv/Abgelaufen-Sortierung).
+	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
 
 	try:
+		# Controller liefert Liste oder Fehlertext.
 		budgets = budget_controller.list_budgets(user_id)
 		if isinstance(budgets, str):
 			ui.notify(budgets, type="negative")
@@ -277,9 +417,12 @@ def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, c
 					   "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
 
 		for budget in budgets:
+			# Darstellung: "Monat/Jahr" fuer eine kompakte Tabellenanzeige.
 			month_name = month_names[budget.month]
 			month_year = f"{month_name} {budget.year}"
 			try:
+				# Statusberechnung: Service summiert Ausgaben im Monat und vergleicht mit Limit.
+				# Der Controller gibt bei Fehlern einen String zurueck.
 				status_data = budget_controller.check_budget_status(
 					user_id=user_id, month=budget.month,
 					year=budget.year, category_id=budget.category_id,
@@ -297,6 +440,7 @@ def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, c
 			row = {
 				"budget_id": budget.budget_id,
 				"month_year": month_year,
+				# `category_id is None` bedeutet: Budget gilt fuer *alle* Kategorien.
 				"category": "Alle" if budget.category_id is None
 					else category_names.get(budget.category_id, f"ID {budget.category_id}"),
 				"limit": f"{budget.limit_amount:,.2f}",
@@ -304,6 +448,8 @@ def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, c
 				"status": "OK ✓" if not is_exceeded else "ÜBERSCHRITTEN ⚠",
 			}
 
+			# Aktiv/abgelaufen: abgelaufen sind Budgets aus Monaten vor dem aktuellen Monat.
+			# (Das ist reine UI-Sortierung; fachlich ist ein Budget immer an seinen Monat gebunden.)
 			is_active = (budget.year > cur_year) or (
 				budget.year == cur_year and budget.month >= cur_month
 			)
@@ -319,37 +465,61 @@ def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, c
 
 
 def _build_sidebar() -> None:
-	"""Baut die Navigation."""
-	from nicegui import ui
-	ui.label("BetterBank").classes("text-h6 font-bold p-4")
+	"""Baut die Sidebar-Navigation (Links zu den Views).
 
+	Falls ein User eingeloggt ist, wird zusaetzlich der Username angezeigt.
+	"""
+	from nicegui import ui
 	user_id = app_state.get("user_id")
+
+	ui.label("BetterBank").classes("text-h6 font-bold text-white px-4 pt-4 pb-0")
 	if user_id:
 		from src.ui.controllers.auth_controller import auth_controller
 		username = auth_controller.get_username(user_id)
 		if username:
-			ui.label(username).classes("text-sm text-gray-500 px-4 pb-2")
+			ui.label(username).classes("text-sm text-white px-4 pb-3")
 
 	ui.separator()
 
-	with ui.column().classes("gap-2 p-4"):
-		ui.button("📊 Dashboard", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💳 Transaktionen", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("💰 Budget", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("🏦 Konten", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated").classes("w-full justify-start")
-		ui.button("🎫 Karten", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated").classes("w-full justify-start")
+	with ui.column().classes("gap-1 px-2 pb-4 pt-2"):
+		ui.button("Dashboard", icon="home", on_click=lambda: ui.navigate.to("/dashboard")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Transaktionen", icon="show_chart", on_click=lambda: ui.navigate.to("/transactions")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Budget", icon="savings", on_click=lambda: ui.navigate.to("/budget")).props("flat unelevated align=left").classes("w-full justify-start sidebar-active")
+		ui.button("Konten", icon="account_balance", on_click=lambda: ui.navigate.to("/accounts")).props("flat unelevated align=left").classes("w-full justify-start")
+		ui.button("Karten", icon="credit_card", on_click=lambda: ui.navigate.to("/cards")).props("flat unelevated align=left").classes("w-full justify-start")
 
 
 def _logout() -> None:
-	"""Meldet den User ab."""
+	"""Meldet den User ab und navigiert zur Login-Seite.
+
+	WARUM NUR ZWEI ZEILEN?
+	    Die eigentliche Arbeit (app_state zuruecksetzen, Logout-Flag setzen)
+	    erledigt der Controller. Die View ist nur fuer die Navigation zustaendig.
+	    Trennung: Controller = Logik, View = Anzeige & Navigation.
+
+	WARUM KEIN ui.notify() HIER?
+	    ui.notify() nach ui.navigate.to("/") funktioniert nicht zuverlaessig –
+	    die Seite wechselt, bevor die Meldung angezeigt werden kann.
+	    Stattdessen setzt der Controller ein Flag (show_logout_message = True),
+	    das die Login-Seite beim Laden prueft und die Meldung dort anzeigt.
+	"""
 	from nicegui import ui
-	app_state["current_user"] = None
-	app_state["user_id"] = None
+	# Logik-Aufgabe: Controller setzt app_state zurueck und setzt das Logout-Flag.
+	auth_controller.logout()
+	# View-Aufgabe: zur Login-Seite navigieren.
 	ui.navigate.to("/")
-	ui.notify("Erfolgreich abgemeldet", type="positive")
 
 
 def _open_settings_dialog(user_id: int) -> None:
+	"""Oeffnet den Kontoeinstellungen-Dialog (aktuell nur Anzeige).
+
+	Die Daten werden ueber den `UserController` geladen. In dieser View werden
+	Telefonnummer und Adresse nur angezeigt; Aenderungen werden als "beantragt"
+	simuliert.
+
+	Args:
+		user_id: ID des eingeloggten Users.
+	"""
 	from nicegui import ui
 	from src.ui.controllers.user_controller import user_controller
 

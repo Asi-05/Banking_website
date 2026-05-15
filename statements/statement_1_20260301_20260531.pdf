@@ -3,7 +3,7 @@
 2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj
 3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
 4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> endobj
-5 0 obj << /Length 350 >> stream
+5 0 obj << /Length 471 >> stream
 BT /F1 10 Tf 50 780 Td
 (BetterBank) Tj
 0 -14 Td
@@ -15,13 +15,17 @@ BT /F1 10 Tf 50 780 Td
 0 -14 Td
 (Kontotyp: Privatkonto) Tj
 0 -14 Td
-(Zeitraum: 01-04-2026 bis 30-04-2026) Tj
+(Zeitraum: 01-03-2026 bis 31-05-2026) Tj
 0 -14 Td
 (Waehrung: CHF) Tj
 0 -14 Td
 () Tj
 0 -14 Td
+(31-03-2026 | Ausgabe | 150.00 CHF | Zahlung Kreditkarte) Tj
+0 -14 Td
 (30-04-2026 | Ausgabe | 120.00 CHF | Zahlung Kreditkarte) Tj
+0 -14 Td
+(08-05-2026 | Ausgabe | 450.00 CHF | ) Tj
 0 -14 Td
 ET
 endstream endobj
@@ -35,5 +39,5 @@ xref
 0000000338 00000 n 
 trailer << /Size 6 /Root 1 0 R >>
 startxref
-739
+860
 %%EOF

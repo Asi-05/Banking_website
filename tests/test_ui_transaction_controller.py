@@ -36,8 +36,14 @@ def _valid_account_payload():
 # FR-FIN-01: Erfolgreiche Transaktion mit Konto-Quelle gibt None zurück
 def test_create_transaction_with_account_returns_none():
     controller = _make_controller()
+    # Success path: mock repositories used by the service, let service logic run.
+    fake_account = SimpleNamespace(account_id=1, balance=1000.0, status="aktiv")
+    fake_tx = SimpleNamespace(transaction_id=1, amount=50.0, type="expense", account_id=1, card_id=None, creditcard_id=None)
 
-    with patch("src.ui.controllers.transaction_controller.transaction_service.create_transaction", return_value=None):
+    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=1)), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=fake_account), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.save", return_value=fake_account), \
+        patch("src.data_access.repositories.transaction_repository.TransactionRepository.create", return_value=fake_tx):
         result = controller.create_transaction(_valid_account_payload())
 
     assert result is None
@@ -47,8 +53,15 @@ def test_create_transaction_with_account_returns_none():
 def test_create_transaction_with_debit_card_returns_none():
     controller = _make_controller()
     payload = {**_valid_account_payload(), "account_id": None, "card_id": 5}
+    fake_debit = SimpleNamespace(card_id=5, account_id=1, status="aktiv")
+    fake_account = SimpleNamespace(account_id=1, balance=1000.0, status="aktiv")
+    fake_tx = SimpleNamespace(transaction_id=2, amount=50.0, type="expense", account_id=None, card_id=5, creditcard_id=None)
 
-    with patch("src.ui.controllers.transaction_controller.transaction_service.create_transaction", return_value=None):
+    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=1)), \
+        patch("src.data_access.repositories.card_repository.CardRepository.get_debit_by_id", return_value=fake_debit), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=fake_account), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.save", return_value=fake_account), \
+        patch("src.data_access.repositories.transaction_repository.TransactionRepository.create", return_value=fake_tx):
         result = controller.create_transaction(payload)
 
     assert result is None
@@ -58,8 +71,13 @@ def test_create_transaction_with_debit_card_returns_none():
 def test_create_transaction_with_credit_card_returns_none():
     controller = _make_controller()
     payload = {**_valid_account_payload(), "account_id": None, "creditcard_id": 3}
+    fake_credit = SimpleNamespace(creditcard_id=3, status="aktiv", balance=0.0, limit=1000.0, user_id=1)
+    fake_tx = SimpleNamespace(transaction_id=3, amount=50.0, type="expense", account_id=None, card_id=None, creditcard_id=3)
 
-    with patch("src.ui.controllers.transaction_controller.transaction_service.create_transaction", return_value=None):
+    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=1)), \
+        patch("src.data_access.repositories.card_repository.CardRepository.get_credit_by_id", return_value=fake_credit), \
+        patch("src.data_access.repositories.card_repository.CardRepository.save_credit", return_value=fake_credit), \
+        patch("src.data_access.repositories.transaction_repository.TransactionRepository.create", return_value=fake_tx):
         result = controller.create_transaction(payload)
 
     assert result is None
@@ -69,28 +87,18 @@ def test_create_transaction_with_credit_card_returns_none():
 def test_create_transaction_no_source_returns_error_string():
     controller = _make_controller()
     payload = {**_valid_account_payload(), "account_id": None, "card_id": None, "creditcard_id": None}
-
-    with patch(
-        "src.ui.controllers.transaction_controller.transaction_service.create_transaction",
-        side_effect=ValueError("Genau eine Quelle erforderlich"),
-    ):
-        result = controller.create_transaction(payload)
-
+    # Let the real TransactionService validation run (Exactly-One rule).
+    result = controller.create_transaction(payload)
     assert isinstance(result, str)
-    assert "Quelle" in result or "erforderlich" in result.lower() or result != ""
+    assert "Quelle" in result or "erforderlich" in result.lower()
 
 
 # FR-FIN-02: Betrag <= 0 wird als Fehler zurückgegeben
 def test_create_transaction_invalid_amount_returns_error_string():
     controller = _make_controller()
     payload = {**_valid_account_payload(), "amount": -5.0}
-
-    with patch(
-        "src.ui.controllers.transaction_controller.transaction_service.create_transaction",
-        side_effect=ValueError("Betrag muss positiv sein"),
-    ):
-        result = controller.create_transaction(payload)
-
+    # Let real validation run for negative amount.
+    result = controller.create_transaction(payload)
     assert isinstance(result, str)
 
 
@@ -98,21 +106,22 @@ def test_create_transaction_invalid_amount_returns_error_string():
 def test_create_transaction_invalid_type_returns_error_string():
     controller = _make_controller()
     payload = {**_valid_account_payload(), "type": "unknown"}
-
-    with patch(
-        "src.ui.controllers.transaction_controller.transaction_service.create_transaction",
-        side_effect=ValueError("Ungültiger Typ"),
-    ):
-        result = controller.create_transaction(payload)
-
+    result = controller.create_transaction(payload)
     assert isinstance(result, str)
 
 
 # FR-FIN-05: Erfolgreiches Bearbeiten gibt None zurück
 def test_edit_transaction_success_returns_none():
     controller = _make_controller()
+    # Let the real service run but mock repository methods it uses.
+    fake_tx = SimpleNamespace(transaction_id=1, amount=50.0, type="expense", account_id=1, card_id=None, creditcard_id=None, category_id=1, date="2026-04-01", note="Test")
+    fake_account = SimpleNamespace(account_id=1, balance=1000.0, status="aktiv")
 
-    with patch("src.ui.controllers.transaction_controller.transaction_service.edit_transaction", return_value=None):
+    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=1)), \
+        patch("src.data_access.repositories.transaction_repository.TransactionRepository.get_by_id", return_value=fake_tx), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=fake_account), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.save", return_value=fake_account), \
+        patch("src.data_access.repositories.transaction_repository.TransactionRepository.save", return_value=fake_tx):
         result = controller.edit_transaction(1, _valid_account_payload())
 
     assert result is None
@@ -121,7 +130,6 @@ def test_edit_transaction_success_returns_none():
 # FR-FIN-05: Bearbeiten einer nicht-existenten Transaktion gibt Fehlermeldung
 def test_edit_transaction_not_found_returns_error_string():
     controller = _make_controller()
-
     with patch(
         "src.ui.controllers.transaction_controller.transaction_service.edit_transaction",
         side_effect=ValueError("Transaktion nicht gefunden"),
@@ -134,7 +142,6 @@ def test_edit_transaction_not_found_returns_error_string():
 # FR-FIN-05: Löschen mit confirm=True gibt None zurück
 def test_delete_transaction_confirmed_returns_none():
     controller = _make_controller()
-
     with patch("src.ui.controllers.transaction_controller.transaction_service.delete_transaction", return_value=None):
         result = controller.delete_transaction(1, confirm=True)
 
@@ -144,7 +151,6 @@ def test_delete_transaction_confirmed_returns_none():
 # FR-FIN-05: Löschen ohne Bestätigung (confirm=False) wird abgelehnt
 def test_delete_transaction_not_confirmed_returns_error_string():
     controller = _make_controller()
-
     with patch(
         "src.ui.controllers.transaction_controller.transaction_service.delete_transaction",
         side_effect=ValueError("Löschen nicht bestätigt"),
@@ -187,7 +193,6 @@ def test_filter_transactions_by_date_returns_list():
 # FR-FIN-06: Filter ohne Ergebnis gibt leere Liste zurück
 def test_filter_transactions_empty_result():
     controller = _make_controller()
-
     with patch(
         "src.ui.controllers.transaction_controller.transaction_service.filter_transactions",
         return_value=[],
@@ -203,15 +208,11 @@ def test_filter_transactions_empty_result():
 # FR-FIN-06: Ungültiger Datumsbereich (von > bis) gibt Fehlermeldung zurück
 def test_filter_transactions_invalid_date_range_returns_error_string():
     controller = _make_controller()
-
-    with patch(
-        "src.ui.controllers.transaction_controller.transaction_service.filter_transactions",
-        side_effect=ValueError("Startdatum muss vor Enddatum liegen"),
-    ):
-        result = controller.filter_transactions(
-            start_date=date(2026, 4, 30),
-            end_date=date(2026, 4, 1),
-        )
+    # Let the real service validate the date range
+    result = controller.filter_transactions(
+        start_date=date(2026, 4, 30),
+        end_date=date(2026, 4, 1),
+    )
 
     assert isinstance(result, str)
 

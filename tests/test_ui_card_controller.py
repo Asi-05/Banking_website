@@ -11,6 +11,7 @@ FR-CC-03: Kreditkarte sperren und ersetzen
 """
 
 from unittest.mock import patch
+from types import SimpleNamespace
 
 from src.ui.controllers.card_controller import CardController
 
@@ -22,8 +23,12 @@ def _make_controller():
 # FR-CARD-03: Debitkarte für Privatkonto bestellen gibt None zurück
 def test_order_debit_card_success_returns_none():
     controller = _make_controller()
+    fake_account = SimpleNamespace(account_id=1, user_id=1, account_type="privat", status="aktiv")
+    fake_card = SimpleNamespace(card_id=11)
 
-    with patch("src.ui.controllers.card_controller.card_service.order_debit_card", return_value=None):
+    with patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=fake_account), \
+        patch("src.data_access.repositories.card_repository.CardRepository.list_active_debit_by_account", return_value=[]), \
+        patch("src.data_access.repositories.card_repository.CardRepository.create_debit", return_value=fake_card):
         result = controller.order_debit_card(account_id=1)
 
     assert result is None
@@ -32,15 +37,13 @@ def test_order_debit_card_success_returns_none():
 # FR-CARD-03: Debitkarte für Sparkonto wird abgelehnt
 def test_order_debit_card_savings_account_returns_error_string():
     controller = _make_controller()
-
-    with patch(
-        "src.ui.controllers.card_controller.card_service.order_debit_card",
-        side_effect=ValueError("Nur für Privatkonten"),
-    ):
+    # Simulate a savings account so the service raises ValueError
+    fake_account = SimpleNamespace(account_id=2, account_type="spar", user_id=1)
+    with patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=fake_account):
         result = controller.order_debit_card(account_id=2)
 
     assert isinstance(result, str)
-    assert "Privat" in result or result != ""
+    assert "Privat" in result
 
 
 # FR-CARD-03: order_debit_card delegiert korrekt an card_service
@@ -56,8 +59,15 @@ def test_order_debit_card_delegates_to_service():
 # FR-CARD-01: Debitkarte sperren gibt None zurück
 def test_block_debit_card_success_returns_none():
     controller = _make_controller()
+    fake_card = SimpleNamespace(card_id=1, account_id=1, status="aktiv")
+    # provide a block() method expected by service
+    def _block():
+        fake_card.status = "gesperrt"
 
-    with patch("src.ui.controllers.card_controller.card_service.block_debit_card", return_value=None):
+    fake_card.block = _block
+
+    with patch("src.data_access.repositories.card_repository.CardRepository.get_debit_by_id", return_value=fake_card), \
+        patch("src.data_access.repositories.card_repository.CardRepository.save_debit", return_value=fake_card):
         result = controller.block_debit_card(card_id=1)
 
     assert result is None
@@ -66,11 +76,8 @@ def test_block_debit_card_success_returns_none():
 # FR-CARD-01: Sperren einer nicht-existenten Karte gibt Fehlermeldung
 def test_block_debit_card_not_found_returns_error_string():
     controller = _make_controller()
-
-    with patch(
-        "src.ui.controllers.card_controller.card_service.block_debit_card",
-        side_effect=ValueError("Karte nicht gefunden"),
-    ):
+    # Simulate CardRepository returning None
+    with patch("src.data_access.repositories.card_repository.CardRepository.get_debit_by_id", return_value=None):
         result = controller.block_debit_card(card_id=9999)
 
     assert isinstance(result, str)
@@ -79,8 +86,20 @@ def test_block_debit_card_not_found_returns_error_string():
 # FR-CARD-02: Ersatzkarte bestellen gibt None zurück
 def test_replace_debit_card_success_returns_none():
     controller = _make_controller()
+    old_card = SimpleNamespace(card_id=1, account_id=1, status="gesperrt")
+    # provide replace() method expected by service
+    def _replace():
+        old_card.status = "ersetzt"
 
-    with patch("src.ui.controllers.card_controller.card_service.replace_debit_card", return_value=None):
+    old_card.replace = _replace
+    new_card = SimpleNamespace(card_id=2)
+
+    with patch("src.data_access.repositories.card_repository.CardRepository.get_debit_by_id", return_value=old_card), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=SimpleNamespace(account_id=1, user_id=1)), \
+        patch("src.data_access.repositories.card_repository.CardRepository.create_debit", return_value=new_card), \
+        patch("src.data_access.repositories.card_repository.CardRepository.save_debit", return_value=old_card), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.list_by_user", return_value=[SimpleNamespace(account_id=1)]), \
+        patch("src.data_access.repositories.card_repository.CardRepository.list_active_debit_by_account", return_value=[]):
         result = controller.replace_debit_card(card_id=1)
 
     assert result is None
@@ -89,11 +108,10 @@ def test_replace_debit_card_success_returns_none():
 # FR-CARD-02: Ersatzkarte für nicht-gesperrte Karte gibt Fehlermeldung
 def test_replace_debit_card_not_blocked_returns_error_string():
     controller = _make_controller()
-
-    with patch(
-        "src.ui.controllers.card_controller.card_service.replace_debit_card",
-        side_effect=ValueError("Karte ist nicht gesperrt"),
-    ):
+    # Simulate old card not blocked -> service should raise ValueError
+    old_card = SimpleNamespace(card_id=1, account_id=1, status="aktiv")
+    with patch("src.data_access.repositories.card_repository.CardRepository.get_debit_by_id", return_value=old_card), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=SimpleNamespace(account_id=1, user_id=1)):
         result = controller.replace_debit_card(card_id=1)
 
     assert isinstance(result, str)
@@ -103,9 +121,10 @@ def test_replace_debit_card_not_blocked_returns_error_string():
 def test_create_credit_card_success_returns_none():
     controller = _make_controller()
     payload = {"user_id": 1, "credit_limit": 5000.0}
-
-    with patch("src.ui.controllers.card_controller.card_service.create_credit_card", return_value=None):
-        result = controller.create_credit_card(payload)
+    fake_card = SimpleNamespace(creditcard_id=1)
+    with patch("src.data_access.repositories.user_repository.UserRepository.get_by_id", return_value=SimpleNamespace(user_id=1)), \
+        patch("src.data_access.repositories.card_repository.CardRepository.create_credit", return_value=fake_card):
+        result = controller.create_credit_card({"user_id": 1, "desired_limit": 5000.0})
 
     assert result is None
 
@@ -124,13 +143,11 @@ def test_create_credit_card_delegates_to_service():
 # FR-CC-02: Kreditkarte mit unzureichendem Limit wird abgelehnt
 def test_create_credit_card_invalid_limit_returns_error_string():
     controller = _make_controller()
-    payload = {"user_id": 1, "credit_limit": -100.0}
+    # Let the real service validation run. CardService expects the key
+    # "desired_limit" and validates it before DB access.
+    payload = {"user_id": 1, "desired_limit": -100.0}
 
-    with patch(
-        "src.ui.controllers.card_controller.card_service.create_credit_card",
-        side_effect=ValueError("Ungültiger Kreditrahmen"),
-    ):
-        result = controller.create_credit_card(payload)
+    result = controller.create_credit_card(payload)
 
     assert isinstance(result, str)
 
@@ -138,8 +155,14 @@ def test_create_credit_card_invalid_limit_returns_error_string():
 # FR-CC-03: Kreditkarte sperren gibt None zurück
 def test_block_credit_card_success_returns_none():
     controller = _make_controller()
+    fake_card = SimpleNamespace(creditcard_id=1, user_id=1, status="aktiv")
+    def _block():
+        fake_card.status = "gesperrt"
 
-    with patch("src.ui.controllers.card_controller.card_service.block_credit_card", return_value=None):
+    fake_card.block = _block
+
+    with patch("src.data_access.repositories.card_repository.CardRepository.get_credit_by_id", return_value=fake_card), \
+        patch("src.data_access.repositories.card_repository.CardRepository.save_credit", return_value=fake_card):
         result = controller.block_credit_card(creditcard_id=1)
 
     assert result is None
@@ -158,8 +181,16 @@ def test_block_credit_card_delegates_to_service():
 # FR-CC-03: Kreditkarte ersetzen gibt None zurück
 def test_replace_credit_card_success_returns_none():
     controller = _make_controller()
+    old_card = SimpleNamespace(creditcard_id=1, user_id=1, status="gesperrt", limit=3000.0, balance=100.0)
+    def _replace():
+        old_card.status = "ersetzt"
 
-    with patch("src.ui.controllers.card_controller.card_service.replace_credit_card", return_value=None):
+    old_card.replace = _replace
+    new_card = SimpleNamespace(creditcard_id=2)
+
+    with patch("src.data_access.repositories.card_repository.CardRepository.get_credit_by_id", return_value=old_card), \
+        patch("src.data_access.repositories.card_repository.CardRepository.save_credit", return_value=old_card), \
+        patch("src.data_access.repositories.card_repository.CardRepository.create_credit", return_value=new_card):
         result = controller.replace_credit_card(creditcard_id=1)
 
     assert result is None
@@ -168,11 +199,10 @@ def test_replace_credit_card_success_returns_none():
 # FR-CC-03: Ersetzen einer nicht-gesperrten Kreditkarte gibt Fehlermeldung
 def test_replace_credit_card_not_blocked_returns_error_string():
     controller = _make_controller()
-
-    with patch(
-        "src.ui.controllers.card_controller.card_service.replace_credit_card",
-        side_effect=ValueError("Kreditkarte ist nicht gesperrt"),
-    ):
+    # Let the real service run but return a credit card that is not blocked
+    # so the service raises the expected ValueError.
+    fake_card = SimpleNamespace(creditcard_id=1, user_id=1, status="aktiv", limit=3000.0, balance=0.0)
+    with patch("src.data_access.repositories.card_repository.CardRepository.get_credit_by_id", return_value=fake_card):
         result = controller.replace_credit_card(creditcard_id=1)
 
     assert isinstance(result, str)

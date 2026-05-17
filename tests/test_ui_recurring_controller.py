@@ -9,6 +9,7 @@ FR-BUD-04: Daueraufträge anlegen (amount, category_id, account_id, target_iban,
 
 from datetime import date
 from unittest.mock import patch
+from types import SimpleNamespace
 
 from src.ui.controllers.recurring_controller import RecurringController
 
@@ -25,15 +26,17 @@ def _valid_recurring_payload():
         "account_id": 1,
         "target_iban": "CH5604835012345678009",
         "interval": "monthly",
-        "start_date": "2026-01-01",
+        "start_date": date.today().isoformat(),
     }
 
 
 # FR-BUD-04: Erfolgreicher Dauerauftrag gibt None zurück
 def test_create_recurring_success_returns_none():
     controller = _make_controller()
-
-    with patch("src.ui.controllers.recurring_controller.recurring_service.create_recurring", return_value=None):
+    fake_recurring = SimpleNamespace(recurring_id=1)
+    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=3)), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=SimpleNamespace(account_id=1, status="aktiv")), \
+        patch("src.data_access.repositories.recurring_repository.RecurringRepository.create", return_value=fake_recurring):
         result = controller.create_recurring(_valid_recurring_payload())
 
     assert result is None
@@ -43,28 +46,19 @@ def test_create_recurring_success_returns_none():
 def test_create_recurring_invalid_iban_returns_error_string():
     controller = _make_controller()
     payload = {**_valid_recurring_payload(), "target_iban": "DE12345678"}
-
-    with patch(
-        "src.ui.controllers.recurring_controller.recurring_service.create_recurring",
-        side_effect=ValueError("Ungültige IBAN"),
-    ):
-        result = controller.create_recurring(payload)
+    # IBAN validation happens in RecurringService before DB access.
+    result = controller.create_recurring(payload)
 
     assert isinstance(result, str)
-    assert "IBAN" in result or result != ""
+    assert "IBAN" in result
 
 
 # FR-BUD-04: Ungültiges Intervall (nicht monthly/yearly) wird abgelehnt
 def test_create_recurring_invalid_interval_returns_error_string():
     controller = _make_controller()
     payload = {**_valid_recurring_payload(), "interval": "weekly"}
-
-    with patch(
-        "src.ui.controllers.recurring_controller.recurring_service.create_recurring",
-        side_effect=ValueError("Ungültiges Intervall"),
-    ):
-        result = controller.create_recurring(payload)
-
+    # Interval validation happens before DB access.
+    result = controller.create_recurring(payload)
     assert isinstance(result, str)
 
 
@@ -72,8 +66,10 @@ def test_create_recurring_invalid_interval_returns_error_string():
 def test_create_recurring_yearly_interval_returns_none():
     controller = _make_controller()
     payload = {**_valid_recurring_payload(), "interval": "yearly"}
-
-    with patch("src.ui.controllers.recurring_controller.recurring_service.create_recurring", return_value=None):
+    fake_recurring = SimpleNamespace(recurring_id=2)
+    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=3)), \
+        patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=SimpleNamespace(account_id=1, status="aktiv")), \
+        patch("src.data_access.repositories.recurring_repository.RecurringRepository.create", return_value=fake_recurring):
         result = controller.create_recurring(payload)
 
     assert result is None

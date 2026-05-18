@@ -341,25 +341,45 @@ class PaymentService:
             )
 
         # PDF-Inhalt als Textzeilen vorbereiten.
+        separator = "-" * 72
+        col_header = f"{'Datum':<12}  {'Typ':<12}  {'Betrag (CHF)':>14}  {'Notiz'}"
         lines = [
-            "BetterBank",
+            "=" * 72,
+            "  BetterBank AG – Kontoauszug",
+            "=" * 72,
             "",
-            f"Kontoinhaber: {user_name}",
-            f"IBAN: {account_iban}",
-            f"Kontotyp: {account_type_label}",
-            f"Zeitraum: {format_date_dmy(start_date)} bis {format_date_dmy(end_date)}",
-            f"Waehrung: {CURRENCY_CODE}",
+            f"  Kontoinhaber : {user_name}",
+            f"  IBAN         : {account_iban}",
+            f"  Kontotyp     : {account_type_label}",
+            f"  Zeitraum     : {format_date_dmy(start_date)} bis {format_date_dmy(end_date)}",
+            f"  Waehrung     : {CURRENCY_CODE}",
             "",
+            separator,
+            f"  {col_header}",
+            separator,
         ]
+
+        total = 0.0
         for transaction in transactions:
-            # format_date_dmy: date(2026,5,1) → "01.05.2026"
-            # format_transaction_type: "expense" → "Ausgabe", "income" → "Einnahme"
+            typ = format_transaction_type(transaction.type)
+            betrag = transaction.amount
+            total += betrag if transaction.type == "income" else -betrag
+            note = (transaction.note or "")[:40]
             lines.append(
-                f"{format_date_dmy(transaction.date)} | "
-                f"{format_transaction_type(transaction.type)} | "
-                f"{transaction.amount:.2f} {CURRENCY_CODE} | "
-                f"{transaction.note or ''}"
+                f"  {format_date_dmy(transaction.date):<12}  {typ:<12}  "
+                f"{betrag:>14.2f}  {note}"
             )
+
+        if not transactions:
+            lines.append("  Keine Transaktionen in diesem Zeitraum.")
+
+        lines += [
+            separator,
+            f"  {'Total':>40}  {total:>14.2f}  {CURRENCY_CODE}",
+            separator,
+            "",
+            f"  Generiert am: {format_date_dmy(date.today())}",
+        ]
 
         # Ausgabeverzeichnis erstellen (falls nicht vorhanden) und PDF schreiben.
         output_dir = Path("statements")
@@ -408,11 +428,10 @@ class PaymentService:
             for line in lines
         ]
 
-        # PDF-Content-Stream aufbauen.
-        text_commands = ["BT /F1 10 Tf 50 780 Td"]
+        # PDF-Content-Stream aufbauen (Courier für gleichbreite Spalten).
+        text_commands = ["BT /F1 9 Tf 40 800 Td 12 TL"]
         for line in escaped_lines:
-            text_commands.append(f"({line}) Tj")
-            text_commands.append("0 -14 Td")   # Naechste Zeile: 14 Punkte nach unten.
+            text_commands.append(f"({line}) Tj T*")
         text_commands.append("ET")
 
         stream_data = "\n".join(text_commands).encode("cp1252", errors="replace")
@@ -426,7 +445,7 @@ class PaymentService:
             b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj\n"
         )
         objects.append(
-            b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica "
+            b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Courier "
             b"/Encoding /WinAnsiEncoding >> endobj\n"
         )
         objects.append(

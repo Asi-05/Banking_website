@@ -200,13 +200,23 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		category_select.classes("w-full mb-4")
 
 		# Zweck
-		purpose_input = ui.textarea(label="Verwendungszweck").props("outlined")
-		purpose_input.classes("w-full mb-4")
+		char_count_label = ui.label("0 / 100 Zeichen").classes("text-xs text-gray-500 mb-4")
+
+		def update_char_count(e) -> None:
+			count = len(e.value)
+			char_count_label.set_text(f"{count} / 100 Zeichen")
+			if count >= 100:
+				char_count_label.classes(remove="text-gray-500", add="text-red-600")
+			else:
+				char_count_label.classes(remove="text-red-600", add="text-gray-500")
+
+		purpose_input = ui.textarea(label="Verwendungszweck", on_change=update_char_count).props("outlined maxlength=100")
+		purpose_input.classes("w-full mb-1")
 
 		# Ausführungsdatum
-		ui.label("Ausführungsdatum").classes("text-sm text-gray-600")
-		execution_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
+		execution_date_picker = ui.date_input("Ausführungsdatum", value=date.today().isoformat())
 		execution_date_picker.classes("w-full mb-4")
+		ui.label().bind_text_from(execution_date_picker, "value", lambda v: f"Datum: {v}" if v else "")
 
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
@@ -222,6 +232,10 @@ def _build_domestic_payment_form(user_id: int) -> None:
 			"""
 			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+			if len(purpose_input.value) > 100:
+				error_label.set_text("Verwendungszweck darf maximal 100 Zeichen enthalten.")
+				return
+
 			payload = {
 				"target_iban": iban_input.value,
 				"amount": amount_input.value or 0,
@@ -454,8 +468,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				interval_select = ui.select(
 					options={"monthly": "Monatlich", "yearly": "Jährlich"}, label="Intervall"
 				).props("outlined").classes("w-full")
-				ui.label("Startdatum").classes("text-sm text-gray-600")
-				start_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1").classes("w-full")
+				start_date_picker = ui.date_input("Startdatum", value=date.today().isoformat()).classes("w-full")
+				ui.label().bind_text_from(start_date_picker, "value", lambda v: f"Datum: {v}" if v else "")
 				error_label = ui.label("").classes("text-red-600")
 
 				async def handle_create_recurring() -> None:

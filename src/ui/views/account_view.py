@@ -138,13 +138,13 @@ def _build_statement_section(user_id: int) -> None:
 		account_select.classes("w-full mb-4")
 
 		# Zeitraum
-		start_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
-		start_date_picker.label = "Von"
-		start_date_picker.classes("w-full mb-4")
+		start_date_picker = ui.date_input("Von", value=date.today().isoformat())
+		start_date_picker.classes("w-full mb-1")
+		ui.label().bind_text_from(start_date_picker, "value", lambda v: f"Datum: {v}" if v else "").classes("mb-4")
 
-		end_date_picker = ui.date(value=date.today().isoformat()).props("outlined first-day-of-week=1")
-		end_date_picker.label = "Bis"
-		end_date_picker.classes("w-full mb-4")
+		end_date_picker = ui.date_input("Bis", value=date.today().isoformat())
+		end_date_picker.classes("w-full mb-1")
+		ui.label().bind_text_from(end_date_picker, "value", lambda v: f"Datum: {v}" if v else "").classes("mb-4")
 
 		error_label = ui.label("").classes("text-red-600 mb-4")
 

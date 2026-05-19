@@ -137,14 +137,14 @@ def _build_statement_section(user_id: int) -> None:
 		).props("outlined")
 		account_select.classes("w-full mb-4")
 
-		# Zeitraum
-		start_date_picker = ui.date_input("Von", value=date.today().isoformat())
-		start_date_picker.classes("w-full mb-1")
-		ui.label().bind_text_from(start_date_picker, "value", lambda v: f"Datum: {v}" if v else "").classes("mb-4")
+		# Zeitraum (Format: TT.MM.JJJJ)
+		start_date_picker = ui.date_input("Von", value=date.today().strftime('%d.%m.%Y'))
+		start_date_picker.classes("w-full mb-4")
+		start_date_picker.picker.props('mask=DD.MM.YYYY')
 
-		end_date_picker = ui.date_input("Bis", value=date.today().isoformat())
-		end_date_picker.classes("w-full mb-1")
-		ui.label().bind_text_from(end_date_picker, "value", lambda v: f"Datum: {v}" if v else "").classes("mb-4")
+		end_date_picker = ui.date_input("Bis", value=date.today().strftime('%d.%m.%Y'))
+		end_date_picker.classes("w-full mb-4")
+		end_date_picker.picker.props('mask=DD.MM.YYYY')
 
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
@@ -156,8 +156,16 @@ def _build_statement_section(user_id: int) -> None:
 			"""
 			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
-			start_date = date.fromisoformat(start_date_picker.value)
-			end_date = date.fromisoformat(end_date_picker.value)
+			if not account_select.value:
+				error_label.set_text("Bitte wählen Sie ein Konto aus.")
+				ui.notify("Bitte wählen Sie ein Konto aus.", type="warning")
+				return
+
+			# DD.MM.YYYY → YYYY-MM-DD für date.fromisoformat()
+			_sd, _sm, _sy = start_date_picker.value.split(".")
+			_ed, _em, _ey = end_date_picker.value.split(".")
+			start_date = date.fromisoformat(f"{_sy}-{_sm}-{_sd}")
+			end_date = date.fromisoformat(f"{_ey}-{_em}-{_ed}")
 
 			# Service schreibt die PDF in das `statements/`-Verzeichnis und gibt den Pfad zurueck.
 			result = payment_controller.generate_statement(

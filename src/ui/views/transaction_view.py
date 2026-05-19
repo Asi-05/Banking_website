@@ -185,10 +185,10 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 		amount_input.classes("w-full mb-4")
 
-		# Von-Konto
+		# Belastungskonto
 		from_account_select = ui.select(
 			options=account_options,
-			label="Von-Konto",
+			label="Belastungskonto",
 		).props("outlined")
 		from_account_select.classes("w-full mb-4")
 
@@ -200,8 +200,6 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		category_select.classes("w-full mb-4")
 
 		# Zweck
-		char_count_label = ui.label("0 / 100 Zeichen").classes("text-xs text-gray-500 mb-4")
-
 		def update_char_count(e) -> None:
 			count = len(e.value)
 			char_count_label.set_text(f"{count} / 100 Zeichen")
@@ -212,11 +210,12 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 		purpose_input = ui.textarea(label="Verwendungszweck", on_change=update_char_count).props("outlined maxlength=100")
 		purpose_input.classes("w-full mb-1")
+		char_count_label = ui.label("0 / 100 Zeichen").classes("text-xs text-gray-500 mb-4 pl-3")
 
-		# Ausführungsdatum
-		execution_date_picker = ui.date_input("Ausführungsdatum", value=date.today().isoformat())
+		# Ausführungsdatum (Format: TT.MM.JJJJ)
+		execution_date_picker = ui.date_input("Ausführungsdatum", value=date.today().strftime('%d.%m.%Y'))
 		execution_date_picker.classes("w-full mb-4")
-		ui.label().bind_text_from(execution_date_picker, "value", lambda v: f"Datum: {v}" if v else "")
+		execution_date_picker.picker.props('mask=DD.MM.YYYY')
 
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
@@ -232,18 +231,25 @@ def _build_domestic_payment_form(user_id: int) -> None:
 			"""
 			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+			if not iban_input.value or not amount_input.value or not from_account_select.value or not category_select.value:
+				error_label.set_text("Bitte füllen Sie alle Felder zuerst aus.")
+				ui.notify("Bitte füllen Sie alle Felder zuerst aus.", type="warning")
+				return
+
 			if len(purpose_input.value) > 100:
 				error_label.set_text("Verwendungszweck darf maximal 100 Zeichen enthalten.")
 				return
 
+			# DD.MM.YYYY → YYYY-MM-DD, weil der Service date.fromisoformat() erwartet.
+			_raw = execution_date_picker.value or date.today().strftime('%d.%m.%Y')
+			_d, _m, _y = _raw.split(".")
 			payload = {
 				"target_iban": iban_input.value,
 				"amount": amount_input.value or 0,
 				"from_account_id": from_account_select.value,
 				"category_id": category_select.value,
 				"purpose": purpose_input.value,
-				# Der Controller normalisiert ISO-Strings zu `datetime.date`.
-				"date": execution_date_picker.value,
+				"date": f"{_y}-{_m}-{_d}",
 			}
 
 			error = payment_controller.create_payment(payload)
@@ -258,7 +264,7 @@ def _build_domestic_payment_form(user_id: int) -> None:
 				from_account_select.value = None
 				category_select.value = None
 				purpose_input.value = ""
-				execution_date_picker.value = date.today().isoformat()
+				execution_date_picker.value = date.today().strftime('%d.%m.%Y')
 				error_label.set_text("")
 
 		ui.button("Zahlung ausführen", on_click=handle_create_payment).classes("w-full")
@@ -468,8 +474,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				interval_select = ui.select(
 					options={"monthly": "Monatlich", "yearly": "Jährlich"}, label="Intervall"
 				).props("outlined").classes("w-full")
-				start_date_picker = ui.date_input("Startdatum", value=date.today().isoformat()).classes("w-full")
-				ui.label().bind_text_from(start_date_picker, "value", lambda v: f"Datum: {v}" if v else "")
+				start_date_picker = ui.date_input("Startdatum", value=date.today().strftime('%d.%m.%Y')).classes("w-full")
+				start_date_picker.picker.props('mask=DD.MM.YYYY')
 				error_label = ui.label("").classes("text-red-600")
 
 				async def handle_create_recurring() -> None:
@@ -484,9 +490,12 @@ def _build_recurring_payments_section(user_id: int) -> None:
 					if (not amount_input.value or not category_select.value
 							or not account_select.value or not iban_input.value
 							or not interval_select.value):
-						error_label.set_text("Bitte alle Felder ausfüllen.")
+						error_label.set_text("Bitte füllen Sie alle Felder zuerst aus.")
+						ui.notify("Bitte füllen Sie alle Felder zuerst aus.", type="warning")
 						return
 					error_label.set_text("")
+					# DD.MM.YYYY → YYYY-MM-DD für date.fromisoformat() im Service.
+					_d, _m, _y = start_date_picker.value.split(".")
 					payload = {
 						"user_id": user_id,
 						"amount": amount_input.value,
@@ -494,8 +503,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						"account_id": account_select.value,
 						"target_iban": iban_input.value,
 						"interval": interval_select.value,
-						# Controller normalisiert ISO-String -> `date`.
-						"start_date": start_date_picker.value,
+						"start_date": f"{_y}-{_m}-{_d}",
 					}
 					error = recurring_controller.create_recurring(payload)
 					if error:
@@ -508,7 +516,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						account_select.value = None
 						iban_input.value = ""
 						interval_select.value = None
-						start_date_picker.value = date.today().isoformat()
+						start_date_picker.value = date.today().strftime('%d.%m.%Y')
 						refresh_recurring_table()
 
 				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring).classes("w-full")
@@ -568,6 +576,11 @@ ausreichender Kontostand, etc.).
 			"""Fuehrt die Umbuchung ueber den `PaymentController` aus."""
 			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+			if not from_account_select.value or not to_account_select.value or not amount_input.value:
+				error_label.set_text("Bitte füllen Sie alle Felder zuerst aus.")
+				ui.notify("Bitte füllen Sie alle Felder zuerst aus.", type="warning")
+				return
+
 			payload = {
 				"from_account_id": from_account_select.value,
 				"to_account_id": to_account_select.value,

@@ -494,6 +494,7 @@ Alle fachlichen Daten werden über SQLModel/SQLAlchemy verwaltet (u. a. User, Ko
  * NiceGUI
  * SQLModel / SQLAlchemy
  * SQLite
+ * fpdf2
  * pytest
 
 ### How to run

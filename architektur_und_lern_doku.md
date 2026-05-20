@@ -1,4 +1,4 @@
-# BetterBank – Architektur & Lerndokumentation
+# BetterBank – Architekturdokumentation
 
 > **Ziel dieses Dokuments:** Vollständige, prüfungsreife Erklärung der Programmstruktur der BetterBank-Anwendung für die Abschlusspräsentation. Alle Schichten, Entscheidungen und Zusammenhänge werden anhand konkreter Dateien belegt.
 
@@ -236,9 +236,9 @@ Das Frontend befindet sich in `src/ui/views/`. Jede Datei ist eine Python-Funkti
 |---|---|---|
 | `login_view.py` | Login-Formular | US13 |
 | `dashboard_view.py` | Gesamtbilanz, Diagramme | US4 |
-| `transaction_view.py` | Zahlungen, Daueraufträge, Kontoauszug | US1, US2, US3 |
+| `transaction_view.py` | Inlandszahlungen, Daueraufträge, Übertrag | US1, US2, US3, US6, US10 |
 | `budget_view.py` | Monatsbudgets verwalten | US5 |
-| `account_view.py` | Konten eröffnen/schliessen | US7, US11 |
+| `account_view.py` | Konten eröffnen/schliessen, Bewegungen, Kontoauszug (PDF) | US7, US11, US12 |
 | `card_view.py` | Debit- und Kreditkarten | US8, US9 |
 
 **Was eine View tut – und was nicht:**

@@ -296,6 +296,15 @@ def _build_account_list(user_id: int) -> None:
 		{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 	]
 
+	ui.add_css('''
+		.account-table .q-table { table-layout: fixed; width: 100%; }
+		.account-table .q-table th:nth-child(1), .account-table .q-table td:nth-child(1) { width: 30%; }
+		.account-table .q-table th:nth-child(2), .account-table .q-table td:nth-child(2) { width: 10%; }
+		.account-table .q-table th:nth-child(3), .account-table .q-table td:nth-child(3) { width: 15%; }
+		.account-table .q-table th:nth-child(4), .account-table .q-table td:nth-child(4) { width: 15%; }
+		.account-table .q-table th:nth-child(5), .account-table .q-table td:nth-child(5) { width: 30%; }
+	''')
+
 	# === KASTEN 1: AKTIVE KONTEN ===
 	with ui.card().classes("w-full"):
 		ui.label("Aktive Konten").classes("text-subtitle1 font-semibold mb-2")
@@ -303,7 +312,7 @@ def _build_account_list(user_id: int) -> None:
 			ui.label("Keine aktiven Konten.").classes("text-gray-500 italic")
 		else:
 			active_table = ui.table(columns=COLUMNS, rows=build_rows(active_accounts)).props("dense")
-			active_table.classes("w-full")
+			active_table.classes("w-full account-table")
 			active_table.add_slot("body-cell-actions", """
 				<q-td :props="props">
 					<q-btn label="Schliessen" color="negative" size="sm" flat
@@ -333,7 +342,7 @@ def _build_account_list(user_id: int) -> None:
 			ui.label("Keine geschlossenen Konten.").classes("text-gray-500 italic")
 		else:
 			closed_table = ui.table(columns=COLUMNS, rows=build_rows(closed_accounts)).props("dense")
-			closed_table.classes("w-full")
+			closed_table.classes("w-full account-table")
 			closed_table.add_slot("body-cell-actions", """
 				<q-td :props="props">
 					<span class="text-grey-6">Geschlossen</span>

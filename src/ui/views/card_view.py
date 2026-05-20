@@ -217,24 +217,27 @@ def _build_debit_cards_section(user_id: int) -> None:
 				return {
 					"card_id": card.card_id if hasattr(card, "card_id") else card.get("card_id"),
 					"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
-					"expire_date": str(card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")),
+					"expire_date": ((__import__("datetime").date.fromisoformat(card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")) if isinstance((card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")), str) else (card.expire_date if hasattr(card, "expire_date") else card.get("expire_date"))).strftime("%d.%m.%Y")),
 					"account": account_iban,
 					"status": card.status if hasattr(card, "status") else card.get("status"),
 				}
 
+			ui.add_css('.debit-table .q-table { table-layout: fixed; width: 100%; }')
+
 			COLUMNS = [
-				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-				{"name": "expire_date", "label": "Ablaufdatum", "field": "expire_date", "align": "left"},
-				{"name": "account", "label": "Konto", "field": "account", "align": "left"},
-				{"name": "status", "label": "Status", "field": "status", "align": "left"},
-				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
+				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left", "style": "width: 150px"},
+				{"name": "expire_date", "label": "Ablaufdatum", "field": "expire_date", "align": "left", "style": "width: 130px"},
+				{"name": "account", "label": "Konto", "field": "account", "align": "left", "style": "width: 250px"},
+				{"name": "status", "label": "Status", "field": "status", "align": "left", "style": "width: 100px"},
+				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center", "style": "width: 200px"},
 			]
 
 			INACTIVE_COLUMNS = [
-				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-				{"name": "expire_date", "label": "Ablaufdatum", "field": "expire_date", "align": "left"},
-				{"name": "account", "label": "Konto", "field": "account", "align": "left"},
-				{"name": "status", "label": "Status", "field": "status", "align": "left"},
+				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left", "style": "width: 150px"},
+				{"name": "expire_date", "label": "Ablaufdatum", "field": "expire_date", "align": "left", "style": "width: 130px"},
+				{"name": "account", "label": "Konto", "field": "account", "align": "left", "style": "width: 250px"},
+				{"name": "status", "label": "Status", "field": "status", "align": "left", "style": "width: 100px"},
+				{"name": "spacer", "label": "", "field": "spacer", "align": "left", "style": "width: 200px"},
 			]
 
 			active_cards = [c for c in debit_cards if (c.status if hasattr(c, "status") else c.get("status")) == "aktiv"]
@@ -246,8 +249,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 				if not active_cards:
 					ui.label("Keine aktive Debitkarte.").classes("text-gray-500 italic")
 				else:
-					active_table = ui.table(columns=COLUMNS, rows=[make_row(c) for c in active_cards]).props("dense")
-					active_table.classes("w-full")
+					active_table = ui.table(columns=COLUMNS, rows=[make_row(c) for c in active_cards]).props("dense").classes("w-full debit-table")
 					active_table.add_slot("body-cell-actions", """
 						<q-td :props="props">
 							<q-btn label="Sperren & Ersetzen" color="negative" size="sm" unelevated
@@ -290,8 +292,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 				if not inactive_cards:
 					ui.label("Keine gesperrten oder ersetzten Karten.").classes("text-gray-500 italic")
 				else:
-					inactive_table = ui.table(columns=INACTIVE_COLUMNS, rows=[{**make_row(c), "status": "inaktiv"} for c in inactive_cards]).props("dense")
-					inactive_table.classes("w-full")
+					inactive_table = ui.table(columns=INACTIVE_COLUMNS, rows=[{**make_row(c), "status": "inaktiv"} for c in inactive_cards]).props("dense").classes("w-full debit-table")
 
 		except Exception as e:
 			ui.notify(f"Fehler beim Laden der Debitkarten: {str(e)}", type="negative")
@@ -374,6 +375,19 @@ def _build_credit_cards_section(user_id: int) -> None:
 					ui.label("Keine aktiven Kreditkarten.").classes("text-gray-500 italic")
 				else:
 					# Tabelle für aktive Karten
+					# nth-child auf th UND td, weil table-layout:fixed die Spaltenbreiten aus dem
+					# <thead>-Row liest. column-style in NiceGUI trifft nur <td>, nicht <th>.
+					ui.add_css('''
+						.credit-active-table .q-table { table-layout: fixed; width: 100%; }
+						.credit-active-table .q-table th:nth-child(1), .credit-active-table .q-table td:nth-child(1) { width: 15.4%; }
+						.credit-active-table .q-table th:nth-child(2), .credit-active-table .q-table td:nth-child(2) { width: 10%; }
+						.credit-active-table .q-table th:nth-child(3), .credit-active-table .q-table td:nth-child(3) { width: 10%; }
+						.credit-active-table .q-table th:nth-child(4), .credit-active-table .q-table td:nth-child(4) { width: 10%; }
+						.credit-active-table .q-table th:nth-child(5), .credit-active-table .q-table td:nth-child(5) { width: 17.7%; }
+						.credit-active-table .q-table th:nth-child(6), .credit-active-table .q-table td:nth-child(6) { width: 11.5%; }
+						.credit-active-table .q-table th:nth-child(7), .credit-active-table .q-table td:nth-child(7) { width: 7.7%; }
+						.credit-active-table .q-table th:nth-child(8), .credit-active-table .q-table td:nth-child(8) { width: 17.7%; }
+					''')
 					credit_table = ui.table(columns=[
 						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
 						{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
@@ -383,8 +397,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 						{"name": "last_billed", "label": "Letzte Abrechnung", "field": "last_billed", "align": "left"},
 						{"name": "status", "label": "Status", "field": "status", "align": "left"},
 						{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-					], rows=[]).props("dense")
-					credit_table.classes("w-full")
+					], rows=[]).props("dense").classes("w-full credit-active-table")
 
 					credit_table.add_slot("body-cell-actions", """
 						<q-td :props="props">
@@ -553,6 +566,35 @@ def _build_credit_cards_section(user_id: int) -> None:
 						).classes("text-sm text-yellow-700")
 
 			# === ERSETZTE KREDITKARTEN ===
+			# 5 Spalten spiegeln die Struktur von credit-active-table (8 Spalten) so,
+			# dass col1=Kartennummer, col2=Limit, col3=Leerraum (Genutzt+Verfügbar+
+			# Abrechnungskonto+Letzte Abrechnung), col4=Status, col5=Leerraum (Aktionen)
+			# → Status beginnt bei 74.6% wie in der aktiven Kreditkartentabelle.
+			ui.add_css('''
+				.credit-secondary-table .q-table { table-layout: fixed; width: 100%; }
+				.credit-secondary-table .q-table th:nth-child(1), .credit-secondary-table .q-table td:nth-child(1) { width: 15.4%; }
+				.credit-secondary-table .q-table th:nth-child(2), .credit-secondary-table .q-table td:nth-child(2) { width: 10%; }
+				.credit-secondary-table .q-table th:nth-child(3), .credit-secondary-table .q-table td:nth-child(3) { width: 49.2%; }
+				.credit-secondary-table .q-table th:nth-child(4), .credit-secondary-table .q-table td:nth-child(4) { width: 7.7%; }
+				.credit-secondary-table .q-table th:nth-child(5), .credit-secondary-table .q-table td:nth-child(5) { width: 17.7%; }
+			''')
+
+			REPLACED_COLUMNS = [
+				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+				{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+				{"name": "_spacer", "label": "", "field": "_spacer", "align": "left"},
+				{"name": "status", "label": "Status", "field": "status", "align": "left"},
+				{"name": "_spacer2", "label": "", "field": "_spacer2", "align": "left"},
+			]
+
+			PENDING_COLUMNS = [
+				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+				{"name": "limit", "label": "Gewünschtes Limit (CHF)", "field": "limit", "align": "right"},
+				{"name": "_spacer", "label": "", "field": "_spacer", "align": "left"},
+				{"name": "status", "label": "Status", "field": "status", "align": "left"},
+				{"name": "_spacer2", "label": "", "field": "_spacer2", "align": "left"},
+			]
+
 			with ui.card().classes("w-full"):
 
 				ui.label("Ersetzte Kreditkarten").classes("text-subtitle2 font-semibold")
@@ -560,12 +602,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 				if not replaced_cards:
 					ui.label("Keine ersetzten Kreditkarten.").classes("text-gray-500 italic")
 				else:
-					replaced_table = ui.table(columns=[
-						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-						{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
-						{"name": "status", "label": "Status", "field": "status", "align": "left"},
-					], rows=[]).props("dense")
-					replaced_table.classes("w-full")
+					replaced_table = ui.table(columns=REPLACED_COLUMNS, rows=[]).props("dense").classes("w-full credit-secondary-table")
 
 					replaced_rows = []
 					for card in replaced_cards:
@@ -588,12 +625,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 					ui.label("Keine offenen Anträge.").classes("text-gray-500 italic")
 				else:
 					# Tabelle für beantragte Karten
-					pending_table = ui.table(columns=[
-						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-						{"name": "limit", "label": "Gewünschtes Limit (CHF)", "field": "limit", "align": "right"},
-						{"name": "status", "label": "Status", "field": "status", "align": "left"},
-					], rows=[]).props("dense")
-					pending_table.classes("w-full")
+					pending_table = ui.table(columns=PENDING_COLUMNS, rows=[]).props("dense").classes("w-full credit-secondary-table")
 
 					# Daten: beantragte Karten
 					pending_rows = []

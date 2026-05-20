@@ -343,6 +343,16 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				})
 			recurring_table.rows = rows
 
+		ui.add_css('''
+				.recurring-table .q-table { table-layout: fixed; width: 100%; }
+				.recurring-table .q-table th:nth-child(1), .recurring-table .q-table td:nth-child(1) { width: 12%; }
+				.recurring-table .q-table th:nth-child(2), .recurring-table .q-table td:nth-child(2) { width: 20%; }
+				.recurring-table .q-table th:nth-child(3), .recurring-table .q-table td:nth-child(3) { width: 12%; }
+				.recurring-table .q-table th:nth-child(4), .recurring-table .q-table td:nth-child(4) { width: 10%; }
+				.recurring-table .q-table th:nth-child(5), .recurring-table .q-table td:nth-child(5) { width: 16%; }
+				.recurring-table .q-table th:nth-child(6), .recurring-table .q-table td:nth-child(6) { width: 20%; }
+				.recurring-table .q-table th:nth-child(7), .recurring-table .q-table td:nth-child(7) { width: 10%; }
+			''')
 		with ui.card().classes("w-full"):
 			recurring_table = ui.table(columns=[
 				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
@@ -352,8 +362,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
 				{"name": "account_iban", "label": "Belastungskonto", "field": "account_iban", "align": "left"},
 				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-			], rows=[]).props("dense")
-			recurring_table.classes("w-full")
+			], rows=[]).props("dense").classes("w-full recurring-table")
 			with recurring_table.add_slot("no-data"):
 				ui.label("Kein Dauerauftrag vorhanden").classes("text-gray-500 italic")
 

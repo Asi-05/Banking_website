@@ -57,13 +57,13 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from src.data_access.db import engine
 from src.data_access.repositories.account_repository import AccountRepository
 from src.data_access.repositories.card_repository import CardRepository
 from src.data_access.repositories.transaction_repository import TransactionRepository
-from src.domain.models import Category, Transaction
+from src.domain.models import Category, Payment, RecurringTransaction, Transaction, Transfer
 from src.utils.validators import (
     validate_date_range,
     validate_positive_amount,
@@ -280,6 +280,20 @@ class TransactionService:
             transaction = transaction_repository.get_by_id(transaction_id)
             if transaction is None:
                 raise KeyError(f"Transaktion {transaction_id} nicht gefunden")
+
+            payment = session.exec(select(Payment).where(Payment.transaction_id == transaction_id)).first()
+            if payment is not None:
+                session.delete(payment)
+
+            transfer = session.exec(select(Transfer).where(Transfer.transaction_id == transaction_id)).first()
+            if transfer is not None:
+                session.delete(transfer)
+
+            recurring = session.exec(
+                select(RecurringTransaction).where(RecurringTransaction.transaction_id == transaction_id)
+            ).first()
+            if recurring is not None:
+                session.delete(recurring)
 
             # Effekt rueckgaengig machen, DANN loeschen.
             self._apply_source_effect(session, transaction, multiplier=-1)

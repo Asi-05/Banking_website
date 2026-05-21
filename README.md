@@ -354,7 +354,8 @@ BetterBank/
   ├── __main__.py         # STARTPUNKT: Initialisiert NiceGUI (ui.run())
   ├── utils/              # HILFSFUNKTIONEN
   │   ├── __init__.py
-  │   └── validators.py   # IBAN-, Passwort-, Datums- und Feldvalidierung
+  │   ├── validators.py   # IBAN-, Passwort-, Datums- und Feldvalidierung
+  │   └── formatters.py   # Hilfsfunktionen für Anzeigeformate (CHF, Datum, Typ)
   ├── domain/             # DOMÄNENSCHICHT: Business-Objekte (Models)
   │   ├── __init__.py
   │   └── models.py       # SQLModel-Entitäten (User, Account, Transaction, ...)
@@ -494,6 +495,7 @@ Alle fachlichen Daten werden über SQLModel/SQLAlchemy verwaltet (u. a. User, Ko
  * NiceGUI
  * SQLModel / SQLAlchemy
  * SQLite
+ * fpdf2
  * pytest
 
 ### How to run

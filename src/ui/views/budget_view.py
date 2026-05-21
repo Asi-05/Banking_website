@@ -239,22 +239,24 @@ def _build_budget_list(user_id: int) -> None:
 	cur_year = today.year
 	cur_month = today.month
 
+	ui.add_css('.budget-table .q-table { table-layout: fixed; width: 100%; }')
+
 	COLUMNS = [
-		{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left"},
-		{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
-		{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
-		{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right"},
-		{"name": "status", "label": "Status", "field": "status", "align": "center"},
-		{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
+		{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left", "style": "width: 120px"},
+		{"name": "category", "label": "Kategorie", "field": "category", "align": "left", "style": "width: 220px"},
+		{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right", "style": "width: 130px"},
+		{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right", "style": "width: 140px"},
+		{"name": "status", "label": "Status", "field": "status", "align": "center", "style": "width: 120px"},
+		{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center", "style": "width: 120px"},
 	]
 
 	EXPIRED_COLUMNS = [
-		{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left"},
-		{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
-		{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
-		{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right"},
-		{"name": "status", "label": "Status", "field": "status", "align": "center"},
-		{"name": "actions", "label": "Löschen", "field": "actions", "align": "center"},
+		{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left", "style": "width: 120px"},
+		{"name": "category", "label": "Kategorie", "field": "category", "align": "left", "style": "width: 220px"},
+		{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right", "style": "width: 130px"},
+		{"name": "used", "label": "Genutzt (CHF)", "field": "used", "align": "right", "style": "width: 140px"},
+		{"name": "status", "label": "Status", "field": "status", "align": "center", "style": "width: 120px"},
+		{"name": "actions", "label": "Löschen", "field": "actions", "align": "center", "style": "width: 120px"},
 	]
 
 	ACTION_SLOT = """
@@ -276,8 +278,7 @@ def _build_budget_list(user_id: int) -> None:
 	# === KASTEN 1: AKTIVE BUDGETS ===
 	with ui.card().classes("w-full"):
 		ui.label("Aktive Budgets").classes("text-subtitle1 font-semibold mb-2")
-		active_table = ui.table(columns=COLUMNS, rows=[]).props("dense")
-		active_table.classes("w-full")
+		active_table = ui.table(columns=COLUMNS, rows=[]).props("dense").classes("w-full budget-table")
 		with active_table.add_slot("no-data"):
 			ui.label("Kein aktives Budget vorhanden").classes("text-gray-500 italic")
 		active_table.add_slot("body-cell-actions", ACTION_SLOT)
@@ -302,8 +303,7 @@ def _build_budget_list(user_id: int) -> None:
 	# === KASTEN 2: ABGELAUFENE BUDGETS ===
 	with ui.card().classes("w-full mt-4"):
 		ui.label("Abgelaufene Budgets").classes("text-subtitle1 font-semibold mb-2")
-		expired_table = ui.table(columns=EXPIRED_COLUMNS, rows=[]).props("dense")
-		expired_table.classes("w-full")
+		expired_table = ui.table(columns=EXPIRED_COLUMNS, rows=[]).props("dense").classes("w-full budget-table")
 		with expired_table.add_slot("no-data"):
 			ui.label("Kein abgelaufenes Budget vorhanden").classes("text-gray-500 italic")
 		expired_table.add_slot("body-cell-actions", EXPIRED_ACTION_SLOT)

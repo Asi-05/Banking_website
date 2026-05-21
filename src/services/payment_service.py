@@ -299,10 +299,10 @@ class PaymentService:
             Dateiname: `statement_{account_id}_{start}_{end}.pdf`
             Beispiel: `statements/statement_3_20260501_20260531.pdf`
 
-        WARUM OHNE EXTERNE PDF-LIBRARY?
-            Demo-Projekt: minimale Abhaengigkeiten. Der PDF-Standard ist offen,
-            einfache Texte lassen sich "von Hand" schreiben. _write_simple_pdf
-            erzeugt eine gueltiges PDF-1.4-Dokument mit einer Seite.
+        PDF-GENERIERUNG MIT fpdf2:
+            _write_statement_pdf() verwendet die fpdf2-Library fuer ein
+            formatiertes A4-PDF mit Header-Balken, Transaktions-Tabelle,
+            Eroeffnungs-/Schlusssaldo und Fusstext.
 
         Args:
             account_id: Datenbank-ID des Kontos fuer den Auszug.

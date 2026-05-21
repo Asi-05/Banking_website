@@ -120,7 +120,7 @@ def _refresh_dashboard(user_id: int, main_container=None) -> None:
 					ui.label(f"Einnahmen & Ausgaben ({month_name})").classes("text-subtitle1 font-semibold mb-3")
 					ui.echart(options={
 						"tooltip": {
-							"trigger": "axis",
+							"trigger": "item",
 							"valueFormatter": "function (value) { return 'CHF ' + Number(value).toFixed(2); }"
 						},
 						"xAxis": {

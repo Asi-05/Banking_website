@@ -629,6 +629,7 @@ def _refresh_bewegungen(user_id, account_id, month, year, category_id, table) ->
 		end_date=date(year, month, last_day),
 		category_id=category_id,
 		user_id=user_id,
+		is_settled=True,
 	)
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
@@ -679,6 +680,7 @@ def _refresh_planned(user_id, account_id, cat_filter, table) -> None:
 		end_date=date(2099, 12, 31),
 		category_id=cat_filter.value,
 		user_id=user_id,
+		is_settled=False,
 	)
 	if isinstance(result, str):
 		ui.notify(result, type="negative")

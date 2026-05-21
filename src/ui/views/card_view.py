@@ -183,7 +183,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 					error_label.set_text(error)
 					ui.notify(error, type="negative")
 				else:
-					ui.notify("Debitkarte erfolgreich bestellt", type="positive")
+					ui.notify("Debitkarte erfolgreich bestellt. Sie erhalten Ihre Karte in den nächsten 5 Arbeitstagen per Post.", type="positive", timeout=6000)
 					account_select.value = None
 
 			ui.button("Bestellen", on_click=handle_order_debit_card).classes("w-full")
@@ -275,14 +275,14 @@ def _build_debit_cards_section(user_id: int) -> None:
 						if error:
 							ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
 						else:
-							ui.notify("Karte gesperrt und Ersatzkarte bestellt", type="positive")
+							ui.notify("Karte gesperrt. Ihre Ersatzkarte erhalten Sie in den nächsten 5 Arbeitstagen per Post.", type="positive", timeout=6000)
 					def handle_order_pin_debit(e) -> None:
 						"""UI-Demoaktion: PIN bestellen (hier nur Notification).
 
 						Args:
 							e: NiceGUI-Event; wird hier nicht ausgewertet.
 						"""
-						ui.notify("PIN bestellt", type="positive")
+						ui.notify("Sie erhalten in den nächsten 5 Arbeitstagen einen neuen PIN.", type="positive", timeout=5000)
 					active_table.on("block_and_replace_debit", handle_block_and_replace_debit)
 					active_table.on("order_pin_debit", handle_order_pin_debit)
 
@@ -337,7 +337,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 					error_label.set_text(error)
 					ui.notify(error, type="negative")
 				else:
-					ui.notify("Kreditkartenantrag wurde erfolgreich eingereicht", type="positive")
+					ui.notify("Kreditkartenantrag eingereicht. Bei Genehmigung erhalten Sie Ihre Karte in den nächsten 5 Arbeitstagen per Post.", type="positive", timeout=6000)
 
 			ui.button("Beantragen", on_click=handle_create_credit_card).classes("w-full")
 
@@ -369,7 +369,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 			# === AKTIVE KREDITKARTEN-LISTE ===
 			with ui.card().classes("w-full"):
 
-				ui.label("Meine aktiven Kreditkarten").classes("text-subtitle2 font-semibold")
+				ui.label("Meine aktiven Kreditkarten").classes("text-subtitle2 font-semibold mb-2")
 
 				if not active_cards:
 					ui.label("Keine aktiven Kreditkarten.").classes("text-gray-500 italic")
@@ -424,7 +424,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 						if error:
 							ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
 						else:
-							ui.notify("Kreditkarte gesperrt und Ersatzkarte bestellt", type="positive")
+							ui.notify("Kreditkarte gesperrt. Ihre Ersatzkarte erhalten Sie in den nächsten 5 Arbeitstagen per Post.", type="positive", timeout=6000)
 					
 					def handle_order_pin_credit(e) -> None:
 						"""UI-Demoaktion: PIN bestellen (hier nur Notification).
@@ -432,7 +432,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 						Args:
 							e: NiceGUI-Event; wird hier nicht ausgewertet.
 						"""
-						ui.notify("PIN bestellt", type="positive")
+						ui.notify("Sie erhalten in den nächsten 5 Arbeitstagen einen neuen PIN.", type="positive", timeout=5000)
 					
 					credit_table.on("block_and_replace_credit", handle_block_and_replace_credit)
 					credit_table.on("order_pin_credit", handle_order_pin_credit)

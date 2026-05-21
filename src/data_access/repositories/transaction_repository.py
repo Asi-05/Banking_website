@@ -155,6 +155,7 @@ class TransactionRepository:
         end_date: date | None = None,
         category_id: int | None = None,
         user_id: int | None = None,
+        is_settled: bool | None = None,
     ) -> list[Transaction]:
         """Filtert Transaktionen mit optionalen Einschraenkungen.
 
@@ -208,6 +209,10 @@ class TransactionRepository:
         # Optionaler Kategoriefilter
         if category_id is not None:
             statement = statement.where(Transaction.category_id == category_id)
+
+        # Optionaler is_settled-Filter
+        if is_settled is not None:
+            statement = statement.where(Transaction.is_settled == is_settled)
 
         # Optionaler User-Filter (erfordert komplexe Joins)
         if user_id is not None:

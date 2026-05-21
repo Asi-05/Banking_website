@@ -154,6 +154,7 @@ class TransactionController:
         end_date: date | None = None,
         category_id: int | None = None,
         user_id: int | None = None,
+        is_settled: bool | None = None,
     ) -> list | str:
         """Filtert Transaktionen und gibt UI-geeignete Dictionaries zurueck.
 
@@ -207,6 +208,7 @@ class TransactionController:
                 end_date=end_date,
                 category_id=category_id,
                 user_id=user_id,
+                is_settled=is_settled,
             )
             # Umwandlung in UI-geeignete Dictionaries mit formatierten Strings
             return [

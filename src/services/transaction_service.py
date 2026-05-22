@@ -306,6 +306,7 @@ class TransactionService:
         end_date: date | None = None,
         category_id: int | None = None,
         user_id: int | None = None,
+        include_recurring_templates: bool = False,
     ) -> list[Transaction]:
         """Filtert Transaktionen fuer Listen/Tabellen in der UI.
 
@@ -331,6 +332,8 @@ class TransactionService:
             end_date: Optionales Enddatum (inklusive).
             category_id: Optionaler Kategorien-Filter.
             user_id: Optionaler User-Filter (Ownership-Filter ueber alle Quellen).
+            include_recurring_templates: Wenn True, werden Dauerauftrag-Templates
+                ebenfalls in die Liste aufgenommen.
 
         Returns:
             Liste der passenden Transaktionen (neueste zuerst sortiert).
@@ -348,6 +351,7 @@ class TransactionService:
                 end_date=end_date,
                 category_id=category_id,
                 user_id=user_id,
+                include_recurring_templates=include_recurring_templates,
             )
 
     def _ensure_category_exists(self, session: Session, category_id: int) -> None:

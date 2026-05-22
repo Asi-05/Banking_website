@@ -679,6 +679,7 @@ def _refresh_planned(user_id, account_id, cat_filter, table) -> None:
 		end_date=date(2099, 12, 31),
 		category_id=cat_filter.value,
 		user_id=user_id,
+		include_recurring_templates=True,
 	)
 	if isinstance(result, str):
 		ui.notify(result, type="negative")

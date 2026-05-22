@@ -155,6 +155,7 @@ class TransactionRepository:
         end_date: date | None = None,
         category_id: int | None = None,
         user_id: int | None = None,
+        include_recurring_templates: bool = False,
     ) -> list[Transaction]:
         """Filtert Transaktionen mit optionalen Einschraenkungen.
 
@@ -192,6 +193,8 @@ class TransactionRepository:
             end_date: Enddatum (inkl.) oder None.
             category_id: Kategorie-ID oder None.
             user_id: User-ID oder None.
+            include_recurring_templates: Wenn True, werden Template-Transaktionen
+                von Daueraufträgen in das Ergebnis eingeschlossen.
 
         Returns:
             Liste der passenden Transaktionen (neueste zuerst).
@@ -244,6 +247,16 @@ class TransactionRepository:
                 (Account.user_id == user_id)
                 | (CreditCard.user_id == user_id)
                 | (AccountViaCard.user_id == user_id)
+            )
+
+        # Template-Transaktionen von Dauerauftraegen standardmaessig ausblenden.
+        # Fuer den Tab "Geplante Zahlungen" kann der Filter diese Eintraege gezielt
+        # wieder einschliessen.
+        if not include_recurring_templates:
+            from src.domain.models import RecurringTransaction
+
+            statement = statement.where(
+                ~Transaction.transaction_id.in_(select(RecurringTransaction.transaction_id))
             )
 
         # Sortierung: neueste zuerst, bei gleichem Datum nach ID
@@ -315,6 +328,12 @@ class TransactionRepository:
             (Account.user_id == user_id)
             | (CreditCard.user_id == user_id)
             | (AccountViaCard.user_id == user_id)
+        )
+
+        # Template-Transaktionen von Dauerauftraegen ausblenden
+        from src.domain.models import RecurringTransaction
+        statement = statement.where(
+            ~Transaction.transaction_id.in_(select(RecurringTransaction.transaction_id))
         )
 
         return list(self.session.exec(statement).all())

@@ -154,6 +154,7 @@ class TransactionController:
         end_date: date | None = None,
         category_id: int | None = None,
         user_id: int | None = None,
+        include_recurring_templates: bool = False,
     ) -> list | str:
         """Filtert Transaktionen und gibt UI-geeignete Dictionaries zurueck.
 
@@ -196,6 +197,8 @@ class TransactionController:
             end_date: Enddatum fuer Filter (inkl.) oder None.
             category_id: Kategorie-ID fuer Filter oder None.
             user_id: User-ID fuer Filter oder None.
+            include_recurring_templates: Wenn True, werden Dauerauftrag-Templates
+                ebenfalls angezeigt.
 
         Returns:
             Liste von Dictionaries (UI-geeignet) oder Fehlermeldung als String.
@@ -207,6 +210,7 @@ class TransactionController:
                 end_date=end_date,
                 category_id=category_id,
                 user_id=user_id,
+                include_recurring_templates=include_recurring_templates,
             )
             # Umwandlung in UI-geeignete Dictionaries mit formatierten Strings
             return [

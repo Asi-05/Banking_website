@@ -141,8 +141,8 @@ class RecurringService:
 
         if isinstance(start_date, str):
             start_date = date.fromisoformat(start_date)
-        if start_date < date.today():
-            raise ValueError("Startdatum darf nicht in der Vergangenheit liegen")
+        if start_date <= date.today():
+            raise ValueError("Startdatum muss mindestens morgen sein")
 
         with Session(engine) as session:
             account_repository = AccountRepository(session)
@@ -259,13 +259,12 @@ class RecurringService:
                 # aber die anderen werden weiterhin geprueft.
                 continue
 
+            next_due = self._next_due_date(recurring.last_executed, recurring.interval)
             with Session(engine) as session:
                 recurring_repository = RecurringRepository(session)
-                # Frische Session: Reload des Dauerauftrags, damit wir ein verwaltetes ORM-Objekt haben.
                 reloaded = recurring_repository.get_by_id(recurring.recurring_id)
                 if reloaded is not None:
-                    # Zustand fortschreiben: Naechste Faelligkeit wird ab jetzt berechnet.
-                    reloaded.last_executed = login_date
+                    reloaded.last_executed = next_due
                     recurring_repository.save(reloaded)
             executed += 1
 

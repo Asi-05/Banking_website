@@ -79,23 +79,23 @@ def _refresh_dashboard(user_id: int, main_container=None) -> None:
 		with main_container:
 
 			# ===== ZEILE 1: 3 SUMMARY CARDS =====
-			with ui.row().classes("w-full gap-4"):
+			with ui.grid(columns=3).classes("w-full gap-4"):
 
-				with ui.card().classes("flex-1"):
+				with ui.card():
 					with ui.row().classes("w-full items-center justify-between"):
 						ui.label("Gesamtsaldo").classes("text-subtitle2 text-gray-500")
 						ui.icon("account_balance_wallet").classes("text-blue-500 text-2xl")
 					ui.label(f"CHF {format_chf(summary.total_balance)}").classes("text-h4 font-bold")
 					ui.label("Alle Konten").classes("text-sm text-gray-400")
 
-				with ui.card().classes("flex-1"):
+				with ui.card():
 					with ui.row().classes("w-full items-center justify-between"):
 						ui.label(f"Einnahmen ({month_name})").classes("text-subtitle2 text-gray-500")
 						ui.icon("trending_up").classes("text-green-500 text-2xl")
 					ui.label(f"CHF {format_chf(summary.total_income)}").classes("text-h4 font-bold text-green-600")
 					ui.label("Laufender Monat").classes("text-sm text-gray-400")
 
-				with ui.card().classes("flex-1"):
+				with ui.card():
 					with ui.row().classes("w-full items-center justify-between"):
 						ui.label(f"Ausgaben ({month_name})").classes("text-subtitle2 text-gray-500")
 						ui.icon("trending_down").classes("text-red-500 text-2xl")
@@ -103,9 +103,9 @@ def _refresh_dashboard(user_id: int, main_container=None) -> None:
 					ui.label("Laufender Monat").classes("text-sm text-gray-400")
 
 				# ===== ZEILE 2: KONTENÜBERSICHT + HISTOGRAMM =====
-			with ui.row().classes("w-full gap-4 items-stretch"):
+			with ui.grid(columns=2).classes("w-full gap-4"):
 				# Kontenübersicht (links)
-				with ui.card().classes("flex-1"):
+				with ui.card():
 					ui.label("Kontenübersicht").classes("text-subtitle1 font-semibold mb-3")
 					for account in active_accounts:
 						with ui.row().classes("w-full items-center justify-between py-3") \
@@ -116,7 +116,7 @@ def _refresh_dashboard(user_id: int, main_container=None) -> None:
 							ui.label(f"CHF {format_chf(account['balance'])}").classes("font-bold")
 
 				# Ausgaben / Einnahmen (HISTOGRAMM)
-				with ui.card().classes("flex-1"):
+				with ui.card():
 					ui.label(f"Einnahmen & Ausgaben ({month_name})").classes("text-subtitle1 font-semibold mb-3")
 					ui.echart(options={
 						"tooltip": {

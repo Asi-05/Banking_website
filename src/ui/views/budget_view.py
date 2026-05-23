@@ -282,6 +282,13 @@ def _build_budget_list(user_id: int) -> None:
 		with active_table.add_slot("no-data"):
 			ui.label("Kein aktives Budget vorhanden").classes("text-gray-500 italic")
 		active_table.add_slot("body-cell-actions", ACTION_SLOT)
+		active_table.add_slot("body-cell-status", """
+			<q-td :props="props">
+				<span :class="props.row.status.includes('OK') ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
+					{{ props.row.status }}
+				</span>
+			</q-td>
+		""")
 
 		def handle_edit_active(e) -> None:
 			"""Oeffnet den Edit-Dialog fuer ein aktives Budget.
@@ -307,6 +314,13 @@ def _build_budget_list(user_id: int) -> None:
 		with expired_table.add_slot("no-data"):
 			ui.label("Kein abgelaufenes Budget vorhanden").classes("text-gray-500 italic")
 		expired_table.add_slot("body-cell-actions", EXPIRED_ACTION_SLOT)
+		expired_table.add_slot("body-cell-status", """
+			<q-td :props="props">
+				<span :class="props.row.status.includes('OK') ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
+					{{ props.row.status }}
+				</span>
+			</q-td>
+		""")
 		def handle_delete_expired(e) -> None:
 			"""Oeffnet den Delete-Dialog fuer ein abgelaufenes Budget.
 

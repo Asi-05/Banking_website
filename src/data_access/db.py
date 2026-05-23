@@ -113,6 +113,12 @@ def create_db_and_tables() -> None:
             except Exception:
                 pass  # Spalte existiert bereits → ignorieren.
 
+        try:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN is_settled INTEGER NOT NULL DEFAULT 1"))
+            conn.commit()
+        except Exception:
+            pass  # Spalte existiert bereits → ignorieren.
+
         # Alte `dashboard`-Tabelle loeschen (Dashboard wird jetzt dynamisch berechnet).
         try:
             conn.execute(text("DROP TABLE IF EXISTS dashboard"))

@@ -415,7 +415,7 @@ class PaymentService:
         pdf.set_text_color(*GRAY)
         pdf.set_font("Helvetica", "", 8)
         pdf.set_xy(20, 30)
-        pdf.multi_cell(70, 4.5, "BetterBank AG\nKundenservice\nTelefon +41 58 000 00 00\nwww.betterbank.ch")
+        pdf.multi_cell(70, 4.5, "BetterBank AG\nKundenservice\nInland: 0844 840 140\nAusland: +41 44 293 95 95\nwww.betterbank.ch")
 
         # ── KONTOBEZEICHNUNG ─────────────────────────────────────────
         pdf.set_xy(20, 60)

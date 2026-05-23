@@ -355,7 +355,7 @@ def _build_recurring_payments_section(user_id: int) -> None:
 			''')
 		with ui.card().classes("w-full"):
 			recurring_table = ui.table(columns=[
-				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
+				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "left"},
 				{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
 				{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
 				{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},

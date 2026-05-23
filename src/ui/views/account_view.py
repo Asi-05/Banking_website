@@ -629,6 +629,7 @@ def _refresh_bewegungen(user_id, account_id, month, year, category_id, table) ->
 		end_date=date(year, month, last_day),
 		category_id=category_id,
 		user_id=user_id,
+		is_settled=True,
 	)
 	if isinstance(result, str):
 		ui.notify(result, type="negative")

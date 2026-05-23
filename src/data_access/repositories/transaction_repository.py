@@ -212,6 +212,10 @@ class TransactionRepository:
         if category_id is not None:
             statement = statement.where(Transaction.category_id == category_id)
 
+        # Optionaler is_settled-Filter
+        if is_settled is not None:
+            statement = statement.where(Transaction.is_settled == is_settled)
+
         # Optionaler User-Filter (erfordert komplexe Joins)
         if user_id is not None:
             from sqlalchemy.orm import aliased

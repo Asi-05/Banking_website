@@ -325,6 +325,7 @@ class Transaction(SQLModel, table=True):
 	date: date
 	type: str
 	note: Optional[str] = Field(default=None, nullable=True)
+	is_settled: bool = Field(default=True)
 	category_id: int = Field(foreign_key="categories.category_id")
 	account_id: Optional[int] = Field(default=None, foreign_key="accounts.account_id")
 	card_id: Optional[int] = Field(default=None, foreign_key="debit_cards.card_id")

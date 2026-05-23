@@ -200,6 +200,11 @@ def show() -> None:
 
 	user_id = app_state.get("user_id")
 
+	# Faellige Dauerauftraege direkt beim Seitenaufruf ausfuehren (nicht nur beim Login).
+	from src.ui.controllers.recurring_controller import recurring_controller as _rc_startup
+	from datetime import date as _date
+	_rc_startup.process_due_on_login(user_id, _date.today())
+
 	# ===== SIDEBAR =====
 	with ui.left_drawer():
 		_build_sidebar()
@@ -300,9 +305,9 @@ def _build_account_list(user_id: int) -> None:
 		.account-table .q-table { table-layout: fixed; width: 100%; }
 		.account-table .q-table th:nth-child(1), .account-table .q-table td:nth-child(1) { width: 30%; }
 		.account-table .q-table th:nth-child(2), .account-table .q-table td:nth-child(2) { width: 10%; }
-		.account-table .q-table th:nth-child(3), .account-table .q-table td:nth-child(3) { width: 15%; }
-		.account-table .q-table th:nth-child(4), .account-table .q-table td:nth-child(4) { width: 15%; }
-		.account-table .q-table th:nth-child(5), .account-table .q-table td:nth-child(5) { width: 30%; }
+		.account-table .q-table th:nth-child(3), .account-table .q-table td:nth-child(3) { width: 20%; }
+		.account-table .q-table th:nth-child(4), .account-table .q-table td:nth-child(4) { width: 13%; }
+		.account-table .q-table th:nth-child(5), .account-table .q-table td:nth-child(5) { width: 27%; }
 	''')
 
 	# === KASTEN 1: AKTIVE KONTEN ===
@@ -326,13 +331,28 @@ def _build_account_list(user_id: int) -> None:
 					e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
 				"""
 				account_id = e.args.get("account_id")
-				# Fachliche Regeln (z.B. "nur schliessen wenn Saldo = 0") werden im Service
-				# geprueft; die UI zeigt hier nur die Fehlermeldung an.
-				error = account_controller.close_account(account_id)
-				if error:
-					ui.notify(error, type="negative")
-				else:
-					ui.notify("Konto erfolgreich geschlossen", type="positive")
+				iban = e.args.get("iban", "")
+				with ui.dialog() as dlg, ui.card().classes("w-96"):
+					ui.label("Konto schliessen?").classes("text-subtitle1 font-semibold mb-3")
+					with ui.card().classes("w-full mb-3").props("flat bordered"):
+						ui.label(f"IBAN: {iban}").classes("text-sm text-gray-700")
+						ui.label(f"Saldo: {e.args.get('balance', '')} CHF").classes("text-sm text-gray-700")
+					ui.label(
+						"Das Konto wird dauerhaft geschlossen. Dies kann nicht rückgängig gemacht werden."
+					).classes("text-sm text-red-600 mt-2")
+					with ui.row().classes("gap-4 mt-4 justify-end"):
+						ui.button("Abbrechen", on_click=dlg.close).props("flat")
+						def do_close(aid=account_id):
+							# Fachliche Regeln (z.B. "nur schliessen wenn Saldo = 0") werden im Service
+							# geprueft; die UI zeigt hier nur die Fehlermeldung an.
+							error = account_controller.close_account(aid)
+							dlg.close()
+							if error:
+								ui.notify(error, type="negative")
+							else:
+								ui.notify("Konto erfolgreich geschlossen", type="positive")
+						ui.button("Konto schliessen", on_click=do_close).props("color=negative unelevated")
+				dlg.open()
 			active_table.on("close_account", handle_close_active)
 
 	# === KASTEN 2: GESCHLOSSENE KONTEN ===
@@ -383,14 +403,31 @@ gueltige Typen) passiert im Service.
 
 			# Validierung des Kontotyps passiert im Service; die UI uebergibt nur die Auswahl.
 
-			error = account_controller.open_account(payload)
-
-			if error:
-				error_label.set_text(error)
-				ui.notify(error, type="negative")
+			if type_select.value == "privat":
+				type_label = "Privatkonto"
+			elif type_select.value == "spar":
+				type_label = "Sparkonto"
 			else:
-				ui.notify("Konto erfolgreich eröffnet", type="positive")
-				type_select.value = None
+				type_label = type_select.value or "—"
+
+			with ui.dialog() as dlg, ui.card().classes("w-96"):
+				ui.label("Konto eröffnen bestätigen").classes("text-subtitle1 font-semibold mb-3")
+				with ui.card().classes("w-full mb-3").props("flat bordered"):
+					ui.label(f"Kontotyp: {type_label}").classes("text-sm text-gray-700")
+				ui.label("Ein neues Konto wird für Sie eröffnet.").classes("text-sm text-gray-600")
+				with ui.row().classes("gap-4 mt-4 justify-end"):
+					ui.button("Abbrechen", on_click=dlg.close).props("flat")
+					def do_open(p=payload):
+						error = account_controller.open_account(p)
+						dlg.close()
+						if error:
+							error_label.set_text(error)
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Konto erfolgreich eröffnet", type="positive")
+							type_select.value = None
+					ui.button("Konto eröffnen", on_click=do_open).props("color=primary unelevated")
+			dlg.open()
 
 		ui.button("Konto eröffnen", on_click=handle_open_account).classes("w-full")
 
@@ -488,6 +525,14 @@ def _build_bewegungen_section(user_id: int) -> None:
 						user_id, account_select.value, month_select.value, year_select.value, cat_select.value, booked_table
 					)).props("unelevated color=primary")
 
+			ui.add_css('''
+				.booked-table .q-table { table-layout: fixed; width: 100%; }
+				.booked-table .q-table th:nth-child(1), .booked-table .q-table td:nth-child(1) { width: 12%; }
+				.booked-table .q-table th:nth-child(2), .booked-table .q-table td:nth-child(2) { width: 18%; }
+				.booked-table .q-table th:nth-child(3), .booked-table .q-table td:nth-child(3) { width: 15%; }
+				.booked-table .q-table th:nth-child(4), .booked-table .q-table td:nth-child(4) { width: 18%; }
+				.booked-table .q-table th:nth-child(5), .booked-table .q-table td:nth-child(5) { width: 37%; }
+			''')
 			with ui.card().classes("w-full"):
 				booked_table = ui.table(columns=[
 					{"name": "date", "label": "Datum", "field": "date", "align": "left"},
@@ -496,7 +541,7 @@ def _build_bewegungen_section(user_id: int) -> None:
 					{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
 					{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
 				], rows=[]).props("dense")
-				booked_table.classes("w-full")
+				booked_table.classes("w-full booked-table")
 				with booked_table.add_slot("no-data"):
 					ui.label("Keine Transaktionen vorhanden").classes("text-gray-500 italic")
 
@@ -514,6 +559,15 @@ def _build_bewegungen_section(user_id: int) -> None:
 						user_id, account_select.value, planned_cat_filter, planned_table
 					)).props("flat size=sm")
 
+				ui.add_css('''
+					.planned-table .q-table { table-layout: fixed; width: 100%; }
+					.planned-table .q-table th:nth-child(1), .planned-table .q-table td:nth-child(1) { width: 10%; }
+					.planned-table .q-table th:nth-child(2), .planned-table .q-table td:nth-child(2) { width: 16%; }
+					.planned-table .q-table th:nth-child(3), .planned-table .q-table td:nth-child(3) { width: 14%; }
+					.planned-table .q-table th:nth-child(4), .planned-table .q-table td:nth-child(4) { width: 15%; }
+					.planned-table .q-table th:nth-child(5), .planned-table .q-table td:nth-child(5) { width: 22%; }
+					.planned-table .q-table th:nth-child(6), .planned-table .q-table td:nth-child(6) { width: 23%; }
+				''')
 				planned_table = ui.table(columns=[
 					{"name": "date", "label": "Datum", "field": "date", "align": "left"},
 					{"name": "type", "label": "Typ", "field": "type", "align": "left"},
@@ -522,16 +576,42 @@ def _build_bewegungen_section(user_id: int) -> None:
 					{"name": "note", "label": "Notiz", "field": "note", "align": "left"},
 					{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
 				], rows=[]).props("dense")
-				planned_table.classes("w-full")
+				planned_table.classes("w-full planned-table")
 				with planned_table.add_slot("no-data"):
 					ui.label("Keine geplanten Zahlungen vorhanden").classes("text-gray-500 italic")
 
 				planned_table.add_slot("body-cell-actions", """
 					<q-td :props="props">
-						<q-btn label="Ändern" color="primary" size="sm" flat
-							@click="$parent.$emit('edit_planned', props.row)" />
-						<q-btn label="Stornieren" color="negative" size="sm" flat
-							@click="$parent.$emit('delete_planned', props.row)" />
+						<q-btn icon="arrow_drop_down" flat round dense size="sm">
+							<q-menu>
+								<q-list dense style="min-width: 130px">
+									<template v-if="props.row.is_recurring">
+										<q-item clickable v-close-popup
+											@click="$parent.$emit('edit_recurring_planned', props.row)">
+											<q-item-section>Ändern</q-item-section>
+										</q-item>
+										<q-item clickable v-close-popup
+											@click="$parent.$emit('pause_recurring', props.row)">
+											<q-item-section class="text-warning">Pausieren</q-item-section>
+										</q-item>
+										<q-item clickable v-close-popup
+											@click="$parent.$emit('cancel_recurring', props.row)">
+											<q-item-section class="text-negative">Stornieren</q-item-section>
+										</q-item>
+									</template>
+									<template v-else>
+										<q-item clickable v-close-popup
+											@click="$parent.$emit('edit_planned', props.row)">
+											<q-item-section>Ändern</q-item-section>
+										</q-item>
+										<q-item clickable v-close-popup
+											@click="$parent.$emit('delete_planned', props.row)">
+											<q-item-section class="text-negative">Stornieren</q-item-section>
+										</q-item>
+									</template>
+								</q-list>
+							</q-menu>
+						</q-btn>
 					</q-td>
 				""")
 
@@ -565,26 +645,147 @@ def _build_bewegungen_section(user_id: int) -> None:
 							ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
 					edit_dialog.open()
 
-				def handle_delete_planned(e) -> None:
-					"""Event-Handler: storniert eine geplante Zahlung (Loeschen mit Confirm)."""
+				def handle_edit_recurring_planned(e) -> None:
+					"""Oeffnet den Bearbeitungs-Dialog fuer einen Dauerauftrag."""
+					from src.ui.controllers.recurring_controller import recurring_controller as _rc
+					from src.ui.controllers.category_controller import category_controller as _cc
+					row = e.args
+					recurring_id = row.get("recurring_id")
+					current = _rc.get_by_id(recurring_id)
+					if current is None:
+						ui.notify("Dauerauftrag nicht gefunden", type="negative")
+						return
+					edit_cats = _cc.list_categories()
+					with ui.dialog() as dlg, ui.card().classes("w-96"):
+						ui.label("Dauerauftrag ändern").classes("text-subtitle1 font-semibold mb-4")
+						amount_edit = ui.number(
+							label="Betrag (CHF)", value=current.amount, min=0.01, step=0.01
+						).props("outlined").classes("w-full mb-4")
+						category_edit = ui.select(
+							options=edit_cats, value=current.category_id, label="Kategorie"
+						).props("outlined").classes("w-full mb-4")
+						account_edit = ui.select(
+							options=account_options, value=int(current.account_id), label="Belastungskonto"
+						).props("outlined").classes("w-full mb-4")
+						interval_edit = ui.select(
+							options={"monthly": "Monatlich", "yearly": "Jährlich"},
+							value=current.interval, label="Intervall"
+						).props("outlined").classes("w-full mb-4")
+						iban_edit = ui.input(
+							label="Ziel-IBAN", value=current.target_iban
+						).props("outlined").classes("w-full mb-4")
+						with ui.row().classes("gap-4"):
+							ui.button("Abbrechen", on_click=dlg.close).props("flat")
+							def do_edit(rid=recurring_id):
+								payload = {
+									"amount": amount_edit.value or 0,
+									"category_id": category_edit.value,
+									"account_id": account_edit.value,
+									"interval": interval_edit.value,
+									"target_iban": iban_edit.value,
+								}
+								error = _rc.update_recurring(rid, payload)
+								dlg.close()
+								if error:
+									ui.notify(error, type="negative")
+								else:
+									ui.notify("Dauerauftrag aktualisiert", type="positive")
+									_refresh_planned(user_id, account_select.value, planned_cat_filter, planned_table)
+							ui.button("Speichern", on_click=do_edit).props("color=primary unelevated")
+					dlg.open()
+
+				def handle_pause_recurring(e) -> None:
+					"""Ueberspringt die naechste Ausfuehrung eines Dauerauftrags (Pausieren)."""
+					from src.ui.controllers.recurring_controller import recurring_controller as _rc
 					row = e.args
 					transaction_id = row.get("transaction_id")
-					with ui.dialog() as confirm_dialog, ui.card():
-						ui.label("Zahlung stornieren?").classes("text-subtitle1 font-semibold")
-						with ui.row().classes("gap-4 mt-4"):
-							ui.button("Abbrechen", on_click=confirm_dialog.close).props("flat")
+					next_next_date = row.get("next_next_date", "unbekannt")
+					amount = row.get("amount", "")
+					category = row.get("category", "")
+					with ui.dialog() as dlg, ui.card().classes("w-96"):
+						ui.label("Zahlung pausieren").classes("text-subtitle1 font-semibold mb-3")
+						with ui.card().classes("w-full mb-3").props("flat bordered"):
+							ui.label(f"Betrag: {amount} CHF").classes("text-sm text-gray-700")
+							ui.label(f"Kategorie: {category}").classes("text-sm text-gray-600")
+						ui.label("Diese Zahlung wird übersprungen.").classes("text-gray-700")
+						ui.label(
+							f"Die nächste Zahlung wird am {next_next_date} ausgeführt."
+						).classes("text-gray-600 text-sm mt-1")
+						with ui.row().classes("gap-4 mt-4 justify-end"):
+							ui.button("Abbrechen", on_click=dlg.close).props("flat")
+							def do_pause(tid=transaction_id):
+								_rc.skip_next_execution(tid)
+								dlg.close()
+								ui.notify("Zahlung übersprungen", type="positive")
+								_refresh_planned(user_id, account_select.value, planned_cat_filter, planned_table)
+							ui.button("Dauerauftrag pausieren", on_click=do_pause).props("color=warning unelevated")
+					dlg.open()
+
+				def handle_cancel_recurring(e) -> None:
+					"""Loescht einen Dauerauftrag dauerhaft aus der Geplante-Zahlungen-Ansicht."""
+					from src.ui.controllers.recurring_controller import recurring_controller as _rc
+					row = e.args
+					recurring_id = row.get("recurring_id")
+					amount = row.get("amount", "")
+					category = row.get("category", "")
+					with ui.dialog() as dlg, ui.card().classes("w-96"):
+						ui.label("Dauerauftrag stornieren").classes("text-subtitle1 font-semibold mb-3")
+						with ui.card().classes("w-full mb-3").props("flat bordered"):
+							ui.label(f"Betrag: {amount} CHF").classes("text-sm text-gray-700")
+							ui.label(f"Kategorie: {category}").classes("text-sm text-gray-600")
+						ui.label(
+							"Der Dauerauftrag wird dauerhaft gelöscht."
+						).classes("text-gray-700 font-medium")
+						ui.label(
+							"Alle zukünftigen Zahlungen werden abgebrochen."
+						).classes("text-gray-600 text-sm mt-1")
+						with ui.row().classes("gap-4 mt-4 justify-end"):
+							ui.button("Abbrechen", on_click=dlg.close).props("flat")
+							def do_cancel(rid=recurring_id):
+								error = _rc.delete_recurring(rid)
+								dlg.close()
+								if error:
+									ui.notify(error, type="negative")
+								else:
+									ui.notify("Dauerauftrag storniert", type="positive")
+									_refresh_planned(user_id, account_select.value, planned_cat_filter, planned_table)
+							ui.button("Dauerauftrag stornieren", on_click=do_cancel).props("color=negative unelevated")
+					dlg.open()
+
+				def handle_delete_planned(e) -> None:
+					"""Storniert eine normale (nicht-Dauerauftrag) geplante Zahlung mit Zusammenfassung."""
+					row = e.args
+					transaction_id = row.get("transaction_id")
+					amount = row.get("amount", "")
+					tx_date = row.get("date", "")
+					category = row.get("category", "")
+					note = row.get("note", "-")
+					with ui.dialog() as dlg, ui.card().classes("w-96"):
+						ui.label("Zahlung stornieren?").classes("text-subtitle1 font-semibold mb-3")
+						with ui.card().classes("w-full mb-3").props("flat bordered"):
+							ui.label(f"Betrag: {amount} CHF").classes("text-sm text-gray-700")
+							ui.label(f"Datum: {tx_date}").classes("text-sm text-gray-600")
+							ui.label(f"Kategorie: {category}").classes("text-sm text-gray-600")
+							if note and note != "-":
+								ui.label(f"Notiz: {note}").classes("text-sm text-gray-500")
+						ui.label("Diese Zahlung wird unwiderruflich storniert.").classes("text-gray-600 text-sm")
+						with ui.row().classes("gap-4 mt-4 justify-end"):
+							ui.button("Abbrechen", on_click=dlg.close).props("flat")
 							def do_delete(tid=transaction_id):
 								error = transaction_controller.delete_transaction(tid, confirm=True)
-								confirm_dialog.close()
+								dlg.close()
 								if error:
 									ui.notify(error, type="negative")
 								else:
 									ui.notify("Storniert", type="positive")
 									_refresh_planned(user_id, account_select.value, planned_cat_filter, planned_table)
 							ui.button("Stornieren", on_click=do_delete).props("color=negative unelevated")
-					confirm_dialog.open()
+					dlg.open()
 
 				planned_table.on("edit_planned", handle_edit_planned)
+				planned_table.on("edit_recurring_planned", handle_edit_recurring_planned)
+				planned_table.on("pause_recurring", handle_pause_recurring)
+				planned_table.on("cancel_recurring", handle_cancel_recurring)
 				planned_table.on("delete_planned", handle_delete_planned)
 
 				_refresh_planned(user_id, first_account_id, planned_cat_filter, planned_table)
@@ -621,15 +822,13 @@ def _refresh_bewegungen(user_id, account_id, month, year, category_id, table) ->
 	    table:       Das NiceGUI-Tabellenobjekt, das befuellt werden soll.
 	"""
 	from nicegui import ui
-	import calendar as cal_module
 	from src.ui.controllers.category_controller import category_controller
-	_, last_day = cal_module.monthrange(year, month)
-	result = transaction_controller.filter_transactions(
-		start_date=date(year, month, 1),
-		end_date=date(year, month, last_day),
-		category_id=category_id,
+	result = transaction_controller.filter_for_month(
 		user_id=user_id,
-		is_settled=True,
+		year=year,
+		month=month,
+		account_id=account_id,
+		category_id=category_id,
 	)
 	if isinstance(result, str):
 		ui.notify(result, type="negative")
@@ -642,7 +841,7 @@ def _refresh_bewegungen(user_id, account_id, month, year, category_id, table) ->
 		"amount": f"{t['amount']:,.2f}",
 		"category": cats.get(t["category_id"], "—"),
 		"note": t["note"] or "-",
-	} for t in result if account_id is None or t.get("account_id") == account_id]
+	} for t in result]
 
 
 def _refresh_planned(user_id, account_id, cat_filter, table) -> None:
@@ -675,6 +874,18 @@ def _refresh_planned(user_id, account_id, cat_filter, table) -> None:
 	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
+	from src.ui.controllers.recurring_controller import recurring_controller as _rc_planned
+
+	# Template-Map aufbauen: transaction_id → RecurringTransaction
+	_all_recurring = _rc_planned.list_recurring(user_id)
+	if isinstance(_all_recurring, str):
+		_all_recurring = []
+	_recurring_map = {
+		r.transaction_id: r
+		for r in _all_recurring
+		if r.transaction_id is not None
+	}
+
 	result = transaction_controller.filter_transactions(
 		start_date=date.today() + timedelta(days=1),
 		end_date=date(2099, 12, 31),
@@ -686,14 +897,40 @@ def _refresh_planned(user_id, account_id, cat_filter, table) -> None:
 		ui.notify(result, type="negative")
 		return
 	cats = category_controller.list_categories()
-	table.rows = [{
-		"transaction_id": t["transaction_id"],
-		"date": t["date"],
-		"type": t["type"],
-		"amount": f"{t['amount']:,.2f}",
-		"category": cats.get(t["category_id"], "—"),
-		"note": t["note"] or "-",
-	} for t in result if account_id is None or t.get("account_id") == account_id]
+
+	rows = []
+	for t in result:
+		if account_id is not None and t.get("account_id") != account_id:
+			continue
+		rec = _recurring_map.get(t["transaction_id"])
+		is_recurring = rec is not None
+
+		# Naechste Ausfuehrung nach dem uebersprungenen Termin (fuer Pausieren-Dialog).
+		next_next_date = ""
+		if is_recurring:
+			try:
+				tx_date = t["date"]
+				if isinstance(tx_date, str):
+					# Controller liefert DD-MM-YYYY (format_date_dmy) → in date umwandeln.
+					from datetime import datetime as _dt
+					tx_date = _dt.strptime(tx_date, "%d-%m-%Y").date()
+				next_next_date = _rc_planned.get_next_execution_date(tx_date, rec.interval).strftime("%d.%m.%Y")
+			except Exception:
+				next_next_date = ""
+
+		rows.append({
+			"transaction_id": t["transaction_id"],
+			"date": t["date"],
+			"type": t["type"],
+			"amount": f"{t['amount']:,.2f}",
+			"category": cats.get(t["category_id"], "—"),
+			"note": t["note"] or "-",
+			"is_recurring": is_recurring,
+			"recurring_id": rec.recurring_id if is_recurring else None,
+			"next_next_date": next_next_date,
+		})
+
+	table.rows = rows
 
 
 

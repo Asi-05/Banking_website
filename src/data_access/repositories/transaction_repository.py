@@ -197,8 +197,22 @@ class TransactionRepository:
         Returns:
             Liste der passenden Transaktionen (neueste zuerst).
         """
-        # Basis-Query ohne Filter: alle Transaktionen
-        statement = select(Transaction)
+        from sqlalchemy import exists
+        from src.domain.models import RecurringTransaction
+
+        # Basis-Query: Template-Transaktionen nur ausschliessen, wenn NICHT explizit
+        # nach is_settled=False gesucht wird (Geplante Zahlungen).
+        # Grund: Templates haben is_settled=False und repraesentieren die naechste
+        # geplante Ausfuehrung → sollen in "Geplante Zahlungen" erscheinen,
+        # aber nicht in "Bewegungen" (is_settled=True) oder im Dashboard (is_settled=None).
+        if is_settled is not False:
+            statement = select(Transaction).where(
+                ~exists().where(
+                    RecurringTransaction.transaction_id == Transaction.transaction_id
+                )
+            )
+        else:
+            statement = select(Transaction)
 
         # Optionaler Datumsfilter
         if start_date is not None:
@@ -292,12 +306,17 @@ class TransactionRepository:
         """
         from src.domain.models import Account, CreditCard, DebitCard
 
+        from sqlalchemy import exists
+        from src.domain.models import RecurringTransaction
+
         # Zeitraum: [1. des Monats, 1. des Folgemonats)
-        # month // 12 = 1 wenn month=12, sonst 0 (Jahr-Uebertrag)
-        # (month % 12) + 1 = Folgemonat (12 % 12 = 0, + 1 = 1 = Januar des Folgejahres)
+        # Template-Transaktionen ausschliessen via NOT EXISTS (gleiche Logik wie filter_transactions).
         statement = select(Transaction).where(
             Transaction.date >= date(year, month, 1),
             Transaction.date < date(year + (month // 12), ((month % 12) + 1), 1),
+            ~exists().where(
+                RecurringTransaction.transaction_id == Transaction.transaction_id
+            ),
         )
 
         if category_id is not None:

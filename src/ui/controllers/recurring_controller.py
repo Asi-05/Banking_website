@@ -37,6 +37,14 @@ from datetime import date
 from src.services.recurring_service import recurring_service
 
 
+def _parse_date(value: str) -> date:
+    """Wandelt DD.MM.YYYY oder YYYY-MM-DD in ein date-Objekt um."""
+    if "." in value:
+        d, m, y = value.split(".")
+        return date(int(y), int(m), int(d))
+    return date.fromisoformat(value)
+
+
 # Orchestriert Dauerauftrag-Use-Cases und kapselt Fehlerbehandlung fuer die UI.
 class RecurringController:
     """UI-Controller fuer Dauerauftraege (Recurring Transactions).
@@ -86,15 +94,15 @@ class RecurringController:
 
             # 1. Startdatum: wann beginnt der Dauerauftrag?
             if "start_date" in payload and isinstance(payload["start_date"], str):
-                payload["start_date"] = date.fromisoformat(payload["start_date"])
+                payload["start_date"] = _parse_date(payload["start_date"])
 
             # 2. Enddatum: wann endet der Dauerauftrag? (optional)
             if "end_date" in payload and isinstance(payload["end_date"], str):
-                payload["end_date"] = date.fromisoformat(payload["end_date"])
+                payload["end_date"] = _parse_date(payload["end_date"])
 
             # 3. Datum der Template-Transaktion (falls mitgegeben)
             if "date" in payload and isinstance(payload["date"], str):
-                payload["date"] = date.fromisoformat(payload["date"])
+                payload["date"] = _parse_date(payload["date"])
 
             # Jetzt den Service aufrufen (Validierung und Datenbank-Speicherung)
             recurring_service.create_recurring(payload)
@@ -215,6 +223,25 @@ class RecurringController:
         except Exception as error:
             return str(error)
 
+    def get_display_next_execution_date(self, last_executed: date, interval: str) -> date:
+        """Gibt das naechste Ausfuehrungsdatum zurueck, das fuer die Anzeige geeignet ist.
+
+        Falls das berechnete naechste Datum in der Vergangenheit oder heute liegt
+        (z.B. weil der Dauerauftrag gerade ausgefuehrt wurde), wird das uebernnaechste
+        Datum zurueckgegeben – damit die Anzeige nicht wie "ueberfaellig" wirkt.
+
+        Args:
+            last_executed: Datum der letzten Ausfuehrung.
+            interval: "monthly" oder "yearly".
+
+        Returns:
+            Naechstes Ausfuehrungsdatum fuer die Tabellenanzeige.
+        """
+        next_exec = recurring_service.next_execution_date(last_executed, interval)
+        if next_exec <= date.today():
+            next_exec = recurring_service.next_execution_date(next_exec, interval)
+        return next_exec
+
     def get_next_execution_date(self, last_executed: date, interval: str) -> date:
         """Berechnet das naechste Ausfuehrungsdatum eines Dauerauftrags.
 
@@ -237,6 +264,24 @@ class RecurringController:
             Das naechste Ausfuehrungsdatum als Python date-Objekt.
         """
         return recurring_service.next_execution_date(last_executed, interval)
+
+    def skip_next_execution(self, transaction_id: int) -> bool:
+        """Ueberspringt die naechste Ausfuehrung eines Dauerauftrags.
+
+        Gibt True zurueck wenn es eine Dauerauftrag-Template war (und uebersprungen wurde).
+        Gibt False zurueck wenn es keine Template-Transaktion war.
+
+        Args:
+            transaction_id: ID der Template-Transaktion in "Geplante Zahlungen".
+
+        Returns:
+            True = war ein Dauerauftrag-Template, uebersprungen.
+            False = normale Zahlung, Aufrufer soll delete_transaction verwenden.
+        """
+        try:
+            return recurring_service.skip_next_execution(transaction_id)
+        except Exception:
+            return False
 
     def get_by_id(self, recurring_id: int):
         """Laedt einen einzelnen Dauerauftrag anhand seiner ID.

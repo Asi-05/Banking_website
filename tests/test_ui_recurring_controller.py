@@ -34,7 +34,7 @@ def _valid_recurring_payload():
 def test_create_recurring_success_returns_none():
     controller = _make_controller()
     fake_recurring = SimpleNamespace(recurring_id=1)
-    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=3)), \
+    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=3, name="Sonstiges")), \
         patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=SimpleNamespace(account_id=1, status="aktiv")), \
         patch("src.data_access.repositories.recurring_repository.RecurringRepository.create", return_value=fake_recurring):
         result = controller.create_recurring(_valid_recurring_payload())
@@ -67,7 +67,7 @@ def test_create_recurring_yearly_interval_returns_none():
     controller = _make_controller()
     payload = {**_valid_recurring_payload(), "interval": "yearly"}
     fake_recurring = SimpleNamespace(recurring_id=2)
-    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=3)), \
+    with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=3, name="Sonstiges")), \
         patch("src.data_access.repositories.account_repository.AccountRepository.get_by_id", return_value=SimpleNamespace(account_id=1, status="aktiv")), \
         patch("src.data_access.repositories.recurring_repository.RecurringRepository.create", return_value=fake_recurring):
         result = controller.create_recurring(payload)

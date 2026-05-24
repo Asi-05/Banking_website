@@ -44,7 +44,7 @@ implementieren - er delegiert die eigentliche Buchung weiter.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from sqlmodel import Session
@@ -299,10 +299,10 @@ class PaymentService:
             Dateiname: `statement_{account_id}_{start}_{end}.pdf`
             Beispiel: `statements/statement_3_20260501_20260531.pdf`
 
-        WARUM OHNE EXTERNE PDF-LIBRARY?
-            Demo-Projekt: minimale Abhaengigkeiten. Der PDF-Standard ist offen,
-            einfache Texte lassen sich "von Hand" schreiben. _write_simple_pdf
-            erzeugt eine gueltiges PDF-1.4-Dokument mit einer Seite.
+        PDF-GENERIERUNG MIT fpdf2:
+            _write_statement_pdf() verwendet die fpdf2-Library fuer ein
+            formatiertes A4-PDF mit Header-Balken, Transaktions-Tabelle,
+            Eroeffnungs-/Schlusssaldo und Fusstext.
 
         Args:
             account_id: Datenbank-ID des Kontos fuer den Auszug.
@@ -326,159 +326,251 @@ class PaymentService:
             if account is None:
                 raise KeyError(f"Konto {account_id} nicht gefunden")
 
-            # User-Name fuer den Auszugs-Kopf laden.
             from src.domain.models import User
             user = session.get(User, account.user_id)
             user_name = f"{user.first_name} {user.last_name}" if user else "Unbekannt"
+            user_address = (getattr(user, "address", None) or "") if user else ""
             account_type_label = "Sparkonto" if account.account_type == "spar" else "Privatkonto"
             account_iban = (account.iban or "").upper()
 
-            # Alle Buchungen des Kontos im Zeitraum laden (aufsteigend sortiert = chronologisch).
             transactions = payment_repository.list_account_transactions_in_range(
                 account_id=account_id,
                 start_date=start_date,
                 end_date=end_date,
             )
 
-        # PDF-Inhalt als Textzeilen vorbereiten.
-        separator = "-" * 72
-        col_header = f"{'Datum':<12}  {'Typ':<12}  {'Betrag (CHF)':>14}  {'Notiz'}"
-        lines = [
-            "=" * 72,
-            "  BetterBank AG – Kontoauszug",
-            "=" * 72,
-            "",
-            f"  Kontoinhaber : {user_name}",
-            f"  IBAN         : {account_iban}",
-            f"  Kontotyp     : {account_type_label}",
-            f"  Zeitraum     : {format_date_dmy(start_date)} bis {format_date_dmy(end_date)}",
-            f"  Waehrung     : {CURRENCY_CODE}",
-            "",
-            separator,
-            f"  {col_header}",
-            separator,
-        ]
-
-        total = 0.0
-        for transaction in transactions:
-            typ = format_transaction_type(transaction.type)
-            betrag = transaction.amount
-            total += betrag if transaction.type == "income" else -betrag
-            note = (transaction.note or "")[:40]
-            lines.append(
-                f"  {format_date_dmy(transaction.date):<12}  {typ:<12}  "
-                f"{betrag:>14.2f}  {note}"
+            # Eroeffnungssaldo: alle Buchungen vor dem Startdatum aufsummieren.
+            pre_transactions = payment_repository.list_account_transactions_in_range(
+                account_id=account_id,
+                start_date=date(2000, 1, 1),
+                end_date=start_date - timedelta(days=1),
+            )
+            opening_balance = sum(
+                t.amount if t.type == "income" else -t.amount
+                for t in pre_transactions
             )
 
-        if not transactions:
-            lines.append("  Keine Transaktionen in diesem Zeitraum.")
+            # Fallback-Texte fuer leere Notizen innerhalb der Session bestimmen,
+            # da nach Schliessen der Session keine Beziehungen mehr nachgeladen werden.
+            tx_ids = [t.transaction_id for t in transactions]
+            from sqlmodel import select as _select, col
+            if tx_ids:
+                payment_tx_ids = set(session.exec(
+                    _select(Payment.transaction_id).where(col(Payment.transaction_id).in_(tx_ids))
+                ).all())
+                transfer_tx_ids = set(session.exec(
+                    _select(Transfer.transaction_id).where(col(Transfer.transaction_id).in_(tx_ids))
+                ).all())
+            else:
+                payment_tx_ids = set()
+                transfer_tx_ids = set()
 
-        lines += [
-            separator,
-            f"  {'Total':>40}  {total:>14.2f}  {CURRENCY_CODE}",
-            separator,
-            "",
-            f"  Generiert am: {format_date_dmy(date.today())}",
-        ]
+            note_display: dict[int, str] = {}
+            for t in transactions:
+                if t.note:
+                    note_display[t.transaction_id] = t.note
+                elif t.transaction_id in payment_tx_ids:
+                    note_display[t.transaction_id] = "Inlandszahlung"
+                elif t.transaction_id in transfer_tx_ids:
+                    note_display[t.transaction_id] = "Umbuchung"
+                else:
+                    note_display[t.transaction_id] = "Gutschrift" if t.type == "income" else "Lastschrift"
 
-        # Ausgabeverzeichnis erstellen (falls nicht vorhanden) und PDF schreiben.
         output_dir = Path("statements")
         output_dir.mkdir(parents=True, exist_ok=True)
         file_path = output_dir / (
             f"statement_{account_id}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}.pdf"
         )
-        self._write_simple_pdf(file_path, lines)
+        self._write_statement_pdf(
+            file_path=file_path,
+            user_name=user_name,
+            user_address=user_address,
+            account_iban=account_iban,
+            account_type_label=account_type_label,
+            start_date=start_date,
+            end_date=end_date,
+            opening_balance=opening_balance,
+            transactions=transactions,
+            note_display=note_display,
+        )
         return str(file_path)
 
-    def _write_simple_pdf(self, file_path: Path, lines: list[str]) -> None:
-        """Schreibt ein minimales PDF mit Textzeilen (ohne externe Library).
+    def _write_statement_pdf(
+        self,
+        file_path: Path,
+        user_name: str,
+        user_address: str,
+        account_iban: str,
+        account_type_label: str,
+        start_date: date,
+        end_date: date,
+        opening_balance: float,
+        transactions: list,
+        note_display: dict | None = None,
+    ) -> None:
+        """Erstellt einen formatierten PDF-Kontoauszug mit fpdf2."""
+        from fpdf import FPDF
 
-        WIE FUNKTIONIERT EIN PDF "VON HAND"?
-            Ein PDF-Dokument besteht aus Objekten (Catalog, Pages, Page, Font, Content).
-            Jedes Objekt wird mit "N 0 obj ... endobj" markiert.
-            Am Ende steht eine XRef-Tabelle mit den Byte-Offsets aller Objekte,
-            damit PDF-Reader sie schnell finden koennen.
+        NAVY = (26, 35, 126)
+        NAVY_LIGHT = (232, 234, 246)
+        GRAY = (110, 110, 110)
+        DARK = (30, 30, 30)
+        COL_W = [22, 73, 25, 25, 25]
+        ROW_H = 6
 
-        OBJEKTE IN DIESEM PDF:
-            1: Catalog   → Einstiegspunkt des PDFs
-            2: Pages     → Liste aller Seiten (hier: 1 Seite)
-            3: Page      → Die Seite (A4: 595x842 Punkte)
-            4: Font      → Helvetica (eingebaut, keine externe Schrift noetig)
-            5: Stream    → Der eigentliche Textinhalt
+        def fmt(amount: float) -> str:
+            return f"{amount:,.2f}".replace(",", " ")
 
-        TEXT-BEFEHLE (PDF-Syntax):
-            BT               → Begin Text
-            /F1 10 Tf        → Schrift Helvetica, Groesse 10
-            50 780 Td        → Position: 50 von links, 780 von unten
-            (text) Tj        → Text ausgeben
-            0 -14 Td         → 14 Punkte nach unten (naechste Zeile)
-            ET               → End Text
+        def safe(text: str) -> str:
+            return (text
+                    .replace("–", "-").replace("—", "-")
+                    .replace("’", "'").replace("“", '"').replace("”", '"'))
 
-        ENCODING (CP1252):
-            WinAnsi/CP1252 ist der Standard fuer einfache deutsche Texte in PDFs.
-            Unbekannte Zeichen werden durch `errors="replace"` ersetzt.
+        pdf = FPDF(orientation="P", unit="mm", format="A4")
+        pdf.set_margins(20, 15, 20)
+        pdf.set_auto_page_break(auto=True, margin=25)
+        pdf.add_page()
 
-        Args:
-            file_path: Pfad zur zu erstellenden PDF-Datei.
-            lines: Textzeilen, die untereinander ausgegeben werden.
-        """
-        # Bestimmte Zeichen muessen in PDF-Strings escaped werden.
-        escaped_lines = [
-            line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-            for line in lines
+        # ── HEADER-BALKEN ────────────────────────────────────────────
+        pdf.set_fill_color(*NAVY)
+        pdf.rect(0, 0, 210, 24, "F")
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_xy(10, 7)
+        pdf.cell(190, 10, "BetterBank", align="R")
+
+        # ── BANK-INFO (links) ────────────────────────────────────────
+        pdf.set_text_color(*GRAY)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_xy(20, 30)
+        pdf.multi_cell(70, 4.5, "BetterBank AG\nKundenservice\nInland: 0844 840 140\nAusland: +41 44 293 95 95\nwww.betterbank.ch")
+
+        # ── KONTOBEZEICHNUNG ─────────────────────────────────────────
+        pdf.set_xy(20, 60)
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.set_text_color(*DARK)
+        pdf.cell(170, 9, safe(account_type_label))
+        pdf.ln(9)
+
+        pdf.set_x(20)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.set_text_color(*NAVY)
+        pdf.cell(170, 6, f"Kontoauszug {start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}")
+        pdf.ln(10)
+
+        # ── KONTODETAILS (inkl. Kontoinhaber) ────────────────────────
+        details = [
+            ("Kontoinhaber", safe(user_name)),
+            ("IBAN", account_iban),
+            ("Datum", date.today().strftime("%d.%m.%Y")),
         ]
+        for label, value in details:
+            pdf.set_x(20)
+            pdf.set_font("Helvetica", "", 8)
+            pdf.set_text_color(*GRAY)
+            pdf.cell(28, 5, label)
+            pdf.set_text_color(*DARK)
+            pdf.cell(142, 5, safe(value))
+            pdf.ln(5)
 
-        # PDF-Content-Stream aufbauen (Courier für gleichbreite Spalten).
-        text_commands = ["BT /F1 9 Tf 40 800 Td 12 TL"]
-        for line in escaped_lines:
-            text_commands.append(f"({line}) Tj T*")
-        text_commands.append("ET")
+        pdf.ln(6)
 
-        stream_data = "\n".join(text_commands).encode("cp1252", errors="replace")
+        # ── TABELLEN-HEADER ──────────────────────────────────────────
+        pdf.set_fill_color(*NAVY)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_x(20)
+        for i, (header, w) in enumerate(zip(["Datum", "Text", "Gutschrift", "Lastschrift", "Saldo"], COL_W)):
+            pdf.cell(w, ROW_H, header, fill=True, align="L" if i <= 1 else "R")
+        pdf.ln()
 
-        # PDF-Objekte zusammenstellen.
-        objects: list[bytes] = []
-        objects.append(b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n")
-        objects.append(b"2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj\n")
-        objects.append(
-            b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
-            b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj\n"
+        # ── EROEFFNUNGSSALDO ─────────────────────────────────────────
+        opening_date = (start_date - timedelta(days=1)).strftime("%d.%m.%Y")
+        pdf.set_fill_color(*NAVY_LIGHT)
+        pdf.set_text_color(*DARK)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_x(20)
+        pdf.cell(COL_W[0], ROW_H, opening_date, fill=True)
+        pdf.cell(COL_W[1], ROW_H, "Kontostand", fill=True)
+        pdf.cell(COL_W[2], ROW_H, "", fill=True)
+        pdf.cell(COL_W[3], ROW_H, "", fill=True)
+        pdf.cell(COL_W[4], ROW_H, fmt(opening_balance), fill=True, align="R")
+        pdf.ln()
+
+        # ── TRANSAKTIONSZEILEN ───────────────────────────────────────
+        saldo = opening_balance
+        for i, txn in enumerate(transactions):
+            fill = i % 2 == 0
+            pdf.set_fill_color(*(NAVY_LIGHT if fill else (255, 255, 255)))
+            if txn.type == "income":
+                gutschrift, lastschrift = fmt(txn.amount), ""
+                saldo += txn.amount
+            else:
+                gutschrift, lastschrift = "", fmt(txn.amount)
+                saldo -= txn.amount
+            pdf.set_text_color(*DARK)
+            pdf.set_font("Helvetica", "", 8)
+            pdf.set_x(20)
+            pdf.cell(COL_W[0], ROW_H, txn.date.strftime("%d.%m.%Y"), fill=fill)
+            tx_text = (note_display or {}).get(txn.transaction_id) or txn.note or ""
+            pdf.cell(COL_W[1], ROW_H, safe(tx_text[:38]), fill=fill)
+            pdf.cell(COL_W[2], ROW_H, gutschrift, fill=fill, align="R")
+            pdf.cell(COL_W[3], ROW_H, lastschrift, fill=fill, align="R")
+            pdf.cell(COL_W[4], ROW_H, fmt(saldo), fill=fill, align="R")
+            pdf.ln()
+
+        if not transactions:
+            pdf.set_x(20)
+            pdf.set_text_color(*GRAY)
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.cell(170, ROW_H, "Keine Transaktionen in diesem Zeitraum.")
+            pdf.ln()
+
+        # ── TRENNLINIE ───────────────────────────────────────────────
+        pdf.set_draw_color(*NAVY)
+        pdf.set_line_width(0.4)
+        pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+        pdf.ln(2)
+
+        # ── TOTAL-ZEILE ──────────────────────────────────────────────
+        total_g = sum(t.amount for t in transactions if t.type == "income")
+        total_l = sum(t.amount for t in transactions if t.type != "income")
+        pdf.set_text_color(*GRAY)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_x(20)
+        pdf.cell(COL_W[0], 5, "")
+        pdf.cell(COL_W[1], 5, "Total")
+        pdf.cell(COL_W[2], 5, fmt(total_g), align="R")
+        pdf.cell(COL_W[3], 5, fmt(total_l), align="R")
+        pdf.cell(COL_W[4], 5, "")
+        pdf.ln(2)
+
+        # ── SCHLUSSSALDO (fett) ──────────────────────────────────────
+        pdf.set_x(20)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(*DARK)
+        pdf.cell(COL_W[0], 7, end_date.strftime("%d.%m.%Y"))
+        pdf.cell(COL_W[1], 7, "Kontostand")
+        pdf.cell(COL_W[2], 7, "")
+        pdf.cell(COL_W[3], 7, "")
+        pdf.cell(COL_W[4], 7, fmt(saldo), align="R")
+        pdf.ln(12)
+
+        # ── FUSSTEXT & SEITENZAHL ─────────────────────────────────────
+        # auto_page_break deaktivieren, damit Fussbereich keine neue Seite erzeugt.
+        pdf.set_auto_page_break(auto=False)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_text_color(*GRAY)
+        pdf.set_xy(20, pdf.h - 38)
+        pdf.multi_cell(
+            170, 5,
+            "Bitte ueberprufen Sie den Kontoauszug. Ohne Ihren Gegenbericht "
+            "innert 30 Tagen gilt er als genehmigt.\n\nFreundliche Gruesse\nBetterBank AG",
         )
-        objects.append(
-            b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Courier "
-            b"/Encoding /WinAnsiEncoding >> endobj\n"
-        )
-        objects.append(
-            f"5 0 obj << /Length {len(stream_data)} >> stream\n".encode("ascii")
-            + stream_data
-            + b"\nendstream endobj\n"
-        )
+        pdf.set_xy(20, pdf.h - 12)
+        pdf.cell(170, 5, f"Seite {pdf.page_no()}", align="R")
 
-        # Byte-Offsets berechnen (fuer XRef-Tabelle).
-        content = bytearray(b"%PDF-1.4\n")
-        offsets = [0]
-        for obj in objects:
-            offsets.append(len(content))
-            content.extend(obj)
-
-        # XRef-Tabelle: PDF-Reader braucht sie, um Objekte schnell zu finden.
-        xref_start = len(content)
-        content.extend(f"xref\n0 {len(offsets)}\n".encode("ascii"))
-        content.extend(b"0000000000 65535 f \n")
-        for offset in offsets[1:]:
-            content.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
-
-        content.extend(
-            (
-                "trailer << /Size "
-                + str(len(offsets))
-                + " /Root 1 0 R >>\nstartxref\n"
-                + str(xref_start)
-                + "\n%%EOF\n"
-            ).encode("ascii")
-        )
-
-        file_path.write_bytes(bytes(content))
+        pdf.output(str(file_path))
 
 
 # Singleton-Instanz: wird ueberall im Projekt importiert.

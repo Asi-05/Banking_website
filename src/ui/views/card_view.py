@@ -175,16 +175,31 @@ def _build_debit_cards_section(user_id: int) -> None:
 				"""
 				# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 				# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
-				# Der Service prueft u.a. "max. 1 aktive Debitkarte" und ob das Konto
-				# wirklich geeignet ist. Die UI zeigt hier nur den Fehlertext an.
-				error = card_controller.order_debit_card(account_select.value)
+				if not account_select.value:
+					error_label.set_text("Bitte wählen Sie ein Konto aus.")
+					ui.notify("Bitte wählen Sie ein Konto aus.", type="warning")
+					return
 
-				if error:
-					error_label.set_text(error)
-					ui.notify(error, type="negative")
-				else:
-					ui.notify("Debitkarte erfolgreich bestellt", type="positive")
-					account_select.value = None
+				with ui.dialog() as dlg, ui.card().classes("w-96"):
+					ui.label("Debitkarte bestellen").classes("text-subtitle1 font-semibold mb-3")
+					with ui.card().classes("w-full mb-3").props("flat bordered"):
+						ui.label(f"Konto: {account_options.get(account_select.value, '')}").classes("text-sm text-gray-700")
+					ui.label("Ihre Karte erhalten Sie in den nächsten 5 Arbeitstagen per Post.").classes("text-sm text-gray-600")
+					with ui.row().classes("gap-4 mt-4 justify-end"):
+						ui.button("Abbrechen", on_click=dlg.close).props("flat")
+						def do_order(acc=account_select.value):
+							# Der Service prueft u.a. "max. 1 aktive Debitkarte" und ob das Konto
+							# wirklich geeignet ist. Die UI zeigt hier nur den Fehlertext an.
+							error = card_controller.order_debit_card(acc)
+							dlg.close()
+							if error:
+								error_label.set_text(error)
+								ui.notify(error, type="negative")
+							else:
+								ui.notify("Debitkarte erfolgreich bestellt. Sie erhalten Ihre Karte in den nächsten 5 Arbeitstagen per Post.", type="positive", timeout=6000)
+								account_select.value = None
+						ui.button("Jetzt bestellen", on_click=do_order).props("color=primary unelevated")
+				dlg.open()
 
 			ui.button("Bestellen", on_click=handle_order_debit_card).classes("w-full")
 
@@ -217,10 +232,19 @@ def _build_debit_cards_section(user_id: int) -> None:
 				return {
 					"card_id": card.card_id if hasattr(card, "card_id") else card.get("card_id"),
 					"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
-					"expire_date": str(card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")),
+					"expire_date": ((__import__("datetime").date.fromisoformat(card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")) if isinstance((card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")), str) else (card.expire_date if hasattr(card, "expire_date") else card.get("expire_date"))).strftime("%d.%m.%Y")),
 					"account": account_iban,
 					"status": card.status if hasattr(card, "status") else card.get("status"),
 				}
+
+			ui.add_css('''
+				.debit-table .q-table { table-layout: fixed; width: 100%; }
+				.debit-table .q-table th:nth-child(1), .debit-table .q-table td:nth-child(1) { width: 18%; }
+				.debit-table .q-table th:nth-child(2), .debit-table .q-table td:nth-child(2) { width: 15%; }
+				.debit-table .q-table th:nth-child(3), .debit-table .q-table td:nth-child(3) { width: 30%; }
+				.debit-table .q-table th:nth-child(4), .debit-table .q-table td:nth-child(4) { width: 12%; }
+				.debit-table .q-table th:nth-child(5), .debit-table .q-table td:nth-child(5) { width: 25%; }
+			''')
 
 			COLUMNS = [
 				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
@@ -235,6 +259,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 				{"name": "expire_date", "label": "Ablaufdatum", "field": "expire_date", "align": "left"},
 				{"name": "account", "label": "Konto", "field": "account", "align": "left"},
 				{"name": "status", "label": "Status", "field": "status", "align": "left"},
+				{"name": "spacer", "label": "", "field": "spacer", "align": "left"},
 			]
 
 			active_cards = [c for c in debit_cards if (c.status if hasattr(c, "status") else c.get("status")) == "aktiv"]
@@ -246,8 +271,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 				if not active_cards:
 					ui.label("Keine aktive Debitkarte.").classes("text-gray-500 italic")
 				else:
-					active_table = ui.table(columns=COLUMNS, rows=[make_row(c) for c in active_cards]).props("dense")
-					active_table.classes("w-full")
+					active_table = ui.table(columns=COLUMNS, rows=[make_row(c) for c in active_cards]).props("dense").classes("w-full debit-table")
 					active_table.add_slot("body-cell-actions", """
 						<q-td :props="props">
 							<q-btn label="Sperren & Ersetzen" color="negative" size="sm" unelevated
@@ -263,24 +287,39 @@ def _build_debit_cards_section(user_id: int) -> None:
 							e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
 						"""
 						card_id = e.args.get("card_id")
-						# Zwei Schritte: erst sperren (Sicherheitsmassnahme), dann ersetzen
-						# (neue Kartennummer/Gueltigkeit).
-						error = card_controller.block_debit_card(card_id)
-						if error:
-							ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
-							return
-						error = card_controller.replace_debit_card(card_id)
-						if error:
-							ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
-						else:
-							ui.notify("Karte gesperrt und Ersatzkarte bestellt", type="positive")
+						card_number = e.args.get("card_number", "")
+						with ui.dialog() as dlg, ui.card().classes("w-96"):
+							ui.label("Karte sperren & ersetzen?").classes("text-subtitle1 font-semibold mb-3")
+							with ui.card().classes("w-full mb-3").props("flat bordered"):
+								ui.label(f"Kartennummer: {card_number}").classes("text-sm text-gray-700")
+							ui.label(
+								"Die Karte wird sofort gesperrt. Eine Ersatzkarte wird zugestellt."
+							).classes("text-sm text-orange-600 mt-2")
+							with ui.row().classes("gap-4 mt-4 justify-end"):
+								ui.button("Abbrechen", on_click=dlg.close).props("flat")
+								def do_block_replace(cid=card_id):
+									# Zwei Schritte: erst sperren (Sicherheitsmassnahme), dann ersetzen
+									# (neue Kartennummer/Gueltigkeit).
+									error = card_controller.block_debit_card(cid)
+									if error:
+										dlg.close()
+										ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
+										return
+									error = card_controller.replace_debit_card(cid)
+									dlg.close()
+									if error:
+										ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
+									else:
+										ui.notify("Karte gesperrt. Ihre Ersatzkarte erhalten Sie in den nächsten 5 Arbeitstagen per Post.", type="positive", timeout=6000)
+								ui.button("Sperren & Ersetzen", on_click=do_block_replace).props("color=negative unelevated")
+						dlg.open()
 					def handle_order_pin_debit(e) -> None:
 						"""UI-Demoaktion: PIN bestellen (hier nur Notification).
 
 						Args:
 							e: NiceGUI-Event; wird hier nicht ausgewertet.
 						"""
-						ui.notify("PIN bestellt", type="positive")
+						ui.notify("Sie erhalten in den nächsten 5 Arbeitstagen einen neuen PIN.", type="positive", timeout=5000)
 					active_table.on("block_and_replace_debit", handle_block_and_replace_debit)
 					active_table.on("order_pin_debit", handle_order_pin_debit)
 
@@ -290,8 +329,7 @@ def _build_debit_cards_section(user_id: int) -> None:
 				if not inactive_cards:
 					ui.label("Keine gesperrten oder ersetzten Karten.").classes("text-gray-500 italic")
 				else:
-					inactive_table = ui.table(columns=INACTIVE_COLUMNS, rows=[{**make_row(c), "status": "inaktiv"} for c in inactive_cards]).props("dense")
-					inactive_table.classes("w-full")
+					inactive_table = ui.table(columns=INACTIVE_COLUMNS, rows=[{**make_row(c), "status": "inaktiv"} for c in inactive_cards]).props("dense").classes("w-full debit-table")
 
 		except Exception as e:
 			ui.notify(f"Fehler beim Laden der Debitkarten: {str(e)}", type="negative")
@@ -325,55 +363,68 @@ def _build_credit_cards_section(user_id: int) -> None:
 				"""Event-Handler: beantragt eine Kreditkarte."""
 				# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 				# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+				if not limit_input.value:
+					error_label.set_text("Bitte geben Sie ein gewünschtes Limit an.")
+					ui.notify("Bitte geben Sie ein gewünschtes Limit an.", type="warning")
+					return
+
 				payload = {
 					"user_id": user_id,
 					"desired_limit": limit_input.value or 1000,
 				}
 
-				error = card_controller.create_credit_card(payload)
-
-				if error:
-					error_label.set_text(error)
-					ui.notify(error, type="negative")
-				else:
-					ui.notify("Kreditkartenantrag wurde erfolgreich eingereicht", type="positive")
+				with ui.dialog() as dlg, ui.card().classes("w-96"):
+					ui.label("Kreditkarte beantragen").classes("text-subtitle1 font-semibold mb-3")
+					with ui.card().classes("w-full mb-3").props("flat bordered"):
+						ui.label(f"Gewünschtes Limit: {limit_input.value:,.2f} CHF").classes("text-sm text-gray-700")
+					ui.label("Bei Genehmigung erhalten Sie Ihre Karte in den nächsten 5 Arbeitstagen per Post.").classes("text-sm text-gray-600")
+					with ui.row().classes("gap-4 mt-4 justify-end"):
+						ui.button("Abbrechen", on_click=dlg.close).props("flat")
+						def do_apply(p=payload):
+							error = card_controller.create_credit_card(p)
+							dlg.close()
+							if error:
+								error_label.set_text(error)
+								ui.notify(error, type="negative")
+							else:
+								ui.notify("Kreditkartenantrag eingereicht. Bei Genehmigung erhalten Sie Ihre Karte in den nächsten 5 Arbeitstagen per Post.", type="positive", timeout=6000)
+						ui.button("Antrag einreichen", on_click=do_apply).props("color=primary unelevated")
+				dlg.open()
 
 			ui.button("Beantragen", on_click=handle_create_credit_card).classes("w-full")
 
 		# === KREDITKARTEN LADEN ===
 		try:
-			credit_cards = card_controller.list_credit_cards(user_id)
+			credit_cards = card_controller.list_credit_cards_display(user_id)
 
 			if isinstance(credit_cards, str):
 				ui.notify(credit_cards, type="negative")
 				return
 
 			# Trennung: aktive Karten, ersetzte Karten und offene Antraege.
-			active_cards = [
-				c
-				for c in credit_cards
-				if (c.status if hasattr(c, "status") else c.get("status")) in ["aktiv", "gesperrt"]
-			]
-			replaced_cards = [
-				c
-				for c in credit_cards
-				if (c.status if hasattr(c, "status") else c.get("status")) == "ersetzt"
-			]
-			pending_cards = [
-				c
-				for c in credit_cards
-				if (c.status if hasattr(c, "status") else c.get("status")) == "beantragt"
-			]
+			active_cards = [d for d in credit_cards if d["status"] in ["aktiv", "gesperrt"]]
+			replaced_cards = [d for d in credit_cards if d["status"] == "ersetzt"]
+			pending_cards = [d for d in credit_cards if d["status"] == "beantragt"]
 
 			# === AKTIVE KREDITKARTEN-LISTE ===
 			with ui.card().classes("w-full"):
 
-				ui.label("Meine aktiven Kreditkarten").classes("text-subtitle2 font-semibold")
+				ui.label("Meine aktiven Kreditkarten").classes("text-subtitle2 font-semibold mb-2")
 
 				if not active_cards:
 					ui.label("Keine aktiven Kreditkarten.").classes("text-gray-500 italic")
 				else:
-					# Tabelle für aktive Karten
+					ui.add_css('''
+						.credit-active-table .q-table { table-layout: fixed; width: 100%; }
+						.credit-active-table .q-table th:nth-child(1), .credit-active-table .q-table td:nth-child(1) { width: 13%; }
+						.credit-active-table .q-table th:nth-child(2), .credit-active-table .q-table td:nth-child(2) { width: 9%; }
+						.credit-active-table .q-table th:nth-child(3), .credit-active-table .q-table td:nth-child(3) { width: 9%; }
+						.credit-active-table .q-table th:nth-child(4), .credit-active-table .q-table td:nth-child(4) { width: 10%; }
+						.credit-active-table .q-table th:nth-child(5), .credit-active-table .q-table td:nth-child(5) { width: 18%; }
+						.credit-active-table .q-table th:nth-child(6), .credit-active-table .q-table td:nth-child(6) { width: 13%; }
+						.credit-active-table .q-table th:nth-child(7), .credit-active-table .q-table td:nth-child(7) { width: 8%; }
+						.credit-active-table .q-table th:nth-child(8), .credit-active-table .q-table td:nth-child(8) { width: 20%; }
+					''')
 					credit_table = ui.table(columns=[
 						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
 						{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
@@ -383,8 +434,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 						{"name": "last_billed", "label": "Letzte Abrechnung", "field": "last_billed", "align": "left"},
 						{"name": "status", "label": "Status", "field": "status", "align": "left"},
 						{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-					], rows=[]).props("dense")
-					credit_table.classes("w-full")
+					], rows=[]).props("dense").classes("w-full credit-active-table")
 
 					credit_table.add_slot("body-cell-actions", """
 						<q-td :props="props">
@@ -402,16 +452,29 @@ def _build_credit_cards_section(user_id: int) -> None:
 							e: NiceGUI-Event; die Tabellenzeile steht in `e.args`.
 						"""
 						creditcard_id = e.args.get("card_id")
-						# Sperren + Ersetzen ist ein bewusstes Sicherheitsmuster.
-						error = card_controller.block_credit_card(creditcard_id)
-						if error:
-							ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
-							return
-						error = card_controller.replace_credit_card(creditcard_id)
-						if error:
-							ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
-						else:
-							ui.notify("Kreditkarte gesperrt und Ersatzkarte bestellt", type="positive")
+						card_number = e.args.get("card_number", "")
+						with ui.dialog() as dlg, ui.card().classes("w-96"):
+							ui.label("Kreditkarte sperren & ersetzen?").classes("text-subtitle1 font-semibold mb-3")
+							with ui.card().classes("w-full mb-3").props("flat bordered"):
+								ui.label(f"Kartennummer: {card_number}").classes("text-sm text-gray-700")
+							ui.label("Die Karte wird sofort gesperrt.").classes("text-sm text-orange-600 mt-2")
+							with ui.row().classes("gap-4 mt-4 justify-end"):
+								ui.button("Abbrechen", on_click=dlg.close).props("flat")
+								def do_block_replace_credit(cid=creditcard_id):
+									# Sperren + Ersetzen ist ein bewusstes Sicherheitsmuster.
+									error = card_controller.block_credit_card(cid)
+									if error:
+										dlg.close()
+										ui.notify(f"Sperren fehlgeschlagen: {error}", type="negative")
+										return
+									error = card_controller.replace_credit_card(cid)
+									dlg.close()
+									if error:
+										ui.notify(f"Ersetzen fehlgeschlagen: {error}", type="negative")
+									else:
+										ui.notify("Kreditkarte gesperrt. Ihre Ersatzkarte erhalten Sie in den nächsten 5 Arbeitstagen per Post.", type="positive", timeout=6000)
+								ui.button("Sperren & Ersetzen", on_click=do_block_replace_credit).props("color=negative unelevated")
+						dlg.open()
 					
 					def handle_order_pin_credit(e) -> None:
 						"""UI-Demoaktion: PIN bestellen (hier nur Notification).
@@ -419,51 +482,25 @@ def _build_credit_cards_section(user_id: int) -> None:
 						Args:
 							e: NiceGUI-Event; wird hier nicht ausgewertet.
 						"""
-						ui.notify("PIN bestellt", type="positive")
+						ui.notify("Sie erhalten in den nächsten 5 Arbeitstagen einen neuen PIN.", type="positive", timeout=5000)
 					
 					credit_table.on("block_and_replace_credit", handle_block_and_replace_credit)
 					credit_table.on("order_pin_credit", handle_order_pin_credit)
 
-					# Daten: aktive Karten
-					rows = []
-					for card in active_cards:
-						limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
-						balance_val = card.balance if hasattr(card, "balance") else card.get("balance")
-						# In dieser App bedeutet `balance`: bereits genutzter Kredit.
-						# Verfuegbar = Limit - genutzter Kredit.
-						available = limit_val - balance_val
-						
-						# Abrechnungskonto anzeigen (optional, kann noch nicht gesetzt sein).
-						billing_account = card.billing_account if hasattr(card, "billing_account") else card.get("billing_account")
-						if billing_account is not None:
-							billing_account_display = (billing_account.iban if hasattr(billing_account, "iban") else billing_account.get("iban", "N/A")).upper()
-						else:
-							billing_account_display = "Nicht gesetzt"
-						
-						# Letzte Abrechnung anzeigen. Hier kommt teils ein ISO-String aus der DB/Fixture.
-						# Wir normalisieren auf `date`, um ein einheitliches Anzeigeformat zu haben.
-						last_billed = card.last_billed if hasattr(card, "last_billed") else card.get("last_billed")
-						if last_billed is not None:
-							from datetime import date as date_type
-							if isinstance(last_billed, str):
-								from datetime import datetime
-								last_billed = datetime.fromisoformat(last_billed).date()
-							last_billed_display = last_billed.strftime("%d.%m.%Y")
-						else:
-							last_billed_display = "Noch keine"
-
-						rows.append({
-							"card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
-							"card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
-							"limit": f"{limit_val:,.2f}",
-							"balance": f"{balance_val:,.2f}",
-							"available": f"{available:,.2f}",
-							"billing_account": billing_account_display,
-							"last_billed": last_billed_display,
-							"status": card.status if hasattr(card, "status") else card.get("status"),
-						})
-
-					credit_table.rows = rows
+					# Daten: aktive Karten (vom Controller bereits aufbereitet)
+					credit_table.rows = [
+						{
+							"card_id": d["card_id"],
+							"card_number": d["card_number"],
+							"limit": f"{d['limit']:,.2f}",
+							"balance": f"{d['balance']:,.2f}",
+							"available": f"{d['available']:,.2f}",
+							"billing_account": d["billing_account"],
+							"last_billed": d["last_billed"],
+							"status": d["status"],
+						}
+						for d in active_cards
+					]
 
 			# === ABRECHNUNGSKONTO FESTLEGEN ===
 			with ui.card().classes("w-full"):
@@ -474,9 +511,8 @@ def _build_credit_cards_section(user_id: int) -> None:
 				else:
 					# Karten-Dropdown
 					card_options = {
-						(card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id")):
-						f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}"
-						for card in active_cards
+						d["card_id"]: d["card_number"]
+						for d in active_cards
 					}
 					
 					# Konto-Dropdown (nur Privatkonten)
@@ -519,20 +555,27 @@ def _build_credit_cards_section(user_id: int) -> None:
 							error_label.set_text("Bitte Kreditkarte und Konto auswählen.")
 							ui.notify("Bitte Kreditkarte und Konto auswählen", type="warning")
 							return
-						
-						error = card_controller.handle_set_billing_account(
-							card_select.value,
-							account_select.value
-						)
-						
-						if error:
-							error_label.set_text(error)
-							ui.notify(error, type="negative")
-						else:
-							error_label.set_text("")
-							ui.notify("Abrechnungskonto gespeichert", type="positive")
-							card_select.value = None
-							account_select.value = None
+
+						with ui.dialog() as dlg, ui.card().classes("w-96"):
+							ui.label("Abrechnungskonto festlegen").classes("text-subtitle1 font-semibold mb-3")
+							with ui.card().classes("w-full mb-3").props("flat bordered"):
+								ui.label(f"Kreditkarte: {card_options.get(card_select.value, '')}").classes("text-sm text-gray-700")
+								ui.label(f"Konto: {account_options.get(account_select.value, '')}").classes("text-sm text-gray-600")
+							with ui.row().classes("gap-4 mt-4 justify-end"):
+								ui.button("Abbrechen", on_click=dlg.close).props("flat")
+								def do_set_billing(cid=card_select.value, aid=account_select.value):
+									error = card_controller.handle_set_billing_account(cid, aid)
+									dlg.close()
+									if error:
+										error_label.set_text(error)
+										ui.notify(error, type="negative")
+									else:
+										error_label.set_text("")
+										ui.notify("Abrechnungskonto gespeichert", type="positive")
+										card_select.value = None
+										account_select.value = None
+								ui.button("Speichern", on_click=do_set_billing).props("color=primary unelevated")
+						dlg.open()
 					
 					ui.button("Speichern", on_click=handle_set_billing_account).classes("w-full")
 				
@@ -552,7 +595,25 @@ def _build_credit_cards_section(user_id: int) -> None:
 							"Der Monatsabschluss ist für diese Karten inaktiv."
 						).classes("text-sm text-yellow-700")
 
-			# === ERSETZTE KREDITKARTEN ===
+			ui.add_css('''
+				.credit-secondary-table .q-table { table-layout: fixed; width: 100%; }
+				.credit-secondary-table .q-table th:nth-child(1), .credit-secondary-table .q-table td:nth-child(1) { width: 25%; }
+				.credit-secondary-table .q-table th:nth-child(2), .credit-secondary-table .q-table td:nth-child(2) { width: 35%; }
+				.credit-secondary-table .q-table th:nth-child(3), .credit-secondary-table .q-table td:nth-child(3) { width: 40%; }
+			''')
+
+			REPLACED_COLUMNS = [
+				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+				{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
+				{"name": "status", "label": "Status", "field": "status", "align": "left"},
+			]
+
+			PENDING_COLUMNS = [
+				{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
+				{"name": "limit", "label": "Gewünschtes Limit (CHF)", "field": "limit", "align": "right"},
+				{"name": "status", "label": "Status", "field": "status", "align": "left"},
+			]
+
 			with ui.card().classes("w-full"):
 
 				ui.label("Ersetzte Kreditkarten").classes("text-subtitle2 font-semibold")
@@ -560,12 +621,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 				if not replaced_cards:
 					ui.label("Keine ersetzten Kreditkarten.").classes("text-gray-500 italic")
 				else:
-					replaced_table = ui.table(columns=[
-						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-						{"name": "limit", "label": "Limit (CHF)", "field": "limit", "align": "right"},
-						{"name": "status", "label": "Status", "field": "status", "align": "left"},
-					], rows=[]).props("dense")
-					replaced_table.classes("w-full")
+					replaced_table = ui.table(columns=REPLACED_COLUMNS, rows=[]).props("dense").classes("w-full credit-secondary-table")
 
 					replaced_rows = []
 					for card in replaced_cards:
@@ -588,12 +644,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 					ui.label("Keine offenen Anträge.").classes("text-gray-500 italic")
 				else:
 					# Tabelle für beantragte Karten
-					pending_table = ui.table(columns=[
-						{"name": "card_number", "label": "Kartennummer", "field": "card_number", "align": "left"},
-						{"name": "limit", "label": "Gewünschtes Limit (CHF)", "field": "limit", "align": "right"},
-						{"name": "status", "label": "Status", "field": "status", "align": "left"},
-					], rows=[]).props("dense")
-					pending_table.classes("w-full")
+					pending_table = ui.table(columns=PENDING_COLUMNS, rows=[]).props("dense").classes("w-full credit-secondary-table")
 
 					# Daten: beantragte Karten
 					pending_rows = []

@@ -99,6 +99,11 @@ def show() -> None:
 
 	user_id = app_state.get("user_id")
 
+	# Faellige Dauerauftraege direkt beim Seitenaufruf ausfuehren (nicht nur beim Login).
+	from src.ui.controllers.recurring_controller import recurring_controller as _rc_startup
+	from datetime import date as _date
+	_rc_startup.process_due_on_login(user_id, _date.today())
+
 	# ===== SIDEBAR =====
 	with ui.left_drawer():
 		_build_sidebar()
@@ -185,10 +190,10 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		amount_input = ui.number(label="Betrag (CHF)", min=0.01, step=0.01).props("outlined")
 		amount_input.classes("w-full mb-4")
 
-		# Von-Konto
+		# Belastungskonto
 		from_account_select = ui.select(
 			options=account_options,
-			label="Von-Konto",
+			label="Belastungskonto",
 		).props("outlined")
 		from_account_select.classes("w-full mb-4")
 
@@ -200,8 +205,6 @@ def _build_domestic_payment_form(user_id: int) -> None:
 		category_select.classes("w-full mb-4")
 
 		# Zweck
-		char_count_label = ui.label("0 / 100 Zeichen").classes("text-xs text-gray-500 mb-4")
-
 		def update_char_count(e) -> None:
 			count = len(e.value)
 			char_count_label.set_text(f"{count} / 100 Zeichen")
@@ -212,11 +215,12 @@ def _build_domestic_payment_form(user_id: int) -> None:
 
 		purpose_input = ui.textarea(label="Verwendungszweck", on_change=update_char_count).props("outlined maxlength=100")
 		purpose_input.classes("w-full mb-1")
+		char_count_label = ui.label("0 / 100 Zeichen").classes("text-xs text-gray-500 mb-4 pl-3")
 
-		# Ausführungsdatum
-		execution_date_picker = ui.date_input("Ausführungsdatum", value=date.today().isoformat())
+		# Ausführungsdatum (Format: TT.MM.JJJJ)
+		execution_date_picker = ui.date_input("Ausführungsdatum", value=date.today().strftime('%d.%m.%Y'))
 		execution_date_picker.classes("w-full mb-4")
-		ui.label().bind_text_from(execution_date_picker, "value", lambda v: f"Datum: {v}" if v else "")
+		execution_date_picker.picker.props('mask=DD.MM.YYYY')
 
 		error_label = ui.label("").classes("text-red-600 mb-4")
 
@@ -232,34 +236,54 @@ def _build_domestic_payment_form(user_id: int) -> None:
 			"""
 			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+			if not iban_input.value or not amount_input.value or not from_account_select.value or not category_select.value:
+				error_label.set_text("Bitte füllen Sie alle Felder zuerst aus.")
+				ui.notify("Bitte füllen Sie alle Felder zuerst aus.", type="warning")
+				return
+
 			if len(purpose_input.value) > 100:
 				error_label.set_text("Verwendungszweck darf maximal 100 Zeichen enthalten.")
 				return
 
+			_raw = execution_date_picker.value or date.today().strftime('%d.%m.%Y')
 			payload = {
 				"target_iban": iban_input.value,
 				"amount": amount_input.value or 0,
 				"from_account_id": from_account_select.value,
 				"category_id": category_select.value,
 				"purpose": purpose_input.value,
-				# Der Controller normalisiert ISO-Strings zu `datetime.date`.
-				"date": execution_date_picker.value,
+				"date": _raw,
 			}
 
-			error = payment_controller.create_payment(payload)
-
-			if error:
-				error_label.set_text(error)
-				ui.notify(error, type="negative")
-			else:
-				ui.notify("Zahlung erfolgreich ausgeführt", type="positive")
-				iban_input.value = ""
-				amount_input.value = 0
-				from_account_select.value = None
-				category_select.value = None
-				purpose_input.value = ""
-				execution_date_picker.value = date.today().isoformat()
-				error_label.set_text("")
+			with ui.dialog() as dlg, ui.card().classes("w-96"):
+				ui.label("Zahlung bestätigen").classes("text-subtitle1 font-semibold mb-3")
+				with ui.card().classes("w-full mb-3").props("flat bordered"):
+					ui.label(f"An: {iban_input.value.upper()}").classes("text-sm text-gray-700")
+					ui.label(f"Betrag: {amount_input.value:,.2f} CHF").classes("text-sm text-gray-700 font-medium")
+					ui.label(f"Von: {account_options.get(from_account_select.value, '')}").classes("text-sm text-gray-600")
+					ui.label(f"Kategorie: {category_options.get(category_select.value, '')}").classes("text-sm text-gray-600")
+					ui.label(f"Datum: {_raw}").classes("text-sm text-gray-600")
+					if purpose_input.value:
+						ui.label(f"Verwendungszweck: {purpose_input.value}").classes("text-sm text-gray-600")
+				with ui.row().classes("gap-4 mt-4 justify-end"):
+					ui.button("Abbrechen", on_click=dlg.close).props("flat")
+					def do_execute(p=payload):
+						error = payment_controller.create_payment(p)
+						dlg.close()
+						if error:
+							error_label.set_text(error)
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Zahlung erfolgreich ausgeführt", type="positive")
+							iban_input.value = ""
+							amount_input.value = 0
+							from_account_select.value = None
+							category_select.value = None
+							purpose_input.value = ""
+							execution_date_picker.value = date.today().strftime('%d.%m.%Y')
+							error_label.set_text("")
+					ui.button("Zahlung ausführen", on_click=do_execute).props("color=primary unelevated")
+			dlg.open()
 
 		ui.button("Zahlung ausführen", on_click=handle_create_payment).classes("w-full")
 
@@ -316,12 +340,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				# In manchen Pfaden kann `last_executed` als ISO-String vorliegen.
 				if isinstance(last_executed, str):
 					last_executed = date.fromisoformat(last_executed)
-				# Naechste Ausfuehrung wird aus (last_executed, interval) berechnet.
-				next_exec = recurring_controller.get_next_execution_date(last_executed, interval_val)
-				# Falls ein Termin "heute oder frueher" ist, zeigen wir die *naechste* Ausfuehrung,
-				# damit die Anzeige nicht wie "ueberfaellig" wirkt.
-				if next_exec <= date.today():
-					next_exec = recurring_controller.get_next_execution_date(next_exec, interval_val)
+				# Naechste Ausfuehrung fuer die Anzeige (ueberfaellige Termine werden uebersprungen).
+				next_exec = recurring_controller.get_display_next_execution_date(last_executed, interval_val)
 				rows.append({
 					"recurring_id": rec.recurring_id if hasattr(rec, 'recurring_id') else rec.get('recurring_id'),
 					"amount": f"{amount_val:,.2f}",
@@ -337,17 +357,26 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				})
 			recurring_table.rows = rows
 
+		ui.add_css('''
+			.recurring-table .q-table { table-layout: fixed; width: 100%; }
+			.recurring-table .q-table th:nth-child(1), .recurring-table .q-table td:nth-child(1) { width: 11%; }
+			.recurring-table .q-table th:nth-child(2), .recurring-table .q-table td:nth-child(2) { width: 20%; }
+			.recurring-table .q-table th:nth-child(3), .recurring-table .q-table td:nth-child(3) { width: 11%; }
+			.recurring-table .q-table th:nth-child(4), .recurring-table .q-table td:nth-child(4) { width: 9%; }
+			.recurring-table .q-table th:nth-child(5), .recurring-table .q-table td:nth-child(5) { width: 15%; }
+			.recurring-table .q-table th:nth-child(6), .recurring-table .q-table td:nth-child(6) { width: 20%; }
+			.recurring-table .q-table th:nth-child(7), .recurring-table .q-table td:nth-child(7) { width: 14%; }
+		''')
 		with ui.card().classes("w-full"):
 			recurring_table = ui.table(columns=[
-				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
+				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "left"},
 				{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
 				{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
 				{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
 				{"name": "next_execution", "label": "Nächste Ausführung", "field": "next_execution", "align": "left"},
 				{"name": "account_iban", "label": "Belastungskonto", "field": "account_iban", "align": "left"},
 				{"name": "actions", "label": "Aktionen", "field": "actions", "align": "center"},
-			], rows=[]).props("dense")
-			recurring_table.classes("w-full")
+			], rows=[]).props("dense").classes("w-full recurring-table")
 			with recurring_table.add_slot("no-data"):
 				ui.label("Kein Dauerauftrag vorhanden").classes("text-gray-500 italic")
 
@@ -468,8 +497,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				interval_select = ui.select(
 					options={"monthly": "Monatlich", "yearly": "Jährlich"}, label="Intervall"
 				).props("outlined").classes("w-full")
-				start_date_picker = ui.date_input("Startdatum", value=date.today().isoformat()).classes("w-full")
-				ui.label().bind_text_from(start_date_picker, "value", lambda v: f"Datum: {v}" if v else "")
+				start_date_picker = ui.date_input("Startdatum", value=date.today().strftime('%d.%m.%Y')).classes("w-full")
+				start_date_picker.picker.props('mask=DD.MM.YYYY')
 				error_label = ui.label("").classes("text-red-600")
 
 				async def handle_create_recurring() -> None:
@@ -484,7 +513,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 					if (not amount_input.value or not category_select.value
 							or not account_select.value or not iban_input.value
 							or not interval_select.value):
-						error_label.set_text("Bitte alle Felder ausfüllen.")
+						error_label.set_text("Bitte füllen Sie alle Felder zuerst aus.")
+						ui.notify("Bitte füllen Sie alle Felder zuerst aus.", type="warning")
 						return
 					error_label.set_text("")
 					payload = {
@@ -494,22 +524,37 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						"account_id": account_select.value,
 						"target_iban": iban_input.value,
 						"interval": interval_select.value,
-						# Controller normalisiert ISO-String -> `date`.
 						"start_date": start_date_picker.value,
 					}
-					error = recurring_controller.create_recurring(payload)
-					if error:
-						error_label.set_text(error)
-						ui.notify(error, type="negative")
-					else:
-						ui.notify("Dauerauftrag erfolgreich erstellt", type="positive")
-						amount_input.value = None
-						category_select.value = None
-						account_select.value = None
-						iban_input.value = ""
-						interval_select.value = None
-						start_date_picker.value = date.today().isoformat()
-						refresh_recurring_table()
+					interval_labels = {"monthly": "Monatlich", "yearly": "Jährlich"}
+					with ui.dialog() as dlg, ui.card().classes("w-96"):
+						ui.label("Dauerauftrag bestätigen").classes("text-subtitle1 font-semibold mb-3")
+						with ui.card().classes("w-full mb-3").props("flat bordered"):
+							ui.label(f"Betrag: {amount_input.value:,.2f} CHF").classes("text-sm text-gray-700 font-medium")
+							ui.label(f"Ziel-IBAN: {iban_input.value.upper()}").classes("text-sm text-gray-700")
+							ui.label(f"Konto: {form_account_options.get(account_select.value, '')}").classes("text-sm text-gray-600")
+							ui.label(f"Kategorie: {category_options.get(category_select.value, '')}").classes("text-sm text-gray-600")
+							ui.label(f"Intervall: {interval_labels.get(interval_select.value, interval_select.value)}").classes("text-sm text-gray-600")
+							ui.label(f"Startdatum: {start_date_picker.value}").classes("text-sm text-gray-600")
+						with ui.row().classes("gap-4 mt-4 justify-end"):
+							ui.button("Abbrechen", on_click=dlg.close).props("flat")
+							def do_execute(p=payload):
+								error = recurring_controller.create_recurring(p)
+								dlg.close()
+								if error:
+									error_label.set_text(error)
+									ui.notify(error, type="negative")
+								else:
+									ui.notify("Dauerauftrag erfolgreich erstellt", type="positive")
+									amount_input.value = None
+									category_select.value = None
+									account_select.value = None
+									iban_input.value = ""
+									interval_select.value = None
+									start_date_picker.value = date.today().strftime('%d.%m.%Y')
+									refresh_recurring_table()
+							ui.button("Dauerauftrag erstellen", on_click=do_execute).props("color=primary unelevated")
+					dlg.open()
 
 				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring).classes("w-full")
 
@@ -568,20 +613,36 @@ ausreichender Kontostand, etc.).
 			"""Fuehrt die Umbuchung ueber den `PaymentController` aus."""
 			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+			if not from_account_select.value or not to_account_select.value or not amount_input.value:
+				error_label.set_text("Bitte füllen Sie alle Felder zuerst aus.")
+				ui.notify("Bitte füllen Sie alle Felder zuerst aus.", type="warning")
+				return
+
 			payload = {
 				"from_account_id": from_account_select.value,
 				"to_account_id": to_account_select.value,
 				"amount": amount_input.value or 0,
 			}
 
-			error = payment_controller.create_transfer(payload)
-
-			if error:
-				error_label.set_text(error)
-				ui.notify(error, type="negative")
-			else:
-				ui.notify("Übertrag erfolgreich", type="positive")
-				amount_input.value = 0
+			with ui.dialog() as dlg, ui.card().classes("w-96"):
+				ui.label("Übertrag bestätigen").classes("text-subtitle1 font-semibold mb-3")
+				with ui.card().classes("w-full mb-3").props("flat bordered"):
+					ui.label(f"Von: {account_options.get(from_account_select.value, '')}").classes("text-sm text-gray-700")
+					ui.label(f"Nach: {account_options.get(to_account_select.value, '')}").classes("text-sm text-gray-700")
+					ui.label(f"Betrag: {amount_input.value:,.2f} CHF").classes("text-sm text-gray-700 font-medium")
+				with ui.row().classes("gap-4 mt-4 justify-end"):
+					ui.button("Abbrechen", on_click=dlg.close).props("flat")
+					def do_execute(p=payload):
+						error = payment_controller.create_transfer(p)
+						dlg.close()
+						if error:
+							error_label.set_text(error)
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Übertrag erfolgreich", type="positive")
+							amount_input.value = 0
+					ui.button("Jetzt umbuchen", on_click=do_execute).props("color=primary unelevated")
+			dlg.open()
 
 		ui.button("Umbuchen", on_click=handle_transfer).classes("w-full")
 

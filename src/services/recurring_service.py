@@ -152,19 +152,21 @@ class RecurringService:
             if account.status != "aktiv":
                 raise ValueError(f"Konto {account_id} ist nicht aktiv und kann nicht verwendet werden")
 
-            if session.get(Category, category_id) is None:
+            category = session.get(Category, category_id)
+            if category is None:
                 raise KeyError(f"Kategorie {category_id} nicht gefunden")
 
-            # Template-Transaktion: Referenz/Schablone fuer den Dauerauftrag.
-            # Diese Transaktion bucht KEIN Geld ab - sie hat keinen Saldo-Effekt.
-            # Sie dient nur als Verknuepfung und Grunddaten-Speicher.
+            # Template-Transaktion: Repraesentiert die naechste geplante Ausfuehrung.
+            # is_settled=False → erscheint in "Geplante Zahlungen", nicht in "Bewegungen".
+            # Das Datum zeigt immer die naechste faellige Ausfuehrung.
             template_transaction = Transaction(
                 amount=amount,
                 date=start_date,
                 type="expense",
-                note="Dauerauftrag",
+                note=f"Dauerauftrag {category.name}",
                 category_id=category_id,
                 account_id=account_id,
+                is_settled=False,
             )
             session.add(template_transaction)
             session.commit()
@@ -243,6 +245,11 @@ class RecurringService:
                 continue
 
             try:
+                # Kategoriename fuer die Transaktion-Notiz ermitteln.
+                with Session(engine) as cat_session:
+                    cat = cat_session.get(Category, recurring.category_id)
+                    cat_name = cat.name if cat is not None else str(recurring.category_id)
+
                 # Buchung ausfuehren: TransactionService bucht Geld ab und aktualisiert Saldo.
                 transaction_service.create_transaction(
                     {
@@ -251,7 +258,7 @@ class RecurringService:
                         "date": login_date,
                         "category_id": recurring.category_id,
                         "account_id": recurring.account_id,
-                        "note": "Dauerauftrag Ausfuehrung",
+                        "note": f"Dauerauftrag {cat_name}",
                     }
                 )
             except (ValueError, KeyError):
@@ -267,7 +274,35 @@ class RecurringService:
                     # Zustand fortschreiben: Naechste Faelligkeit wird ab jetzt berechnet.
                     reloaded.last_executed = login_date
                     recurring_repository.save(reloaded)
+
+                    # Template-Transaktion auf naechstes Ausfuehrungsdatum setzen,
+                    # damit sie in "Geplante Zahlungen" mit dem richtigen Datum erscheint.
+                    if reloaded.transaction_id:
+                        template = session.get(Transaction, reloaded.transaction_id)
+                        if template is not None:
+                            template.date = self._next_due_date(login_date, recurring.interval)
+                            template.is_settled = False
+                            session.add(template)
+                            session.commit()
             executed += 1
+
+        # Alle Templates auf is_settled=False und korrektes Datum sicherstellen.
+        # Noetig fuer bestehende Dauerauftraege, die vor dieser Aenderung angelegt wurden.
+        with Session(engine) as session:
+            recurring_repository = RecurringRepository(session)
+            all_recurring = recurring_repository.list_by_user(user_id)
+            for rec in all_recurring:
+                if rec.transaction_id is None:
+                    continue
+                template = session.get(Transaction, rec.transaction_id)
+                if template is None:
+                    continue
+                next_due = self._next_due_date(rec.last_executed, rec.interval)
+                if template.is_settled is True or template.date != next_due:
+                    template.is_settled = False
+                    template.date = next_due
+                    session.add(template)
+            session.commit()
 
         return executed
 
@@ -375,6 +410,47 @@ class RecurringService:
             Naechstes faelliges Datum.
         """
         return self._next_due_date(last_executed, interval)
+
+    def skip_next_execution(self, transaction_id: int) -> bool:
+        """Ueberspringt die naechste Ausfuehrung eines Dauerauftrags (eine Periode).
+
+        Aufgerufen wenn der User in "Geplante Zahlungen" auf "Stornieren" klickt.
+        Nur DIESE eine Ausfuehrung wird uebersprungen; der Dauerauftrag bleibt aktiv.
+
+        Args:
+            transaction_id: transaction_id der Template-Transaktion.
+
+        Returns:
+            True wenn es eine Template-Transaktion war (und uebersprungen wurde).
+            False wenn es KEINE Template-Transaktion ist (Aufrufer soll normal loeschen).
+        """
+        from sqlalchemy.orm import Session as _Session
+        from sqlmodel import select as _select
+        from src.domain.models import RecurringTransaction
+
+        with Session(engine) as session:
+            recurring = session.exec(
+                _select(RecurringTransaction).where(
+                    RecurringTransaction.transaction_id == transaction_id
+                )
+            ).first()
+            if recurring is None:
+                return False
+
+            # last_executed auf aktuelles next_due setzen → naechste Faelligkeit rueckt vor.
+            current_next_due = self._next_due_date(recurring.last_executed, recurring.interval)
+            recurring.last_executed = current_next_due
+            session.add(recurring)
+
+            # Template-Datum auf den naechsten Termin setzen.
+            template = session.get(Transaction, transaction_id)
+            if template is not None:
+                template.date = self._next_due_date(current_next_due, recurring.interval)
+                template.is_settled = False
+                session.add(template)
+
+            session.commit()
+            return True
 
     def delete_recurring(self, recurring_id: int) -> None:
         """Loescht einen Dauerauftrag und die verknuepfte Template-Transaktion.

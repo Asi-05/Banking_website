@@ -57,13 +57,13 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from src.data_access.db import engine
 from src.data_access.repositories.account_repository import AccountRepository
 from src.data_access.repositories.card_repository import CardRepository
 from src.data_access.repositories.transaction_repository import TransactionRepository
-from src.domain.models import Category, Transaction
+from src.domain.models import Category, Payment, RecurringTransaction, Transaction, Transfer
 from src.utils.validators import (
     validate_date_range,
     validate_positive_amount,
@@ -152,11 +152,13 @@ class TransactionService:
             self._ensure_category_exists(session, category_id)
             self._ensure_source_valid(session, account_id, card_id, creditcard_id)
 
+            is_settled = transaction_date <= date.today()
             transaction = Transaction(
                 amount=amount,
                 date=transaction_date,
                 type=transaction_type,
                 note=payload.get("note"),
+                is_settled=is_settled,
                 category_id=category_id,
                 account_id=account_id,
                 card_id=card_id,
@@ -164,8 +166,9 @@ class TransactionService:
             )
             created = transaction_repository.create(transaction)
 
-            # Saldo-Update: multiplier=1 → Effekt anwenden.
-            self._apply_source_effect(session, created, multiplier=1)
+            # Saldo-Update nur wenn Datum heute oder vergangen (nicht für Zukunftszahlungen).
+            if is_settled:
+                self._apply_source_effect(session, created, multiplier=1)
             return created
 
     def edit_transaction(self, transaction_id: int, payload: dict) -> Transaction:
@@ -203,13 +206,16 @@ class TransactionService:
             if transaction is None:
                 raise KeyError(f"Transaktion {transaction_id} nicht gefunden")
 
-            # Schritt 1: Alten Effekt rueckgaengig machen (multiplier=-1).
-            self._apply_source_effect(session, transaction, multiplier=-1)
+            # Schritt 1: Alten Effekt rueckgaengig machen (nur wenn bereits gebucht).
+            if transaction.is_settled:
+                self._apply_source_effect(session, transaction, multiplier=-1)
 
             # Neue Werte aus Payload holen; falls nicht vorhanden, alte Werte behalten.
             new_amount = float(payload.get("amount", transaction.amount))
             new_type = str(payload.get("type", transaction.type))
             new_date = payload.get("date", transaction.date)
+            if isinstance(new_date, str):
+                new_date = date.fromisoformat(new_date)
             new_category_id = int(payload.get("category_id", transaction.category_id))
             new_account_id = payload.get("account_id", transaction.account_id)
             new_card_id = payload.get("card_id", transaction.card_id)
@@ -228,10 +234,13 @@ class TransactionService:
             self._ensure_category_exists(session, new_category_id)
             self._ensure_source_valid(session, new_account_id, new_card_id, new_creditcard_id)
 
+            new_is_settled = new_date <= date.today()
+
             # Felder aktualisieren.
             transaction.amount = new_amount
             transaction.type = new_type
             transaction.date = new_date
+            transaction.is_settled = new_is_settled
             transaction.category_id = new_category_id
             transaction.account_id = new_account_id
             transaction.card_id = new_card_id
@@ -240,8 +249,9 @@ class TransactionService:
 
             updated = transaction_repository.save(transaction)
 
-            # Schritt 2: Neuen Effekt anwenden (multiplier=1).
-            self._apply_source_effect(session, updated, multiplier=1)
+            # Schritt 2: Neuen Effekt anwenden (nur wenn neues Datum heute oder vergangen).
+            if new_is_settled:
+                self._apply_source_effect(session, updated, multiplier=1)
             return updated
 
     def delete_transaction(self, transaction_id: int, confirm: bool) -> bool:
@@ -281,10 +291,56 @@ class TransactionService:
             if transaction is None:
                 raise KeyError(f"Transaktion {transaction_id} nicht gefunden")
 
-            # Effekt rueckgaengig machen, DANN loeschen.
-            self._apply_source_effect(session, transaction, multiplier=-1)
+            payment = session.exec(select(Payment).where(Payment.transaction_id == transaction_id)).first()
+            if payment is not None:
+                session.delete(payment)
+
+            transfer = session.exec(select(Transfer).where(Transfer.transaction_id == transaction_id)).first()
+            if transfer is not None:
+                session.delete(transfer)
+
+            recurring = session.exec(
+                select(RecurringTransaction).where(RecurringTransaction.transaction_id == transaction_id)
+            ).first()
+            if recurring is not None:
+                session.delete(recurring)
+
+            # Effekt rueckgaengig machen (nur wenn bereits gebucht), DANN loeschen.
+            if transaction.is_settled:
+                self._apply_source_effect(session, transaction, multiplier=-1)
             transaction_repository.delete(transaction)
             return True
+
+    def settle_pending_transactions(self, user_id: int, today: date) -> int:
+        """Bucht alle faelligen Zukunftszahlungen (is_settled=False, date <= today).
+
+        Wird bei jedem Login aufgerufen. Findet alle ungebochen geplanten Zahlungen
+        deren Datum erreicht ist, wendet den Saldo-Effekt an und markiert sie als gebucht.
+
+        Returns:
+            Anzahl der gebuchten Transaktionen.
+        """
+        from src.domain.models import Account
+        count = 0
+        with Session(engine, expire_on_commit=False) as session:
+            stmt = (
+                select(Transaction)
+                .join(Account, Transaction.account_id == Account.account_id)
+                .where(Account.user_id == user_id)
+                .where(Transaction.is_settled == False)
+                .where(Transaction.date <= today)
+            )
+            pending = session.exec(stmt).all()
+            for t in pending:
+                try:
+                    self._apply_source_effect(session, t, multiplier=1)
+                    t.is_settled = True
+                    session.add(t)
+                    count += 1
+                except Exception:
+                    pass
+            session.commit()
+        return count
 
     def filter_transactions(
         self,
@@ -292,6 +348,7 @@ class TransactionService:
         end_date: date | None = None,
         category_id: int | None = None,
         user_id: int | None = None,
+        is_settled: bool | None = None,
     ) -> list[Transaction]:
         """Filtert Transaktionen fuer Listen/Tabellen in der UI.
 
@@ -334,6 +391,7 @@ class TransactionService:
                 end_date=end_date,
                 category_id=category_id,
                 user_id=user_id,
+                is_settled=is_settled,
             )
 
     def _ensure_category_exists(self, session: Session, category_id: int) -> None:

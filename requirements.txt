@@ -1,6 +1,5 @@
 nicegui
 sqlmodel
 sqlalchemy
-bcrypt
 fpdf2
 pytest

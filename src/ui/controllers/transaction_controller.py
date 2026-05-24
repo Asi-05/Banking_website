@@ -40,6 +40,14 @@ from src.services.transaction_service import transaction_service
 from src.utils.formatters import format_date_dmy, format_transaction_type
 
 
+def _parse_date(value: str) -> date:
+    """Wandelt DD.MM.YYYY oder YYYY-MM-DD in ein date-Objekt um."""
+    if "." in value:
+        d, m, y = value.split(".")
+        return date(int(y), int(m), int(d))
+    return date.fromisoformat(value)
+
+
 # Orchestriert Transaktions-Use-Cases und kapselt Fehlerbehandlung fuer die UI.
 class TransactionController:
     """UI-Controller fuer Transaktionen (Erstellen, Bearbeiten, Loeschen, Filtern).
@@ -81,10 +89,8 @@ class TransactionController:
             None bei Erfolg; Fehlermeldung als String bei Fehler.
         """
         try:
-            # Datum von ISO-String (NiceGUI) in Python date-Objekt umwandeln
             if "date" in payload and isinstance(payload["date"], str):
-                payload["date"] = date.fromisoformat(payload["date"])
-
+                payload["date"] = _parse_date(payload["date"])
             transaction_service.create_transaction(payload)
             return None
         except Exception as error:
@@ -112,9 +118,8 @@ class TransactionController:
             None bei Erfolg; Fehlermeldung als String bei Fehler.
         """
         try:
-            # Datum von String in date-Objekt umwandeln (falls mitgegeben)
             if "date" in payload and isinstance(payload["date"], str):
-                payload["date"] = date.fromisoformat(payload["date"])
+                payload["date"] = _parse_date(payload["date"])
 
             transaction_service.edit_transaction(transaction_id, payload)
             return None
@@ -148,12 +153,64 @@ class TransactionController:
         except Exception as error:
             return str(error)
 
+    def filter_for_month(
+        self,
+        user_id: int,
+        year: int,
+        month: int,
+        account_id: int | None = None,
+        category_id: int | None = None,
+    ) -> list | str:
+        """Gibt alle gebuchten Transaktionen eines Users fuer einen Monat zurueck.
+
+        Kapselt die Monatsberechnung (erster/letzter Tag) und den optionalen
+        Konto-Filter. Die View muss keine Datumsarithmetik mehr selbst machen.
+
+        Args:
+            user_id: ID des eingeloggten Users.
+            year: Jahr (z.B. 2026).
+            month: Monat (1-12).
+            account_id: Optional – nur Transaktionen dieses Kontos; None = alle.
+            category_id: Optional – nur Transaktionen dieser Kategorie; None = alle.
+
+        Returns:
+            Liste von UI-Dictionaries oder Fehlermeldung als String.
+        """
+        try:
+            import calendar
+            _, last_day = calendar.monthrange(year, month)
+            transactions = transaction_service.filter_transactions(
+                start_date=date(year, month, 1),
+                end_date=date(year, month, last_day),
+                category_id=category_id,
+                user_id=user_id,
+                is_settled=True,
+            )
+            return [
+                {
+                    "transaction_id": t.transaction_id,
+                    "amount": t.amount,
+                    "date": format_date_dmy(t.date),
+                    "type": format_transaction_type(t.type),
+                    "note": t.note,
+                    "category_id": t.category_id,
+                    "account_id": t.account_id,
+                    "card_id": t.card_id,
+                    "creditcard_id": t.creditcard_id,
+                }
+                for t in transactions
+                if account_id is None or t.account_id == account_id
+            ]
+        except Exception as error:
+            return str(error)
+
     def filter_transactions(
         self,
         start_date: date | None = None,
         end_date: date | None = None,
         category_id: int | None = None,
         user_id: int | None = None,
+        is_settled: bool | None = None,
     ) -> list | str:
         """Filtert Transaktionen und gibt UI-geeignete Dictionaries zurueck.
 
@@ -207,6 +264,7 @@ class TransactionController:
                 end_date=end_date,
                 category_id=category_id,
                 user_id=user_id,
+                is_settled=is_settled,
             )
             # Umwandlung in UI-geeignete Dictionaries mit formatierten Strings
             return [

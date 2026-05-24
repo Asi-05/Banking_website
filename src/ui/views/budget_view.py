@@ -201,6 +201,11 @@ global fuer alle Kategorien.
 			"""
 			# `async` erlaubt NiceGUI, die UI reaktionsfaehig zu halten waehrend der Handler
 			# laeuft — auch wenn spaeter laengere Operationen (z.B. Datenbankzugriffe) dazukommen.
+			if not limit_input.value:
+				error_label.set_text("Bitte geben Sie ein Limit an.")
+				ui.notify("Bitte geben Sie ein Limit an.", type="warning")
+				return
+
 			# Ein Budget ist eindeutig ueber (user_id, month, year, category_id).
 			# Wenn `category_id` None ist, bedeutet das: globales Budget (alle Kategorien).
 			payload = {
@@ -211,15 +216,28 @@ global fuer alle Kategorien.
 				"category_id": category_select.value,
 			}
 
-			error = budget_controller.set_budget(payload)
+			category_display = "Globales Budget" if not category_select.value else category_options.get(category_select.value, "")
 
-			if error:
-				error_label.set_text(error)
-				ui.notify(error, type="negative")
-			else:
-				ui.notify("Budget gespeichert", type="positive")
-				limit_input.value = 0
-				category_select.value = None
+			with ui.dialog() as dlg, ui.card().classes("w-96"):
+				ui.label("Budget bestätigen").classes("text-subtitle1 font-semibold mb-3")
+				with ui.card().classes("w-full mb-3").props("flat bordered"):
+					ui.label(f"Monat/Jahr: {monat_optionen.get(month_select.value, '')} {year_select.value}").classes("text-sm text-gray-700")
+					ui.label(f"Limit: {limit_input.value:,.2f} CHF").classes("text-sm text-gray-700 font-medium")
+					ui.label(f"Kategorie: {category_display}").classes("text-sm text-gray-600")
+				with ui.row().classes("gap-4 mt-4 justify-end"):
+					ui.button("Abbrechen", on_click=dlg.close).props("flat")
+					def do_save(p=payload):
+						error = budget_controller.set_budget(p)
+						dlg.close()
+						if error:
+							error_label.set_text(error)
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Budget gespeichert", type="positive")
+							limit_input.value = 0
+							category_select.value = None
+					ui.button("Budget speichern", on_click=do_save).props("color=primary unelevated")
+			dlg.open()
 
 		ui.button("Budget speichern", on_click=handle_set_budget).classes("w-full")
 
@@ -238,6 +256,16 @@ def _build_budget_list(user_id: int) -> None:
 	today = date.today()
 	cur_year = today.year
 	cur_month = today.month
+
+	ui.add_css('''
+		.budget-table .q-table { table-layout: fixed; width: 100%; }
+		.budget-table .q-table th:nth-child(1), .budget-table .q-table td:nth-child(1) { width: 12%; }
+		.budget-table .q-table th:nth-child(2), .budget-table .q-table td:nth-child(2) { width: 22%; }
+		.budget-table .q-table th:nth-child(3), .budget-table .q-table td:nth-child(3) { width: 17%; }
+		.budget-table .q-table th:nth-child(4), .budget-table .q-table td:nth-child(4) { width: 17%; }
+		.budget-table .q-table th:nth-child(5), .budget-table .q-table td:nth-child(5) { width: 15%; }
+		.budget-table .q-table th:nth-child(6), .budget-table .q-table td:nth-child(6) { width: 17%; }
+	''')
 
 	COLUMNS = [
 		{"name": "month_year", "label": "Monat/Jahr", "field": "month_year", "align": "left"},
@@ -276,11 +304,17 @@ def _build_budget_list(user_id: int) -> None:
 	# === KASTEN 1: AKTIVE BUDGETS ===
 	with ui.card().classes("w-full"):
 		ui.label("Aktive Budgets").classes("text-subtitle1 font-semibold mb-2")
-		active_table = ui.table(columns=COLUMNS, rows=[]).props("dense")
-		active_table.classes("w-full")
+		active_table = ui.table(columns=COLUMNS, rows=[]).props("dense").classes("w-full budget-table")
 		with active_table.add_slot("no-data"):
 			ui.label("Kein aktives Budget vorhanden").classes("text-gray-500 italic")
 		active_table.add_slot("body-cell-actions", ACTION_SLOT)
+		active_table.add_slot("body-cell-status", """
+			<q-td :props="props">
+				<span :class="props.row.status.includes('OK') ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
+					{{ props.row.status }}
+				</span>
+			</q-td>
+		""")
 
 		def handle_edit_active(e) -> None:
 			"""Oeffnet den Edit-Dialog fuer ein aktives Budget.
@@ -302,11 +336,17 @@ def _build_budget_list(user_id: int) -> None:
 	# === KASTEN 2: ABGELAUFENE BUDGETS ===
 	with ui.card().classes("w-full mt-4"):
 		ui.label("Abgelaufene Budgets").classes("text-subtitle1 font-semibold mb-2")
-		expired_table = ui.table(columns=EXPIRED_COLUMNS, rows=[]).props("dense")
-		expired_table.classes("w-full")
+		expired_table = ui.table(columns=EXPIRED_COLUMNS, rows=[]).props("dense").classes("w-full budget-table")
 		with expired_table.add_slot("no-data"):
 			ui.label("Kein abgelaufenes Budget vorhanden").classes("text-gray-500 italic")
 		expired_table.add_slot("body-cell-actions", EXPIRED_ACTION_SLOT)
+		expired_table.add_slot("body-cell-status", """
+			<q-td :props="props">
+				<span :class="props.row.status.includes('OK') ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
+					{{ props.row.status }}
+				</span>
+			</q-td>
+		""")
 		def handle_delete_expired(e) -> None:
 			"""Oeffnet den Delete-Dialog fuer ein abgelaufenes Budget.
 
@@ -390,76 +430,24 @@ def _open_delete_dialog(e, user_id, active_table, expired_table, cur_year, cur_m
 def _refresh_split_budget_list(user_id, active_table, expired_table, cur_year, cur_month) -> None:
 	"""Laedt Budgets neu und splittet sie in aktive/abgelaufene Tabellen.
 
-	Wichtig: Der Budgetstatus (Verbrauch/Limit) wird pro Budget ueber den
-	`BudgetController.check_budget_status(...)` abgefragt.
-
 	Args:
 		user_id: ID des eingeloggten Users.
-		active_table: Tabelle, die die aktiven Budgets angezeigt bekommt.
-		expired_table: Tabelle, die die abgelaufenen Budgets angezeigt bekommt.
-		cur_year: Aktuelles Jahr (fuer die Aktiv/Abgelaufen-Sortierung).
-		cur_month: Aktueller Monat (fuer die Aktiv/Abgelaufen-Sortierung).
+		active_table: Tabelle fuer aktive Budgets.
+		expired_table: Tabelle fuer abgelaufene Budgets.
+		cur_year: Nicht mehr verwendet (Logik im Controller).
+		cur_month: Nicht mehr verwendet (Logik im Controller).
 	"""
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
 
 	try:
-		# Controller liefert Liste oder Fehlertext.
-		budgets = budget_controller.list_budgets(user_id)
-		if isinstance(budgets, str):
-			ui.notify(budgets, type="negative")
-			return
 		category_names = category_controller.list_categories()
-
-		active_rows = []
-		expired_rows = []
-		month_names = ["", "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
-					   "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
-
-		for budget in budgets:
-			# Darstellung: "Monat/Jahr" fuer eine kompakte Tabellenanzeige.
-			month_name = month_names[budget.month]
-			month_year = f"{month_name} {budget.year}"
-			try:
-				# Statusberechnung: Service summiert Ausgaben im Monat und vergleicht mit Limit.
-				# Der Controller gibt bei Fehlern einen String zurueck.
-				status_data = budget_controller.check_budget_status(
-					user_id=user_id, month=budget.month,
-					year=budget.year, category_id=budget.category_id,
-				)
-				if isinstance(status_data, str):
-					is_exceeded = False
-					used_amount = 0
-				else:
-					is_exceeded = status_data.get("is_exceeded", False)
-					used_amount = status_data.get("current_spending", 0)
-			except Exception:
-				is_exceeded = False
-				used_amount = 0
-
-			row = {
-				"budget_id": budget.budget_id,
-				"month_year": month_year,
-				# `category_id is None` bedeutet: Budget gilt fuer *alle* Kategorien.
-				"category": "Alle" if budget.category_id is None
-					else category_names.get(budget.category_id, f"ID {budget.category_id}"),
-				"limit": f"{budget.limit_amount:,.2f}",
-				"used": f"{used_amount:,.2f}",
-				"status": "OK ✓" if not is_exceeded else "ÜBERSCHRITTEN ⚠",
-			}
-
-			# Aktiv/abgelaufen: abgelaufen sind Budgets aus Monaten vor dem aktuellen Monat.
-			# (Das ist reine UI-Sortierung; fachlich ist ein Budget immer an seinen Monat gebunden.)
-			is_active = (budget.year > cur_year) or (
-				budget.year == cur_year and budget.month >= cur_month
-			)
-			if is_active:
-				active_rows.append(row)
-			else:
-				expired_rows.append(row)
-
-		active_table.rows = active_rows
-		expired_table.rows = expired_rows
+		grouped = budget_controller.list_budgets_grouped(user_id, category_names)
+		if isinstance(grouped, str):
+			ui.notify(grouped, type="negative")
+			return
+		active_table.rows = grouped["active"]
+		expired_table.rows = grouped["expired"]
 	except Exception as ex:
 		ui.notify(f"Fehler: {str(ex)}", type="negative")
 

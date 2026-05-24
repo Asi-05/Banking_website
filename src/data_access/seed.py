@@ -323,17 +323,6 @@ def seed_credit_cards_for_users(session: Session, users: list[User]) -> None:
         ).first()
 
         if has_active_credit is not None:
-            # Abrechnungskonto nachrüsten falls noch nicht gesetzt.
-            if has_active_credit.billing_account_id is None:
-                privat = session.exec(
-                    select(Account).where(
-                        Account.user_id == user.user_id,
-                        Account.account_type == "privat",
-                    )
-                ).first()
-                if privat is not None:
-                    has_active_credit.billing_account_id = privat.account_id
-                    session.add(has_active_credit)
             continue
 
         # Privatkonto als Standard-Abrechnungskonto ermitteln.
@@ -544,22 +533,6 @@ def seed_felix_income(session: Session, felix: User) -> None:
     privat1 = session.exec(select(Account).where(Account.iban == privat1_iban)).first()
     if privat1 is None or "Gehalt" not in categories:
         return
-
-    # Einmalige Bereinigung: alte 8'500-Buchungen loeschen.
-    old_txns = session.exec(
-        select(Transaction).where(
-            Transaction.account_id == privat1.account_id,
-            Transaction.type == "income",
-            Transaction.note == "Monatsgehalt",
-            Transaction.amount == 8500.0,
-        )
-    ).all()
-    if old_txns:
-        for txn in old_txns:
-            privat1.balance -= 8500.0
-            session.delete(txn)
-        session.commit()
-        session.refresh(privat1)
 
     # Gehalt Jan-Mai 2026 anlegen.
     for month in range(1, 6):

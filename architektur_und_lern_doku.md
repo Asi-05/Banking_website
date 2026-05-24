@@ -46,7 +46,7 @@ Banking Website/
 ├── betterbank.db                  # SQLite-Datenbankdatei
 ├── requirements.txt               # Python-Abhängigkeiten
 ├── statements/                    # Generierte PDF-Kontoauszüge
-├── tests/                         # Automatisierte Pytest-Tests (22 Dateien)
+├── tests/                         # Automatisierte Pytest-Tests (20 Dateien)
 └── src/
     ├── __main__.py                # App-Orchestrierung: DB → Seed → Routen → Server
     ├── domain/
@@ -74,11 +74,21 @@ main.py
   └── src/__main__.py → main()
         ├── 1. create_db_and_tables()   → SQLite-Tabellen anlegen / migrieren
         ├── 2. seed_database()          → Demo-User, Konten, Kategorien einfügen
-        ├── 3. Routen registrieren      → NiceGUI-URLs auf View-Funktionen mappen
-        └── 4. ui.run(port=8080)        → Webserver starten (blockiert)
+        ├── 3. Globales CSS injizieren  → BetterBank-Design-Theme (Sidebar, Header, Farben)
+        ├── 4. Routen registrieren      → NiceGUI-URLs auf View-Funktionen mappen
+        ├── 5. Quasar-Deutsch-Locale   → Datepicker auf Deutsch (Tage-/Monatsnamen)
+        └── 6. ui.run(port=8080)        → Webserver starten (blockiert)
 ```
 
 Danach ist die App unter `http://localhost:8080` erreichbar. Jede URL-Route ruft eine Python-Funktion auf, die eine NiceGUI-Seite rendert.
+
+**Globales CSS-Theme:** In Schritt 3 wird per `ui.add_head_html(..., shared=True)` einmalig ein `<style>`-Block geladen, der für alle Seiten gilt:
+- Sidebar (`q-drawer`): Dunkelblau (`#1a3c7e`), weisse Schrift
+- Header (`q-header`): Weiss mit Schatten, beginnt rechts von der Sidebar
+- Seitenhintergrund: Hellgrau (`#f0f4f8`)
+- Datepicker: Akzentfarbe passend zum Farbschema
+
+**Quasar-Deutschlokalisierung:** In Schritt 5 wird per JavaScript (`Quasar.lang.set(...)`) die Quasar-UI-Bibliothek auf Deutsch umgestellt, sodass Datepicker-Komponenten deutsche Wochentag- und Monatsnamen anzeigen.
 
 **Routing-Übersicht:**
 
@@ -90,6 +100,8 @@ Danach ist die App unter `http://localhost:8080` erreichbar. Jede URL-Route ruft
 | `/budget` | `budget_view.show()` | Ja |
 | `/accounts` | `account_view.show()` | Ja |
 | `/cards` | `card_view.show()` | Ja |
+
+Jede Route setzt ausserdem `ui.colors(primary="#1a3c7e", secondary="#26a69a")` – damit verwenden alle Quasar-Komponenten (Buttons, Inputs) konsistent das BetterBank-Farbschema.
 
 ---
 
@@ -453,7 +465,7 @@ In einer Banking-App ist Datenkonsistenz kritisch. Wenn Views direkt die Datenba
 
 **2. Testbarkeit ohne UI**
 
-Services und Repositories können ohne NiceGUI getestet werden. Die 22 Testdateien in `tests/` testen die Fachlogik isoliert:
+Services und Repositories können ohne NiceGUI getestet werden. Die 20 Testdateien in `tests/` testen die Fachlogik isoliert:
 
 ```python
 # tests/test_calculate_total_balance.py
@@ -553,7 +565,7 @@ if set_sources != 1:
 
 ## 8. Teststrategie
 
-Die 22 Testdateien decken drei Ebenen ab:
+Die 20 Testdateien decken drei Ebenen ab:
 
 | Testtyp | Beispieldateien | Was wird getestet |
 |---|---|---|
@@ -652,7 +664,7 @@ Das aktuelle Design ist für die Demo-App mit einem Benutzer gleichzeitig akzept
 
 Die Trennung zwischen **UI-Controller** (`ui/controllers/`) und **Service** (`services/`) hat zwei konkrete Vorteile:
 
-**1. Testbarkeit:** Die Services können vollständig ohne NiceGUI getestet werden. Unsere 22 Testdateien importieren direkt die Services und testen die Fachlogik isoliert. Würden Services NiceGUI-Abhängigkeiten enthalten, wäre das unmöglich.
+**1. Testbarkeit:** Die Services können vollständig ohne NiceGUI getestet werden. Unsere 20 Testdateien importieren direkt die Services und testen die Fachlogik isoliert. Würden Services NiceGUI-Abhängigkeiten enthalten, wäre das unmöglich.
 
 **2. Wiederverwendbarkeit:** Die Service-Schicht ist UI-agnostisch. Wenn wir morgen eine REST API mit FastAPI hinzufügen, importieren wir dieselben Services:
 
@@ -717,6 +729,22 @@ def _is_due(self, recurring, login_date) -> bool:
 ```python
 # 31. Januar + 1 Monat = 28. Februar (nicht 3. März!)
 day = min(from_date.day, calendar.monthrange(year, month)[1])
+```
+
+**Korrekte `last_executed`-Fortschreibung:** Nach der Ausführung wird `last_executed` auf das berechnete Fälligkeitsdatum (`next_due`) gesetzt – nicht auf das aktuelle Login-Datum:
+
+```python
+reloaded.last_executed = next_due   # KORREKT: Fälligkeitsdatum fortschreiben
+# früher: reloaded.last_executed = login_date  → falsch bei verpassten Logins
+```
+
+Warum das wichtig ist: Wenn ein User sich im Februar nicht einloggt und erst im März wieder anmeldet, soll der Februar-Auftrag als „Februar-Ausführung" eingetragen werden. Würde stattdessen das Login-Datum (März) gespeichert, würde der nächste Auftrag erst im April fällig – ein Monat ginge verloren.
+
+**Startdatum-Validierung:** Neue Daueraufträge müssen mindestens **morgen** starten:
+
+```python
+if start_date <= date.today():
+    raise ValueError("Startdatum muss mindestens morgen sein")
 ```
 
 **Vorteil:** Einfache Implementierung ohne Infrastruktur. **Nachteil:** Daueraufträge werden nur ausgeführt, wenn der User sich einloggt. In einer Produktionsumgebung würde man einen dedizierten Scheduler (APScheduler, Celery, oder einen Cloud-Cron-Job) verwenden.

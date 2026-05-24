@@ -182,15 +182,15 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
             )
         ).first()
         if privat_account is None:
-            session.add(
-                Account(
-                    account_type="privat",
-                    balance=INITIAL_USER_BALANCE,
-                    status="aktiv",
-                    iban=generate_ch_iban("09000", f"{user.user_id:010d}01"),
-                    user_id=user.user_id,
-                )
+            privat_account = Account(
+                account_type="privat",
+                balance=0.0,
+                status="aktiv",
+                iban=generate_ch_iban("09000", f"{user.user_id:010d}01"),
+                user_id=user.user_id,
             )
+            session.add(privat_account)
+            session.flush()
 
         # Sparkonto pruefen/anlegen.
         spar_account = session.exec(
@@ -200,16 +200,50 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
             )
         ).first()
         if spar_account is None:
-            session.add(
-                Account(
-                    account_type="spar",
-                    balance=INITIAL_SAVINGS_BALANCE,
-                    status="aktiv",
-                    iban=generate_ch_iban("09000", f"{user.user_id:010d}02"),
-                    user_id=user.user_id,
-                )
+            spar_account = Account(
+                account_type="spar",
+                balance=0.0,
+                status="aktiv",
+                iban=generate_ch_iban("09000", f"{user.user_id:010d}02"),
+                user_id=user.user_id,
             )
+            session.add(spar_account)
+            session.flush()
 
+    session.commit()
+
+    # Eröffnungsgutschrift für jedes neue Konto anlegen (idempotent).
+    # Statt balance direkt zu setzen, wird eine echte Transaktion gebucht,
+    # damit Kontoauszüge und Transaktionssummen immer übereinstimmen.
+    categories = {c.name: c for c in session.exec(select(Category)).all()}
+    sonstiges_id = categories["Sonstiges"].category_id if "Sonstiges" in categories else None
+    for user in users:
+        for account_type, initial in [("privat", INITIAL_USER_BALANCE), ("spar", INITIAL_SAVINGS_BALANCE)]:
+            acc = session.exec(
+                select(Account).where(
+                    Account.user_id == user.user_id,
+                    Account.account_type == account_type,
+                )
+            ).first()
+            if acc is None or sonstiges_id is None:
+                continue
+            already = session.exec(
+                select(Transaction).where(
+                    Transaction.account_id == acc.account_id,
+                    Transaction.note == "Eröffnungsgutschrift",
+                )
+            ).first()
+            if already is None:
+                session.add(Transaction(
+                    amount=initial,
+                    date=date(2025, 12, 31),
+                    type="income",
+                    note="Eröffnungsgutschrift",
+                    category_id=sonstiges_id,
+                    account_id=acc.account_id,
+                    is_settled=True,
+                ))
+                acc.balance += initial
     session.commit()
 
 

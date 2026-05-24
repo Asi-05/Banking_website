@@ -350,6 +350,32 @@ class PaymentService:
                 for t in pre_transactions
             )
 
+            # Fallback-Texte fuer leere Notizen innerhalb der Session bestimmen,
+            # da nach Schliessen der Session keine Beziehungen mehr nachgeladen werden.
+            tx_ids = [t.transaction_id for t in transactions]
+            from sqlmodel import select as _select, col
+            if tx_ids:
+                payment_tx_ids = set(session.exec(
+                    _select(Payment.transaction_id).where(col(Payment.transaction_id).in_(tx_ids))
+                ).all())
+                transfer_tx_ids = set(session.exec(
+                    _select(Transfer.transaction_id).where(col(Transfer.transaction_id).in_(tx_ids))
+                ).all())
+            else:
+                payment_tx_ids = set()
+                transfer_tx_ids = set()
+
+            note_display: dict[int, str] = {}
+            for t in transactions:
+                if t.note:
+                    note_display[t.transaction_id] = t.note
+                elif t.transaction_id in payment_tx_ids:
+                    note_display[t.transaction_id] = "Inlandszahlung"
+                elif t.transaction_id in transfer_tx_ids:
+                    note_display[t.transaction_id] = "Umbuchung"
+                else:
+                    note_display[t.transaction_id] = "Gutschrift" if t.type == "income" else "Lastschrift"
+
         output_dir = Path("statements")
         output_dir.mkdir(parents=True, exist_ok=True)
         file_path = output_dir / (
@@ -365,6 +391,7 @@ class PaymentService:
             end_date=end_date,
             opening_balance=opening_balance,
             transactions=transactions,
+            note_display=note_display,
         )
         return str(file_path)
 
@@ -379,6 +406,7 @@ class PaymentService:
         end_date: date,
         opening_balance: float,
         transactions: list,
+        note_display: dict | None = None,
     ) -> None:
         """Erstellt einen formatierten PDF-Kontoauszug mit fpdf2."""
         from fpdf import FPDF
@@ -415,7 +443,7 @@ class PaymentService:
         pdf.set_text_color(*GRAY)
         pdf.set_font("Helvetica", "", 8)
         pdf.set_xy(20, 30)
-        pdf.multi_cell(70, 4.5, "BetterBank AG\nKundenservice\nTelefon +41 58 000 00 00\nwww.betterbank.ch")
+        pdf.multi_cell(70, 4.5, "BetterBank AG\nKundenservice\nInland: 0844 840 140\nAusland: +41 44 293 95 95\nwww.betterbank.ch")
 
         # ── KONTOBEZEICHNUNG ─────────────────────────────────────────
         pdf.set_xy(20, 60)
@@ -484,7 +512,8 @@ class PaymentService:
             pdf.set_font("Helvetica", "", 8)
             pdf.set_x(20)
             pdf.cell(COL_W[0], ROW_H, txn.date.strftime("%d.%m.%Y"), fill=fill)
-            pdf.cell(COL_W[1], ROW_H, safe((txn.note or "")[:38]), fill=fill)
+            tx_text = (note_display or {}).get(txn.transaction_id) or txn.note or ""
+            pdf.cell(COL_W[1], ROW_H, safe(tx_text[:38]), fill=fill)
             pdf.cell(COL_W[2], ROW_H, gutschrift, fill=fill, align="R")
             pdf.cell(COL_W[3], ROW_H, lastschrift, fill=fill, align="R")
             pdf.cell(COL_W[4], ROW_H, fmt(saldo), fill=fill, align="R")

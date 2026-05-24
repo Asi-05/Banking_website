@@ -50,6 +50,7 @@ from sqlmodel import Session
 from src.data_access.db import engine
 from src.data_access.repositories.user_repository import UserRepository
 from src.services.recurring_service import recurring_service
+from src.services.transaction_service import transaction_service
 from src.services.creditcard_billing_service import creditcard_billing_service
 from src.utils.validators import verify_password, hash_password
 
@@ -153,6 +154,7 @@ class AuthService:
             user_id,
             date.today(),
         )
+        transaction_service.settle_pending_transactions(user_id, date.today())
         billed_cards = creditcard_billing_service.process_monthly_billing(
             user_id,
             date.today(),

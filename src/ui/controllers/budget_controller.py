@@ -160,6 +160,72 @@ class BudgetController:
         except Exception as error:
             return str(error)
 
+    def list_budgets_grouped(self, user_id: int, category_names: dict) -> dict | str:
+        """Gibt Budgets aufgeteilt in aktive und abgelaufene Liste zurueck.
+
+        Berechnet Budgetstatus (is_exceeded, used_amount) und bestimmt, ob ein
+        Budget aktiv oder abgelaufen ist. Die View muss keine Logik mehr selbst
+        umsetzen.
+
+        Args:
+            user_id: ID des eingeloggten Users.
+            category_names: Dict {category_id: name} fuer die Anzeige.
+
+        Returns:
+            Dict {"active": [...], "expired": [...]} oder Fehlermeldung als String.
+        """
+        try:
+            from datetime import date
+            budgets = budget_service.list_budgets(user_id)
+            today = date.today()
+            cur_year = today.year
+            cur_month = today.month
+            month_names = ["", "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+                           "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+            active_rows = []
+            expired_rows = []
+            for budget in budgets:
+                month_name = month_names[budget.month]
+                month_year = f"{month_name} {budget.year}"
+                try:
+                    status_data = budget_service.check_budget_status(
+                        user_id=user_id,
+                        month=budget.month,
+                        year=budget.year,
+                        category_id=budget.category_id,
+                    )
+                    if isinstance(status_data, dict):
+                        is_exceeded = status_data.get("is_exceeded", False)
+                        used_amount = status_data.get("current_spending", 0)
+                    else:
+                        is_exceeded = False
+                        used_amount = 0
+                except Exception:
+                    is_exceeded = False
+                    used_amount = 0
+
+                row = {
+                    "budget_id": budget.budget_id,
+                    "month_year": month_year,
+                    "category": "Alle" if budget.category_id is None
+                        else category_names.get(budget.category_id, f"ID {budget.category_id}"),
+                    "limit": f"{budget.limit_amount:,.2f}",
+                    "used": f"{used_amount:,.2f}",
+                    "status": "OK ✓" if not is_exceeded else "ÜBERSCHRITTEN ⚠",
+                }
+
+                is_active = (budget.year > cur_year) or (
+                    budget.year == cur_year and budget.month >= cur_month
+                )
+                if is_active:
+                    active_rows.append(row)
+                else:
+                    expired_rows.append(row)
+
+            return {"active": active_rows, "expired": expired_rows}
+        except Exception as error:
+            return str(error)
+
     def list_budgets(self, user_id: int) -> list | str:
         """Gibt alle Budgets eines Users als Liste zurueck.
 

@@ -251,6 +251,62 @@ class CardController:
         except Exception as error:
             return str(error)
 
+    def list_credit_cards_display(self, user_id: int) -> list | str:
+        """Gibt Kreditkarten als UI-fertige Dictionaries zurueck.
+
+        Berechnet `available` (Limit minus genutzter Kredit), formatiert Datumsfelder
+        und loest das Abrechnungskonto auf. Die View muss keine Berechnungen mehr machen.
+
+        Args:
+            user_id: ID des eingeloggten Users.
+
+        Returns:
+            Liste von Dictionaries mit allen Anzeigewerten oder Fehlermeldung als String.
+        """
+        try:
+            from datetime import datetime, date as _date
+            cards = card_service.list_credit_cards(user_id)
+            result = []
+            for card in cards:
+                limit_val = card.limit if hasattr(card, "limit") else card.get("limit")
+                balance_val = card.balance if hasattr(card, "balance") else card.get("balance")
+                available = limit_val - balance_val
+
+                billing_account = card.billing_account if hasattr(card, "billing_account") else card.get("billing_account")
+                if billing_account is not None:
+                    billing_account_display = (billing_account.iban if hasattr(billing_account, "iban") else billing_account.get("iban", "N/A")).upper()
+                else:
+                    billing_account_display = "Nicht gesetzt"
+
+                last_billed = card.last_billed if hasattr(card, "last_billed") else card.get("last_billed")
+                if last_billed is not None:
+                    if isinstance(last_billed, str):
+                        last_billed = datetime.fromisoformat(last_billed).date()
+                    last_billed_display = last_billed.strftime("%d.%m.%Y")
+                else:
+                    last_billed_display = "Noch keine"
+
+                expire_raw = card.expire_date if hasattr(card, "expire_date") else card.get("expire_date")
+                if isinstance(expire_raw, str):
+                    expire_raw = _date.fromisoformat(expire_raw)
+                expire_display = expire_raw.strftime("%d.%m.%Y") if expire_raw else ""
+
+                result.append({
+                    "_card": card,
+                    "card_id": card.creditcard_id if hasattr(card, "creditcard_id") else card.get("creditcard_id"),
+                    "card_number": f"**** {(card.card_number if hasattr(card, 'card_number') else card.get('card_number'))[-4:]}",
+                    "limit": limit_val,
+                    "balance": balance_val,
+                    "available": available,
+                    "billing_account": billing_account_display,
+                    "last_billed": last_billed_display,
+                    "expire_date": expire_display,
+                    "status": card.status if hasattr(card, "status") else card.get("status"),
+                })
+            return result
+        except Exception as error:
+            return str(error)
+
     def list_credit_cards(self, user_id: int) -> list | str:
         """Gibt alle Kreditkarten eines Users zurueck.
 

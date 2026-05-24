@@ -145,6 +145,25 @@ def main() -> None:
         background: #1a3c7e !important;
         color: white !important;
     }
+
+    /* ===== Einheitliche Tabellen-Abstände für alle Seiten ===== */
+    .q-table th {
+        padding: 10px 16px !important;
+        font-weight: 600 !important;
+        background: #f8fafc !important;
+        color: #374151 !important;
+        border-bottom: 2px solid #e5e7eb !important;
+    }
+    .q-table td {
+        padding: 10px 16px !important;
+        border-bottom: 1px solid #f0f4f8 !important;
+    }
+    .q-table tbody tr:last-child td {
+        border-bottom: none !important;
+    }
+    .q-table tbody tr:hover td {
+        background: rgba(26, 60, 126, 0.04) !important;
+    }
     </style>
     """, shared=True)
 

@@ -99,6 +99,11 @@ def show() -> None:
 
 	user_id = app_state.get("user_id")
 
+	# Faellige Dauerauftraege direkt beim Seitenaufruf ausfuehren (nicht nur beim Login).
+	from src.ui.controllers.recurring_controller import recurring_controller as _rc_startup
+	from datetime import date as _date
+	_rc_startup.process_due_on_login(user_id, _date.today())
+
 	# ===== SIDEBAR =====
 	with ui.left_drawer():
 		_build_sidebar()
@@ -240,32 +245,45 @@ def _build_domestic_payment_form(user_id: int) -> None:
 				error_label.set_text("Verwendungszweck darf maximal 100 Zeichen enthalten.")
 				return
 
-			# DD.MM.YYYY → YYYY-MM-DD, weil der Service date.fromisoformat() erwartet.
 			_raw = execution_date_picker.value or date.today().strftime('%d.%m.%Y')
-			_d, _m, _y = _raw.split(".")
 			payload = {
 				"target_iban": iban_input.value,
 				"amount": amount_input.value or 0,
 				"from_account_id": from_account_select.value,
 				"category_id": category_select.value,
 				"purpose": purpose_input.value,
-				"date": f"{_y}-{_m}-{_d}",
+				"date": _raw,
 			}
 
-			error = payment_controller.create_payment(payload)
-
-			if error:
-				error_label.set_text(error)
-				ui.notify(error, type="negative")
-			else:
-				ui.notify("Zahlung erfolgreich ausgeführt", type="positive")
-				iban_input.value = ""
-				amount_input.value = 0
-				from_account_select.value = None
-				category_select.value = None
-				purpose_input.value = ""
-				execution_date_picker.value = date.today().strftime('%d.%m.%Y')
-				error_label.set_text("")
+			with ui.dialog() as dlg, ui.card().classes("w-96"):
+				ui.label("Zahlung bestätigen").classes("text-subtitle1 font-semibold mb-3")
+				with ui.card().classes("w-full mb-3").props("flat bordered"):
+					ui.label(f"An: {iban_input.value.upper()}").classes("text-sm text-gray-700")
+					ui.label(f"Betrag: {amount_input.value:,.2f} CHF").classes("text-sm text-gray-700 font-medium")
+					ui.label(f"Von: {account_options.get(from_account_select.value, '')}").classes("text-sm text-gray-600")
+					ui.label(f"Kategorie: {category_options.get(category_select.value, '')}").classes("text-sm text-gray-600")
+					ui.label(f"Datum: {_raw}").classes("text-sm text-gray-600")
+					if purpose_input.value:
+						ui.label(f"Verwendungszweck: {purpose_input.value}").classes("text-sm text-gray-600")
+				with ui.row().classes("gap-4 mt-4 justify-end"):
+					ui.button("Abbrechen", on_click=dlg.close).props("flat")
+					def do_execute(p=payload):
+						error = payment_controller.create_payment(p)
+						dlg.close()
+						if error:
+							error_label.set_text(error)
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Zahlung erfolgreich ausgeführt", type="positive")
+							iban_input.value = ""
+							amount_input.value = 0
+							from_account_select.value = None
+							category_select.value = None
+							purpose_input.value = ""
+							execution_date_picker.value = date.today().strftime('%d.%m.%Y')
+							error_label.set_text("")
+					ui.button("Zahlung ausführen", on_click=do_execute).props("color=primary unelevated")
+			dlg.open()
 
 		ui.button("Zahlung ausführen", on_click=handle_create_payment).classes("w-full")
 
@@ -322,12 +340,8 @@ def _build_recurring_payments_section(user_id: int) -> None:
 				# In manchen Pfaden kann `last_executed` als ISO-String vorliegen.
 				if isinstance(last_executed, str):
 					last_executed = date.fromisoformat(last_executed)
-				# Naechste Ausfuehrung wird aus (last_executed, interval) berechnet.
-				next_exec = recurring_controller.get_next_execution_date(last_executed, interval_val)
-				# Falls ein Termin "heute oder frueher" ist, zeigen wir die *naechste* Ausfuehrung,
-				# damit die Anzeige nicht wie "ueberfaellig" wirkt.
-				if next_exec <= date.today():
-					next_exec = recurring_controller.get_next_execution_date(next_exec, interval_val)
+				# Naechste Ausfuehrung fuer die Anzeige (ueberfaellige Termine werden uebersprungen).
+				next_exec = recurring_controller.get_display_next_execution_date(last_executed, interval_val)
 				rows.append({
 					"recurring_id": rec.recurring_id if hasattr(rec, 'recurring_id') else rec.get('recurring_id'),
 					"amount": f"{amount_val:,.2f}",
@@ -344,18 +358,18 @@ def _build_recurring_payments_section(user_id: int) -> None:
 			recurring_table.rows = rows
 
 		ui.add_css('''
-				.recurring-table .q-table { table-layout: fixed; width: 100%; }
-				.recurring-table .q-table th:nth-child(1), .recurring-table .q-table td:nth-child(1) { width: 12%; }
-				.recurring-table .q-table th:nth-child(2), .recurring-table .q-table td:nth-child(2) { width: 20%; }
-				.recurring-table .q-table th:nth-child(3), .recurring-table .q-table td:nth-child(3) { width: 12%; }
-				.recurring-table .q-table th:nth-child(4), .recurring-table .q-table td:nth-child(4) { width: 10%; }
-				.recurring-table .q-table th:nth-child(5), .recurring-table .q-table td:nth-child(5) { width: 16%; }
-				.recurring-table .q-table th:nth-child(6), .recurring-table .q-table td:nth-child(6) { width: 20%; }
-				.recurring-table .q-table th:nth-child(7), .recurring-table .q-table td:nth-child(7) { width: 10%; }
-			''')
+			.recurring-table .q-table { table-layout: fixed; width: 100%; }
+			.recurring-table .q-table th:nth-child(1), .recurring-table .q-table td:nth-child(1) { width: 11%; }
+			.recurring-table .q-table th:nth-child(2), .recurring-table .q-table td:nth-child(2) { width: 20%; }
+			.recurring-table .q-table th:nth-child(3), .recurring-table .q-table td:nth-child(3) { width: 11%; }
+			.recurring-table .q-table th:nth-child(4), .recurring-table .q-table td:nth-child(4) { width: 9%; }
+			.recurring-table .q-table th:nth-child(5), .recurring-table .q-table td:nth-child(5) { width: 15%; }
+			.recurring-table .q-table th:nth-child(6), .recurring-table .q-table td:nth-child(6) { width: 20%; }
+			.recurring-table .q-table th:nth-child(7), .recurring-table .q-table td:nth-child(7) { width: 14%; }
+		''')
 		with ui.card().classes("w-full"):
 			recurring_table = ui.table(columns=[
-				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "right"},
+				{"name": "amount", "label": "Betrag (CHF)", "field": "amount", "align": "left"},
 				{"name": "target_iban", "label": "Ziel-IBAN", "field": "target_iban", "align": "left"},
 				{"name": "category", "label": "Kategorie", "field": "category", "align": "left"},
 				{"name": "interval", "label": "Intervall", "field": "interval", "align": "left"},
@@ -503,8 +517,6 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						ui.notify("Bitte füllen Sie alle Felder zuerst aus.", type="warning")
 						return
 					error_label.set_text("")
-					# DD.MM.YYYY → YYYY-MM-DD für date.fromisoformat() im Service.
-					_d, _m, _y = start_date_picker.value.split(".")
 					payload = {
 						"user_id": user_id,
 						"amount": amount_input.value,
@@ -512,21 +524,37 @@ def _build_recurring_payments_section(user_id: int) -> None:
 						"account_id": account_select.value,
 						"target_iban": iban_input.value,
 						"interval": interval_select.value,
-						"start_date": f"{_y}-{_m}-{_d}",
+						"start_date": start_date_picker.value,
 					}
-					error = recurring_controller.create_recurring(payload)
-					if error:
-						error_label.set_text(error)
-						ui.notify(error, type="negative")
-					else:
-						ui.notify("Dauerauftrag erfolgreich erstellt", type="positive")
-						amount_input.value = None
-						category_select.value = None
-						account_select.value = None
-						iban_input.value = ""
-						interval_select.value = None
-						start_date_picker.value = date.today().strftime('%d.%m.%Y')
-						refresh_recurring_table()
+					interval_labels = {"monthly": "Monatlich", "yearly": "Jährlich"}
+					with ui.dialog() as dlg, ui.card().classes("w-96"):
+						ui.label("Dauerauftrag bestätigen").classes("text-subtitle1 font-semibold mb-3")
+						with ui.card().classes("w-full mb-3").props("flat bordered"):
+							ui.label(f"Betrag: {amount_input.value:,.2f} CHF").classes("text-sm text-gray-700 font-medium")
+							ui.label(f"Ziel-IBAN: {iban_input.value.upper()}").classes("text-sm text-gray-700")
+							ui.label(f"Konto: {form_account_options.get(account_select.value, '')}").classes("text-sm text-gray-600")
+							ui.label(f"Kategorie: {category_options.get(category_select.value, '')}").classes("text-sm text-gray-600")
+							ui.label(f"Intervall: {interval_labels.get(interval_select.value, interval_select.value)}").classes("text-sm text-gray-600")
+							ui.label(f"Startdatum: {start_date_picker.value}").classes("text-sm text-gray-600")
+						with ui.row().classes("gap-4 mt-4 justify-end"):
+							ui.button("Abbrechen", on_click=dlg.close).props("flat")
+							def do_execute(p=payload):
+								error = recurring_controller.create_recurring(p)
+								dlg.close()
+								if error:
+									error_label.set_text(error)
+									ui.notify(error, type="negative")
+								else:
+									ui.notify("Dauerauftrag erfolgreich erstellt", type="positive")
+									amount_input.value = None
+									category_select.value = None
+									account_select.value = None
+									iban_input.value = ""
+									interval_select.value = None
+									start_date_picker.value = date.today().strftime('%d.%m.%Y')
+									refresh_recurring_table()
+							ui.button("Dauerauftrag erstellen", on_click=do_execute).props("color=primary unelevated")
+					dlg.open()
 
 				ui.button("Dauerauftrag erstellen", on_click=handle_create_recurring).classes("w-full")
 
@@ -596,14 +624,25 @@ ausreichender Kontostand, etc.).
 				"amount": amount_input.value or 0,
 			}
 
-			error = payment_controller.create_transfer(payload)
-
-			if error:
-				error_label.set_text(error)
-				ui.notify(error, type="negative")
-			else:
-				ui.notify("Übertrag erfolgreich", type="positive")
-				amount_input.value = 0
+			with ui.dialog() as dlg, ui.card().classes("w-96"):
+				ui.label("Übertrag bestätigen").classes("text-subtitle1 font-semibold mb-3")
+				with ui.card().classes("w-full mb-3").props("flat bordered"):
+					ui.label(f"Von: {account_options.get(from_account_select.value, '')}").classes("text-sm text-gray-700")
+					ui.label(f"Nach: {account_options.get(to_account_select.value, '')}").classes("text-sm text-gray-700")
+					ui.label(f"Betrag: {amount_input.value:,.2f} CHF").classes("text-sm text-gray-700 font-medium")
+				with ui.row().classes("gap-4 mt-4 justify-end"):
+					ui.button("Abbrechen", on_click=dlg.close).props("flat")
+					def do_execute(p=payload):
+						error = payment_controller.create_transfer(p)
+						dlg.close()
+						if error:
+							error_label.set_text(error)
+							ui.notify(error, type="negative")
+						else:
+							ui.notify("Übertrag erfolgreich", type="positive")
+							amount_input.value = 0
+					ui.button("Jetzt umbuchen", on_click=do_execute).props("color=primary unelevated")
+			dlg.open()
 
 		ui.button("Umbuchen", on_click=handle_transfer).classes("w-full")
 

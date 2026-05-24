@@ -152,7 +152,8 @@ class RecurringService:
             if account.status != "aktiv":
                 raise ValueError(f"Konto {account_id} ist nicht aktiv und kann nicht verwendet werden")
 
-            if session.get(Category, category_id) is None:
+            category = session.get(Category, category_id)
+            if category is None:
                 raise KeyError(f"Kategorie {category_id} nicht gefunden")
 
             # Template-Transaktion: Repraesentiert die naechste geplante Ausfuehrung.
@@ -162,7 +163,7 @@ class RecurringService:
                 amount=amount,
                 date=start_date,
                 type="expense",
-                note="Dauerauftrag",
+                note=f"Dauerauftrag {category.name}",
                 category_id=category_id,
                 account_id=account_id,
                 is_settled=False,
@@ -244,6 +245,11 @@ class RecurringService:
                 continue
 
             try:
+                # Kategoriename fuer die Transaktion-Notiz ermitteln.
+                with Session(engine) as cat_session:
+                    cat = cat_session.get(Category, recurring.category_id)
+                    cat_name = cat.name if cat is not None else str(recurring.category_id)
+
                 # Buchung ausfuehren: TransactionService bucht Geld ab und aktualisiert Saldo.
                 transaction_service.create_transaction(
                     {
@@ -252,7 +258,7 @@ class RecurringService:
                         "date": login_date,
                         "category_id": recurring.category_id,
                         "account_id": recurring.account_id,
-                        "note": "Dauerauftrag",
+                        "note": f"Dauerauftrag {cat_name}",
                     }
                 )
             except (ValueError, KeyError):

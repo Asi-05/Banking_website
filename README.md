@@ -1,9 +1,16 @@
 # 💰 E-Banking-Budget-Tracker-Anwendung
 
-## 🎯 Projektziel
-Das Ziel dieses Projekts ist die Entwicklung einer umfassenden Personal Finance & Banking Application. Die Anwendung dient als zentrales Hub für die Verwaltung privater Finanzen, die Überwachung von Budgets und die Abwicklung täglicher Bankgeschäfte in einer intuitiven, digitalen Umgebung.
+## 🔑 Demo-Zugangsdaten
 
-## 📝 Application Requirements
+| Vertragsnummer | Passwort      | Name            |
+|----------------|---------------|-----------------|
+| BB-100001      | Dummy_hash_1  | Hermann Grieder |
+| BB-100002      | Dummy_hash_2  | Felix Haerer    |
+
+## 🎯 Projektziel
+Das Ziel dieses Projekts ist die Entwicklung einer umfassenden Finanzverwaltungs- und Banking-Anwendung. Die Anwendung dient als zentrale Plattform für die Verwaltung privater Finanzen, die Überwachung von Budgets und die Abwicklung täglicher Bankgeschäfte in einer intuitiven, digitalen Umgebung.
+
+## 📝 Anforderungen
 
 ---
 
@@ -13,7 +20,7 @@ Die Verwaltung privater Finanzen ist heutzutage stark fragmentiert. Nutzer müss
 
 ---
 
-### Scenario
+### Szenario
 
 Unsere BetterBank löst dieses Problem, indem sie dem User eine zentrale Plattform bietet. Der User loggt sich ein und kann auf einem übersichtlichen Dashboard seine aktuelle finanzielle Lage prüfen. Er kann im Alltag neue Transaktionen mit wenigen Klicks erfassen und kategorisieren. Am Ende des Monats sieht er dank automatischer Warnungen, ob er seine gesetzten Budgets eingehalten hat, und kann sich bei Bedarf Kontoauszüge als PDF generieren.
 
@@ -71,7 +78,7 @@ Unsere BetterBank löst dieses Problem, indem sie dem User eine zentrale Plattfo
 ### 4. Dashboard und Bilanz anzeigen
 **Als User möchte ich ein Dashboard mit Diagrammen, meinem Gesamtsaldo und Summen für bestimmte Zeiträume sehen, um meine finanzielle Situation auf einen Blick erfassen zu können.**
 
-**Description:** Das System berechnet das aktuelle Gesamtvermögen aus allen Konten des Users sowie die Einnahmen/Ausgaben für den gewählten Zeitraum und bereitet die Daten für das Charting auf. Die Diagrammdaten werden monatlich aggregiert.
+**Description:** Das System berechnet das aktuelle Gesamtvermögen aus allen Konten des Users sowie die Einnahmen/Ausgaben für den gewählten Zeitraum und bereitet die Daten für die Diagrammdarstellung auf. Die Diagrammdaten werden monatlich aggregiert.
 
 **Inputs:** * `start_date` as `date`
 * `end_date` as `date`
@@ -253,7 +260,7 @@ Unsere BetterBank löst dieses Problem, indem sie dem User eine zentrale Plattfo
 <img width="818" height="936" alt="Bildschirmfoto 2026-04-09 um 23 54 29" src="https://github.com/user-attachments/assets/0afa94cf-0bd9-4aad-a06b-31e196b26aaf" />
 
 
-## Data Input & Output
+## Dateneingabe & Datenausgabe
 
 ### Dateneingabe
 
@@ -291,7 +298,7 @@ Hinweis: Genau eine Belastungsquelle muss gesetzt sein (`account_id`, `card_id` 
 
 Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusammengefasste Finanzinformationen, die im Dashboard angezeigt werden.
  
-### Output Struktur
+### Ausgabestruktur
  
 | Feld          | Typ    |
 |---------------|--------|
@@ -300,7 +307,7 @@ Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusam
 | total_expenses| float  |
 | chart_data    | list[ChartData] |
 
-### Example Output (JSON)
+### Beispielausgabe (JSON)
  
 ```json
 {
@@ -320,7 +327,7 @@ Nach der Verarbeitung der gespeicherten Transaktionen generiert das System zusam
 Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassungen im Dashboard zu erstellen. `total_balance` entspricht dem aktuellen Kontostand aller Konten des Users, `total_income` und `total_expenses` beziehen sich auf den gewählten Zeitraum.
 
 
-### Wireframes/ Mockups
+### Entwürfe / Prototypen
 
 <img src="https://github.com/user-attachments/assets/72d3350d-d529-4a51-9c6d-41ba9c5af20a" width="300" />
 <img src="https://github.com/user-attachments/assets/b14845a7-8c76-4f98-a227-ef7491b62e23" width="300" />
@@ -336,19 +343,21 @@ Die Ausgabedaten werden verwendet, um Diagramme und finanzielle Zusammenfassunge
 
 ```text
 BetterBank/
-├── .github/                 # GitHub-Workflows
-├── .venv/                   # lokale virtuelle Umgebung (optional)
-├── .vscode/                 # Editor-Einstellungen (optional)
-├── .pytest_cache/           # pytest cache
-├── main.py                  # optionaler Top-Level-Runner
-├── pyproject.toml           # Projekt-Konfiguration
-├── requirements/            # ergänzende requirement-notes
-├── requirements.txt         # Verwendete Bibliotheken
-├── technical_design.md      # Design-/Architekturnotizen
-├── README.md                # Zentrale Projektdokumentation
-├── betterbank.db            # lokale SQLite DB (Entwicklung)
-├── statements/              # generierte Kontoauszüge (PDF)
-├── tests/                   # Pytest-Dateien zur Qualitätssicherung
+├── .github/                          # GitHub-Workflows
+├── .venv/                            # lokale virtuelle Umgebung (optional)
+├── .vscode/                          # Editor-Einstellungen (optional)
+├── .pytest_cache/                    # pytest cache
+├── .gitignore                        # Git-Ausschlussliste
+├── main.py                           # optionaler Top-Level-Runner
+├── pyproject.toml                    # Projekt-Konfiguration
+├── requirements/                     # ergänzende Anforderungsnotizen
+├── requirements.txt                  # Verwendete Bibliotheken
+├── technical_design.md               # Design-/Architekturnotizen
+├── architektur_und_lern_doku.md      # Architektur- und Lerndokumentation
+├── README.md                         # Zentrale Projektdokumentation
+├── betterbank.db                     # lokale SQLite DB (Entwicklung)
+├── statements/                       # generierte Kontoauszüge (PDF)
+├── tests/                            # Pytest-Dateien zur Qualitätssicherung
 └── src/                     # Der gesamte Quellcode der Anwendung
   ├── __init__.py
   ├── __main__.py         # STARTPUNKT: Initialisiert NiceGUI (ui.run())
@@ -411,55 +420,55 @@ BetterBank/
       └── card_view.py
 ```
 
-### Software Architecture
+### Softwarearchitektur
 ## UML Klassendiagramm / ER Diagramm
 
 <img width="5600" height="1875" alt="Klassendiagramm (6)" src="https://github.com/user-attachments/assets/e7f266f4-ba1b-4600-9c12-231c3b93affd" />
 
 
 
-#### Layers / Components
+#### Schichten / Komponenten
 
- * UI (NiceGUI pages/components, browser as thin client)
- * Application logic (controllers + domain/services)
- * Persistence (SQLite + SQLModel entities + repositories)
+ * Präsentation (NiceGUI-Seiten und -Komponenten, Browser als schlanker Client)
+ * Anwendungslogik (Controller + Domain/Services)
+ * Persistenz (SQLite + SQLModel-Entitäten + Repositories)
 
-#### Design Decisions
+#### Entwurfsentscheidungen
 
- * Organize code using MVC:
-   * Model: domain + ORM entities (e.g. `src/domain/models.py`)
-   * View: NiceGUI UI components/pages
-   * Controller: event handlers and coordination logic between UI, services, and persistence
+ * Code nach MVC gegliedert:
+   * Model: Domäne + ORM-Entitäten (z. B. `src/domain/models.py`)
+   * View: NiceGUI-Komponenten und Seiten
+   * Controller: Ereignisverarbeitung und Koordination zwischen UI, Services und Persistenz
  
- * Separate entrypoint/UI routing (`main.py`, `src/__main__.py`) from domain logic (`src/services`) and persistence (`src/data_access`)
- * Use modules with clear responsibilities to reduce coupling and keep business logic testable
- * Keep business rules testable without starting the UI
+ * Einstiegspunkt/UI-Routing (`main.py`, `src/__main__.py`) von der Domänenlogik (`src/services`) und der Persistenz (`src/data_access`) getrennt
+ * Module mit klar definierten Zuständigkeiten, um Kopplung zu reduzieren und die Fachlogik testbar zu halten
+ * Fachliche Regeln sind ohne gestartete UI testbar
 
 * Hinweis: Das ER-Diagramm wird separat gepflegt und hier bewusst nicht angepasst.
 
-#### Design Patterns
+#### Entwurfsmuster
 
  * MVC (Model–View–Controller)
- * Repository/DAO for database access (see `src/data_access/repositories`)
- * Service layer for business rules (see `src/services`)
+ * Repository/DAO für den Datenbankzugriff (siehe `src/data_access/repositories`)
+ * Service-Schicht für Fachregeln (siehe `src/services`)
 
 
-## 🗄️ Database and ORM
-Unsere Applikation nutzt eine **SQLite**-Datenbank in Kombination mit **SQLModel** als Object-Relational Mapper (ORM). SQLModel vereint SQLAlchemy (für die Datenbankinteraktion) und Pydantic (für die Datenvalidierung) und ermöglicht uns eine saubere, typensichere Python-Entwicklung.
+## 🗄️ Datenbank und ORM
+Unsere Applikation nutzt eine **SQLite**-Datenbank in Kombination mit **SQLModel** als objektrelationalen Abbilder (ORM). SQLModel vereint SQLAlchemy (für die Datenbankinteraktion) und Pydantic (für die Datenvalidierung) und ermöglicht eine saubere, typensichere Python-Entwicklung.
 
 ### ORM und Entitäten
 
 Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten und nutzt relationale Muster, um Redundanzen zu vermeiden und die Datenintegrität sicherzustellen:
 
-* **User ↔ Account / Cards:** Kunden werden in der `users`-Tabelle gespeichert und auf die `User`-Entität gemappt. `Account` ist eine 1:n-Beziehung zu `User`. `DebitCard` ist einem `Account` zugeordnet (`account_id` → `accounts.account_id`) und damit indirekt einem `User` über das Konto zugeordnet. `CreditCard` ist direkt einem `User` zugeordnet (`user_id`) und kann optional ein `billing_account_id` (→ `Account`) besitzen, das für monatliche Kreditkartenabbuchungen verwendet wird.
+* **User ↔ Konto / Karten:** Kunden werden in der `users`-Tabelle gespeichert. Ein `User` kann mehrere Konten besitzen (1:n). Eine `DebitCard` gehört immer zu einem `Account` und ist damit indirekt einem `User` zugeordnet. Eine `CreditCard` hingegen ist direkt einem `User` zugeordnet und besitzt optional ein Abrechnungskonto (`billing_account_id`), über das die monatliche Kreditkartenabrechnung läuft.
 
-* **Bidirektionales Mapping:** In der Python-Logik nutzen wir das `back_populates`-Feature von SQLModel. Dadurch können wir bidirektional navigieren (z. B. von einem Konto direkt auf das `User`-Objekt zugreifen), während die Datenbankebene strikt bei einer Einbahnstrasse über Foreign Keys (`user_id`) bleibt.
+* **Zweiseitiges Mapping:** Über das `back_populates`-Merkmal von SQLModel können wir in Python von einem Objekt direkt auf das verknüpfte Objekt zugreifen (z. B. vom Konto auf den User). In der Datenbank selbst läuft die Verbindung aber nur in eine Richtung — über Fremdschlüssel wie `user_id`.
 
-* **Budget ↔ Category:** Budgets werden auf die `Budget`-Entität gemappt. Ein harter `UniqueConstraint` in der Datenbank auf die Kombination `(user_id, month, year, category_id)` stellt sicher, dass ein User für einen bestimmten Monat und eine bestimmte Kategorie nicht versehentlich doppelte Budgets anlegen kann.
+* **Budget ↔ Kategorie:** Ein Budget ist eindeutig pro User, Monat, Jahr und Kategorie. Ein Datenbankzwang (`UniqueConstraint`) auf der Kombination `(user_id, month, year, category_id)` verhindert, dass versehentlich doppelte Budgets angelegt werden.
 
-* **Die "is_a" Transaktions-Strategie:** Alle Geldbewegungen basieren auf der `Transaction`-Entität, welche die gemeinsamen Basisdaten (Betrag, Datum, Typ) speichert. Spezifische Zahlungsarten (wie `Transfer`, `Payment`, `RecurringTransaction`) erben *nicht* im Python-Code, sondern werden relational über Komposition abgebildet. Die `Transfer` ↔ `Transaction` Beziehung (1:1 über den Foreign Key `transaction_id`) stellt sicher, dass zielspezifische Daten (wie `target_iban`) sauber getrennt bleiben und die Haupttabelle keine leeren `NULL`-Spalten für nicht benötigte Felder ansammelt.
+* **Transaktions-Strategie (Komposition statt Vererbung):** Alle Geldbewegungen basieren auf der `Transaction`-Entität mit den gemeinsamen Basisdaten (Betrag, Datum, Typ). Spezifische Zahlungsarten wie `Transfer`, `Payment` oder `RecurringTransaction` erben nicht davon, sondern referenzieren eine `Transaction` über einen Fremdschlüssel (1:1). So bleiben spezifische Felder (z. B. `target_iban`) sauber getrennt und die Haupttabelle enthält keine unnötigen leeren Spalten.
 
-* **Persistente Dashboard-Tabelle:** Die Implementierung enthält keine persistente `dashboard`-Tabelle; Dashboards werden dynamisch berechnet und über das `DashboardSummary`-DTO geliefert.
+* **Kein persistentes Dashboard:** Es gibt keine separate `dashboard`-Tabelle. Die Dashboarddaten werden beim Seitenaufruf dynamisch aus den bestehenden Transaktionen berechnet und als `DashboardSummary`-Objekt zurückgegeben.
 
 ## 👥 Arbeitsaufteilung
 
@@ -469,36 +478,36 @@ Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten u
 | Filmon Samy | Softwarearchitektur, Business-Logik (Recurring, Category, CreditcardBilling), MVC-Refactoring (Controller-Schicht), Code-Dokumentation & Kommentare |
 | Janath Balasubramaniam | UI/Views (NiceGUI), Business-Logik (Card-Service), Kontoeinstellungen, Kartenmanagement, Dauerauftrags-UI |
 
-## ✅ Project Requirements
+## ✅ Projektanforderungen
 Dieses Projekt erfüllt die Kernanforderungen wie folgt:
 
-1. Using NiceGUI for building an interactive web app
-2. Data validation in the app
-3. Using an ORM for database management
+1. Verwendung von NiceGUI zur Entwicklung einer interaktiven Webanwendung
+2. Dateneingabevalidierung in der Anwendung
+3. Verwendung eines ORM für die Datenbankverwaltung
 
-### 1. Browser-based App (NiceGUI)
+### 1. Browserbasierte Anwendung (NiceGUI)
 Die Anwendung ist eine serverseitige NiceGUI-Webapp mit Browser als Thin Client. Routen und Seiten sind zentral im App-Entrypoint definiert.
 
-### 2. Data Validation
+### 2. Dateneingabevalidierung
 Die Anwendung validiert Eingaben u. a. für:
 * Beträge (`validate_positive_amount`)
 * IBAN-Format (`validate_iban`)
 * Datumsbereiche (`validate_date_range`)
 * Exactly-one-Regel für Transaktionsquellen (`validate_exactly_one_source`)
 
-### 3. Database Management
+### 3. Datenbankverwaltung
 Alle fachlichen Daten werden über SQLModel/SQLAlchemy verwaltet (u. a. User, Konten, Karten, Transaktionen, Budgets, Zahlungen, Umbuchungen).
 
-## ⚙️ Implementation
-### Technology
- * Python 3.x
+## ⚙️ Implementierung
+### Technologien
+ * Python 3.11+
  * NiceGUI
  * SQLModel / SQLAlchemy
  * SQLite
  * fpdf2
  * pytest
 
-### How to run
+### Anwendung starten
 
 > Voraussetzung: **Python 3.11 oder neuer**
 
@@ -520,18 +529,23 @@ Alle fachlichen Daten werden über SQLModel/SQLAlchemy verwaltet (u. a. User, Ko
 
 > Die Demo-Daten (User, Konten, Karten) werden beim ersten Start **automatisch** angelegt.
 
-### Demo-Zugangsdaten
-
-| Vertragsnummer | Passwort      | Name           |
-|----------------|---------------|----------------|
-| BB-100001      | Dummy_hash_1  | Hermann Grieder |
-| BB-100002      | Dummy_hash_2  | Felix Haerer   |
-
 ### Tests ausführen
 
 ```bash
 python3 -m pytest -q
 ```
+
+### Testübersicht
+
+Das Projekt enthält **20 Testdateien** mit insgesamt 103 Tests, aufgeteilt in drei Kategorien:
+
+| Kategorie | Testdateien | Beschreibung |
+|---|---|---|
+| **Unit-Tests** | `test_budget_service.py`, `test_creditcard_billing_service.py`, `test_calculate_*.py`, `test_validate_iban_format.py`, `test_transaction_source_validation.py` | Testen einzelne Service-Methoden isoliert |
+| **Datenbank-Tests** | `test_database_logic.py`, `test_db_*.py` | Testen Datenbankoperationen (Persistenz, Filterung, Verhalten bei leeren Daten) |
+| **Integrations- & Controller-Tests** | `test_integration_*.py`, `test_ui_*.py` | Testen das Zusammenspiel mehrerer Schichten sowie die Controller-Logik |
+
+**Ergebnis: 103 von 103 Tests bestanden ✓**
 
 
 

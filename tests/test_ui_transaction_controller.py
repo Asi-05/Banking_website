@@ -114,7 +114,7 @@ def test_create_transaction_invalid_type_returns_error_string():
 def test_edit_transaction_success_returns_none():
     controller = _make_controller()
     # Let the real service run but mock repository methods it uses.
-    fake_tx = SimpleNamespace(transaction_id=1, amount=50.0, type="expense", account_id=1, card_id=None, creditcard_id=None, category_id=1, date="2026-04-01", note="Test")
+    fake_tx = SimpleNamespace(transaction_id=1, amount=50.0, type="expense", account_id=1, card_id=None, creditcard_id=None, category_id=1, date="2026-04-01", note="Test", is_settled=False)
     fake_account = SimpleNamespace(account_id=1, balance=1000.0, status="aktiv")
 
     with patch("sqlmodel.Session.get", return_value=SimpleNamespace(category_id=1)), \
@@ -237,4 +237,5 @@ def test_filter_transactions_passes_category_id_to_service():
         end_date=date(2026, 4, 30),
         category_id=3,
         user_id=1,
+        is_settled=None,
     )

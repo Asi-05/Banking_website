@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 import importlib
 
 from sqlmodel import SQLModel, Session, create_engine
@@ -50,7 +50,7 @@ def test_integration_create_recurring_payment(monkeypatch) -> None:
             "account_id": account_id,
             "target_iban": "CH56 0483 5012 3456 7800 9",
             "interval": "monthly",
-            "start_date": date(2026, 4, 11),
+            "start_date": date.today() + timedelta(days=1),
         }
     )
 

@@ -8,7 +8,6 @@ __pycache__/
 .venv/
 .env
 *.db
-!betterbank.db
 
 # Claude Code lokale Einstellungen (persönlich, nicht für GitHub)
 .claude/settings.json

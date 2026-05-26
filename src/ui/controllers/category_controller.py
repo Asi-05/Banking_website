@@ -82,5 +82,21 @@ class CategoryController:
             return {}
 
 
+    def list_expense_categories(self) -> dict:
+        """Laedt nur Ausgaben-Kategorien (ohne Einkommens-Kategorien wie 'Gehalt').
+
+        Wird im Budget-Dropdown verwendet, da man kein Budget fuer Einkommen setzt.
+
+        Returns:
+            Dictionary {category_id: name} ohne Einkommens-Kategorien; {} bei Fehlern.
+        """
+        excluded = {"Gehalt"}
+        try:
+            categories = category_service.list_categories()
+            return {c.category_id: c.name for c in categories if c.name not in excluded}
+        except Exception:
+            return {}
+
+
 # Singleton-Instanz: wird von vielen Views importiert (transaction, budget, card, ...).
 category_controller = CategoryController()

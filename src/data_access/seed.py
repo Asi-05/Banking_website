@@ -52,7 +52,7 @@ from datetime import date
 from sqlmodel import Session, select
 
 from src.data_access.db import create_db_and_tables, engine
-from src.domain.models import Account, Category, CreditCard, DebitCard, Transaction, User
+from src.domain.models import Account, Category, CreditCard, DebitCard, RecurringTransaction, Transaction, User
 from src.utils.validators import generate_ch_iban
 
 
@@ -74,6 +74,10 @@ CATEGORY_NAMES = [
 # Startsaldo fuer Demo-Konten.
 INITIAL_USER_BALANCE = 5000.0
 INITIAL_SAVINGS_BALANCE = 10000.0
+
+# Stichtag: Transaktionen bis einschliesslich diesem Datum gelten als gebucht (is_settled=True),
+# danach als geplant (is_settled=False).
+SEED_TODAY = date(2026, 5, 24)
 
 # Zwei vordefinierte Test-User.
 TEST_USERS = [
@@ -182,15 +186,15 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
             )
         ).first()
         if privat_account is None:
-            session.add(
-                Account(
-                    account_type="privat",
-                    balance=INITIAL_USER_BALANCE,
-                    status="aktiv",
-                    iban=generate_ch_iban("09000", f"{user.user_id:010d}01"),
-                    user_id=user.user_id,
-                )
+            privat_account = Account(
+                account_type="privat",
+                balance=0.0,
+                status="aktiv",
+                iban=generate_ch_iban("09000", f"{user.user_id:010d}01"),
+                user_id=user.user_id,
             )
+            session.add(privat_account)
+            session.flush()
 
         # Sparkonto pruefen/anlegen.
         spar_account = session.exec(
@@ -200,16 +204,50 @@ def seed_accounts_for_users(session: Session, users: list[User]) -> None:
             )
         ).first()
         if spar_account is None:
-            session.add(
-                Account(
-                    account_type="spar",
-                    balance=INITIAL_SAVINGS_BALANCE,
-                    status="aktiv",
-                    iban=generate_ch_iban("09000", f"{user.user_id:010d}02"),
-                    user_id=user.user_id,
-                )
+            spar_account = Account(
+                account_type="spar",
+                balance=0.0,
+                status="aktiv",
+                iban=generate_ch_iban("09000", f"{user.user_id:010d}02"),
+                user_id=user.user_id,
             )
+            session.add(spar_account)
+            session.flush()
 
+    session.commit()
+
+    # Eröffnungsgutschrift für jedes neue Konto anlegen (idempotent).
+    # Statt balance direkt zu setzen, wird eine echte Transaktion gebucht,
+    # damit Kontoauszüge und Transaktionssummen immer übereinstimmen.
+    categories = {c.name: c for c in session.exec(select(Category)).all()}
+    sonstiges_id = categories["Sonstiges"].category_id if "Sonstiges" in categories else None
+    for user in users:
+        for account_type, initial in [("privat", INITIAL_USER_BALANCE), ("spar", INITIAL_SAVINGS_BALANCE)]:
+            acc = session.exec(
+                select(Account).where(
+                    Account.user_id == user.user_id,
+                    Account.account_type == account_type,
+                )
+            ).first()
+            if acc is None or sonstiges_id is None:
+                continue
+            already = session.exec(
+                select(Transaction).where(
+                    Transaction.account_id == acc.account_id,
+                    Transaction.note == "Eröffnungsgutschrift",
+                )
+            ).first()
+            if already is None:
+                session.add(Transaction(
+                    amount=initial,
+                    date=date(2025, 12, 31),
+                    type="income",
+                    note="Eröffnungsgutschrift",
+                    category_id=sonstiges_id,
+                    account_id=acc.account_id,
+                    is_settled=True,
+                ))
+                acc.balance += initial
     session.commit()
 
 
@@ -285,17 +323,36 @@ def seed_credit_cards_for_users(session: Session, users: list[User]) -> None:
         ).first()
 
         if has_active_credit is not None:
-            continue  # Schon vorhanden → ueberspringen.
+            # Abrechnungskonto nachrüsten falls noch nicht gesetzt.
+            if has_active_credit.billing_account_id is None:
+                privat = session.exec(
+                    select(Account).where(
+                        Account.user_id == user.user_id,
+                        Account.account_type == "privat",
+                    )
+                ).first()
+                if privat is not None:
+                    has_active_credit.billing_account_id = privat.account_id
+                    session.add(has_active_credit)
+            continue
 
-        # Kreditkarte direkt am User (keine Konto-Bindung).
+        # Privatkonto als Standard-Abrechnungskonto ermitteln.
+        privat = session.exec(
+            select(Account).where(
+                Account.user_id == user.user_id,
+                Account.account_type == "privat",
+            )
+        ).first()
+
         session.add(
             CreditCard(
                 card_number=f"510000{user.user_id:010d}",
                 expire_date=date(today.year + 4, today.month, 1),
-                limit=5000.0,    # Kreditrahmen.
-                balance=0.0,     # Genutzter Kredit am Anfang: 0.
+                limit=5000.0,
+                balance=0.0,
                 status="aktiv",
                 user_id=user.user_id,
+                billing_account_id=privat.account_id if privat else None,
             )
         )
 
@@ -377,7 +434,7 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
         categories = {c.name: c for c in session.exec(select(Category)).all()}
         hermann_expenses = [
             # --- Januar ---
-            (date(2026, 1,  1), 2100.00, "Miete Januar",              "Miete"),
+            (date(2026, 1,  1), 2100.00, "Dauerauftrag Miete",        "Miete"),
             (date(2026, 1,  1),  450.00, "Krankenkasse",              "Versicherungen"),
             (date(2026, 1,  1),   95.00, "OeV Monatsabo",             "Transport"),
             (date(2026, 1,  5),  134.80, "Coop Wocheneinkauf",        "Einkaeufe"),
@@ -390,7 +447,7 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
             (date(2026, 1, 29),   45.00, "Telefonrechnung",           "Sonstiges"),
             (date(2026, 1, 31),  180.00, "Strom & Nebenkosten",       "Sonstiges"),
             # --- Februar ---
-            (date(2026, 2,  1), 2100.00, "Miete Februar",             "Miete"),
+            (date(2026, 2,  1), 2100.00, "Dauerauftrag Miete",        "Miete"),
             (date(2026, 2,  1),  450.00, "Krankenkasse",              "Versicherungen"),
             (date(2026, 2,  1),   95.00, "OeV Monatsabo",             "Transport"),
             (date(2026, 2,  6),  118.20, "Coop Einkauf",              "Einkaeufe"),
@@ -402,7 +459,7 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
             (date(2026, 2, 26),   55.00, "Spotify & Netflix",         "Freizeit"),
             (date(2026, 2, 28),  180.00, "Strom & Nebenkosten",       "Sonstiges"),
             # --- Maerz ---
-            (date(2026, 3,  1), 2100.00, "Miete Maerz",               "Miete"),
+            (date(2026, 3,  1), 2100.00, "Dauerauftrag Miete",        "Miete"),
             (date(2026, 3,  1),  450.00, "Krankenkasse",              "Versicherungen"),
             (date(2026, 3,  1),   95.00, "OeV Monatsabo",             "Transport"),
             (date(2026, 3,  4),  125.30, "Coop Einkauf",              "Einkaeufe"),
@@ -414,7 +471,7 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
             (date(2026, 3, 29),   55.00, "Spotify & Netflix",         "Freizeit"),
             (date(2026, 3, 31),  185.00, "Strom & Nebenkosten",       "Sonstiges"),
             # --- April ---
-            (date(2026, 4,  1), 2100.00, "Miete April",               "Miete"),
+            (date(2026, 4,  1), 2100.00, "Dauerauftrag Miete",        "Miete"),
             (date(2026, 4,  1),  450.00, "Krankenkasse",              "Versicherungen"),
             (date(2026, 4,  1),   95.00, "OeV Monatsabo",             "Transport"),
             (date(2026, 4,  7),  119.40, "Coop Einkauf",              "Einkaeufe"),
@@ -426,13 +483,19 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
             (date(2026, 4, 26),  138.00, "Kleider Shopping",          "Sonstiges"),
             (date(2026, 4, 27),   55.00, "Spotify & Netflix",         "Freizeit"),
             (date(2026, 4, 30),  180.00, "Strom & Nebenkosten",       "Sonstiges"),
-            # --- Mai (bis 13.05) ---
-            (date(2026, 5,  1), 2100.00, "Miete Mai",                 "Miete"),
+            # --- Mai (bis 28.05) ---
+            (date(2026, 5,  1), 2100.00, "Dauerauftrag Miete",        "Miete"),
             (date(2026, 5,  1),  450.00, "Krankenkasse",              "Versicherungen"),
             (date(2026, 5,  1),   95.00, "OeV Monatsabo",             "Transport"),
             (date(2026, 5,  8),  122.80, "Coop Einkauf",              "Einkaeufe"),
             (date(2026, 5, 12),   91.30, "Migros Einkauf",            "Einkaeufe"),
             (date(2026, 5, 13),   55.00, "Spotify & Netflix",         "Freizeit"),
+            (date(2026, 5, 15),   70.00, "Fitness Abo",               "Well-being"),
+            (date(2026, 5, 20),  118.50, "Coop Einkauf 2",            "Einkaeufe"),
+            (date(2026, 5, 22),   34.60, "Apotheke",                  "Well-being"),
+            (date(2026, 5, 24),   45.00, "Telefonrechnung",           "Sonstiges"),
+            (date(2026, 5, 27),   76.50, "Restaurant Abendessen",     "Freizeit"),
+            (date(2026, 5, 28),  180.00, "Strom & Nebenkosten",       "Sonstiges"),
         ]
         for exp_date, amount, note, cat_name in hermann_expenses:
             if cat_name not in categories:
@@ -445,6 +508,7 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
                     Transaction.note == note,
                 )
             ).first() is None:
+                settled = exp_date <= SEED_TODAY
                 session.add(
                     Transaction(
                         amount=amount,
@@ -453,9 +517,11 @@ def seed_monthly_income_for_users(session: Session, users: list[User]) -> None:
                         note=note,
                         category_id=categories[cat_name].category_id,
                         account_id=privat_account.account_id,
+                        is_settled=settled,
                     )
                 )
-                privat_account.balance -= amount
+                if settled:
+                    privat_account.balance -= amount
 
     session.commit()
 
@@ -522,7 +588,7 @@ def seed_felix_income(session: Session, felix: User) -> None:
     # Monatliche Lastschriften (Miete, Krankenkasse, Einkauf, Freizeit, ...).
     expense_data = [
         # --- Januar ---
-        (date(2026, 1,  1), 1650.00, "Miete Januar",            "Miete"),
+        (date(2026, 1,  1), 1650.00, "Dauerauftrag Miete",      "Miete"),
         (date(2026, 1,  1),  290.00, "Krankenkasse",            "Versicherungen"),
         (date(2026, 1,  1),   95.00, "OeV Monatsabo",           "Transport"),
         (date(2026, 1,  9),  113.40, "Coop Wocheneinkauf",      "Einkaeufe"),
@@ -533,7 +599,7 @@ def seed_felix_income(session: Session, felix: User) -> None:
         (date(2026, 1, 27),   65.00, "Restaurant Feierabend",   "Freizeit"),
         (date(2026, 1, 31),  155.00, "Strom & Nebenkosten",     "Sonstiges"),
         # --- Februar ---
-        (date(2026, 2,  1), 1650.00, "Miete Februar",           "Miete"),
+        (date(2026, 2,  1), 1650.00, "Dauerauftrag Miete",      "Miete"),
         (date(2026, 2,  1),  290.00, "Krankenkasse",            "Versicherungen"),
         (date(2026, 2,  1),   95.00, "OeV Monatsabo",           "Transport"),
         (date(2026, 2,  7),  108.50, "Coop Einkauf",            "Einkaeufe"),
@@ -544,7 +610,7 @@ def seed_felix_income(session: Session, felix: User) -> None:
         (date(2026, 2, 27),   34.90, "Spotify & Netflix",       "Freizeit"),
         (date(2026, 2, 28),  155.00, "Strom & Nebenkosten",     "Sonstiges"),
         # --- Maerz ---
-        (date(2026, 3,  1), 1650.00, "Miete Maerz",             "Miete"),
+        (date(2026, 3,  1), 1650.00, "Dauerauftrag Miete",      "Miete"),
         (date(2026, 3,  1),  290.00, "Krankenkasse",            "Versicherungen"),
         (date(2026, 3,  1),   95.00, "OeV Monatsabo",           "Transport"),
         (date(2026, 3,  6),  121.70, "Coop Einkauf",            "Einkaeufe"),
@@ -556,7 +622,7 @@ def seed_felix_income(session: Session, felix: User) -> None:
         (date(2026, 3, 29),   34.90, "Spotify & Netflix",       "Freizeit"),
         (date(2026, 3, 31),  160.00, "Strom & Nebenkosten",     "Sonstiges"),
         # --- April ---
-        (date(2026, 4,  1), 1650.00, "Miete April",             "Miete"),
+        (date(2026, 4,  1), 1650.00, "Dauerauftrag Miete",      "Miete"),
         (date(2026, 4,  1),  290.00, "Krankenkasse",            "Versicherungen"),
         (date(2026, 4,  1),   95.00, "OeV Monatsabo",           "Transport"),
         (date(2026, 4,  4),  103.60, "Coop Einkauf",            "Einkaeufe"),
@@ -567,14 +633,19 @@ def seed_felix_income(session: Session, felix: User) -> None:
         (date(2026, 4, 24),   42.80, "Apotheke",                "Well-being"),
         (date(2026, 4, 27),   34.90, "Spotify & Netflix",       "Freizeit"),
         (date(2026, 4, 30),  155.00, "Strom & Nebenkosten",     "Sonstiges"),
-        # --- Mai (bis 13.05) ---
-        (date(2026, 5,  1), 1650.00, "Miete Mai",               "Miete"),
+        # --- Mai (bis 28.05) ---
+        (date(2026, 5,  1), 1650.00, "Dauerauftrag Miete",      "Miete"),
         (date(2026, 5,  1),  290.00, "Krankenkasse",            "Versicherungen"),
         (date(2026, 5,  1),   95.00, "OeV Monatsabo",           "Transport"),
         (date(2026, 5,  7),  109.20, "Coop Einkauf",            "Einkaeufe"),
         (date(2026, 5, 10),   81.50, "Migros Einkauf",          "Einkaeufe"),
         (date(2026, 5, 11),   34.90, "Spotify & Netflix",       "Freizeit"),
         (date(2026, 5, 13),   52.40, "Restaurant Mittagessen",  "Freizeit"),
+        (date(2026, 5, 15),   70.00, "Fitness Abo",             "Well-being"),
+        (date(2026, 5, 20),   97.40, "Migros Einkauf 2",        "Einkaeufe"),
+        (date(2026, 5, 24),   41.20, "Apotheke",                "Well-being"),
+        (date(2026, 5, 26),   62.00, "Kino & Bar",              "Freizeit"),
+        (date(2026, 5, 28),  155.00, "Strom & Nebenkosten",     "Sonstiges"),
     ]
     for exp_date, amount, note, cat_name in expense_data:
         if session.exec(
@@ -585,6 +656,7 @@ def seed_felix_income(session: Session, felix: User) -> None:
                 Transaction.note == note,
             )
         ).first() is None:
+            settled = exp_date <= SEED_TODAY
             session.add(
                 Transaction(
                     amount=amount,
@@ -593,9 +665,95 @@ def seed_felix_income(session: Session, felix: User) -> None:
                     note=note,
                     category_id=categories[cat_name].category_id,
                     account_id=privat1.account_id,
+                    is_settled=settled,
                 )
             )
-            privat1.balance -= amount
+            if settled:
+                privat1.balance -= amount
+    session.commit()
+
+
+def seed_recurring_rent(session: Session, users: list[User]) -> None:
+    """Legt Miete-Dauerauftraege fuer Hermann und Felix an (idempotent).
+
+    Fuer jeden User wird:
+        1. Alle bestehenden Miete-Transaktionen auf "Dauerauftrag Miete" umbenannt,
+           damit sie konsistent mit automatisch gebuchten Dauerauftraegen aussehen.
+        2. Eine Template-Transaktion angelegt (is_settled=False, naechste Faelligkeit
+           01.06.2026), die in den geplanten Zahlungen erscheint.
+        3. Ein RecurringTransaction-Eintrag angelegt, der auf die Template-Transaktion
+           zeigt und last_executed=01.05.2026 traegt (letzter Monat war Mai).
+
+    Vermieter-IBANs (gueltige CH-IBANs, Modulo-97-geprueft):
+        Hermann → CH7200762011200000001  (UBS, Musterstrasse Immobilien AG)
+        Felix   → CH8708390016500000001  (Raiffeisen, Basler Wohnungen GmbH)
+    """
+    miete_cat = session.exec(select(Category).where(Category.name == "Miete")).first()
+    if miete_cat is None:
+        return
+
+    # Vermieter-IBANs deterministisch generiert (Modulo-97, gueltig).
+    landlord_ibans = {
+        "BB-100001": generate_ch_iban("00762", "011200000001"),  # Hermann
+        "BB-100002": generate_ch_iban("08390", "016500000001"),  # Felix
+    }
+    rent_amounts = {
+        "BB-100001": 2100.0,
+        "BB-100002": 1650.0,
+    }
+
+    for user in users:
+        iban = landlord_ibans.get(user.contract_number)
+        amount = rent_amounts.get(user.contract_number)
+        if iban is None or amount is None:
+            continue
+
+        privat = session.exec(
+            select(Account).where(
+                Account.user_id == user.user_id,
+                Account.account_type == "privat",
+            )
+        ).first()
+        if privat is None:
+            continue
+
+        # Idempotenz: Dauerauftrag schon vorhanden?
+        existing = session.exec(
+            select(RecurringTransaction).where(
+                RecurringTransaction.account_id == privat.account_id,
+                RecurringTransaction.target_iban == iban,
+            )
+        ).first()
+        if existing is not None:
+            continue
+
+        # Schritt 2: Template-Transaktion (naechste geplante Ausfuehrung: 01.06.2026).
+        template = Transaction(
+            amount=amount,
+            date=date(2026, 6, 1),
+            type="expense",
+            note="Dauerauftrag Miete",
+            category_id=miete_cat.category_id,
+            account_id=privat.account_id,
+            is_settled=False,
+        )
+        session.add(template)
+        session.flush()  # transaction_id aus DB holen.
+
+        # Schritt 3: Dauerauftrag anlegen.
+        # last_executed = 2026-05-01 → _next_due_date = 2026-06-01 (faellig im Juni).
+        recurring = RecurringTransaction(
+            amount=amount,
+            target_iban=iban,
+            interval="monthly",
+            start_date=date(2026, 1, 1),
+            end_date=None,
+            last_executed=date(2026, 5, 1),
+            account_id=privat.account_id,
+            category_id=miete_cat.category_id,
+            transaction_id=template.transaction_id,
+        )
+        session.add(recurring)
     session.commit()
 
 
@@ -612,6 +770,7 @@ def seed_database() -> None:
         → seed_credit_cards_for_users(session, users)
         → seed_monthly_income_for_users(session, users)  [nur Hermann]
         → seed_felix_income(session, felix)
+        → seed_recurring_rent(session, users)
 
     ALLE SCHRITTE SIND IDEMPOTENT: mehrfaches Ausfuehren erzeugt keine Duplikate.
     """
@@ -627,6 +786,31 @@ def seed_database() -> None:
         seed_monthly_income_for_users(session, users)
         felix = next(u for u in users if u.contract_number == "BB-100002")
         seed_felix_income(session, felix)
+        seed_recurring_rent(session, users)
+        _recalculate_balances(session)
+
+
+def _recalculate_balances(session: Session) -> None:
+    """Korrigiert alle Kontosalden anhand der tatsaechlich gebuchten Transaktionen.
+
+    Verhindert, dass Saldo und Transaktionshistorie auseinanderlaufen,
+    wenn Seed-Funktionen mehrfach ausgefuehrt werden oder Duplikate geloescht werden.
+    """
+    accounts = session.exec(select(Account)).all()
+    for account in accounts:
+        settled = session.exec(
+            select(Transaction).where(
+                Transaction.account_id == account.account_id,
+                Transaction.is_settled == True,  # noqa: E712
+            )
+        ).all()
+        balance = sum(
+            t.amount if t.type == "income" else -t.amount
+            for t in settled
+        )
+        account.balance = round(balance, 2)
+        session.add(account)
+    session.commit()
 
 
 # Wird ausgefuehrt wenn `python -m src.data_access.seed` aufgerufen wird.

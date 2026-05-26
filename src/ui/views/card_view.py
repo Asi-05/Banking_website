@@ -571,9 +571,7 @@ def _build_credit_cards_section(user_id: int) -> None:
 										ui.notify(error, type="negative")
 									else:
 										error_label.set_text("")
-										ui.notify("Abrechnungskonto gespeichert", type="positive")
-										card_select.value = None
-										account_select.value = None
+										ui.navigate.to("/cards")
 								ui.button("Speichern", on_click=do_set_billing).props("color=primary unelevated")
 						dlg.open()
 					
@@ -582,8 +580,8 @@ def _build_credit_cards_section(user_id: int) -> None:
 				# === WARNUNG: KEIN ABRECHNUNGSKONTO ===
 				# Ohne Billing-Account kann `CreditCardBillingService` keine Monatsabrechnung ausfuehren.
 				cards_without_billing = [
-					c for c in active_cards 
-					if (c.billing_account_id if hasattr(c, "billing_account_id") else c.get("billing_account_id")) is None
+					c for c in active_cards
+					if c.get("billing_account") in (None, "Nicht gesetzt")
 				]
 				
 				if cards_without_billing:

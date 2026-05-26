@@ -421,10 +421,13 @@ BetterBank/
 ```
 
 ### Softwarearchitektur
-## UML Klassendiagramm / ER Diagramm
+## UML Klassendiagramm 
 
-<img width="5600" height="1875" alt="Klassendiagramm (6)" src="https://github.com/user-attachments/assets/e7f266f4-ba1b-4600-9c12-231c3b93affd" />
+<img width="3360" height="2352" alt="Klassendiagramm (9)" src="https://github.com/user-attachments/assets/088340e9-2370-4fbc-ad4b-571dbe5952de" />
 
+## ER Diagramm
+
+<img width="1896" height="1638" alt="ER-Model (1)" src="https://github.com/user-attachments/assets/83a1b1b2-be48-4792-bf58-2d83578f6b6b" />
 
 
 #### Schichten / Komponenten

@@ -75,6 +75,10 @@ class PaymentController:
             None bei Erfolg; Fehlermeldung als String bei Fehler.
         """
         try:
+            raw_date = payload.get("date")
+            if isinstance(raw_date, str) and "." in raw_date:
+                day, month, year = raw_date.split(".")
+                payload = {**payload, "date": date(int(year), int(month), int(day))}
             payment_service.create_payment(payload)
             return None
         except Exception as error:

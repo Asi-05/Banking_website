@@ -433,21 +433,22 @@ BetterBank/
 #### Schichten / Komponenten
 
  * Präsentation (NiceGUI-Seiten und -Komponenten, Browser als schlanker Client)
- * Anwendungslogik (Controller + Domain/Services)
+ * Controller (Koordination zwischen Präsentation und Anwendungslogik)
+ * Anwendungslogik (Services, Fachregeln)
  * Persistenz (SQLite + SQLModel-Entitäten + Repositories)
 
 #### Entwurfsentscheidungen
 
- * Code nach MVC gegliedert:
+ * Code nach erweitertem MVC gegliedert (View → Controller → Service → Repository), ergänzt um eine dedizierte Service-Schicht für Fachregeln und das Repository-Pattern für den Datenbankzugriff:
    * Model: Domäne + ORM-Entitäten (z. B. `src/domain/models.py`)
    * View: NiceGUI-Komponenten und Seiten
-   * Controller: Ereignisverarbeitung und Koordination zwischen UI, Services und Persistenz
+   * Controller: Ereignisverarbeitung und Koordination zwischen UI und Services
+   * Service: Fachregeln und Geschäftslogik (z. B. Validierung, Berechnungen)
+   * Repository: Datenbankzugriff und Abfragen (z. B. `src/data_access/repositories`)
  
  * Einstiegspunkt/UI-Routing (`main.py`, `src/__main__.py`) von der Domänenlogik (`src/services`) und der Persistenz (`src/data_access`) getrennt
  * Module mit klar definierten Zuständigkeiten, um Kopplung zu reduzieren und die Fachlogik testbar zu halten
  * Fachliche Regeln sind ohne gestartete UI testbar
-
-* Hinweis: Das ER-Diagramm wird separat gepflegt und hier bewusst nicht angepasst.
 
 #### Entwurfsmuster
 
@@ -479,7 +480,7 @@ Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten u
 |---|---|
 | Asithan Supendran | Projektsetup & Infrastruktur, Business-Logik (Account, Auth, Budget, Dashboard, Payment, Transaction), Passwort-Sicherheit, Tests, README |
 | Filmon Samy | Softwarearchitektur, Business-Logik (Recurring, Category, CreditcardBilling), MVC-Refactoring (Controller-Schicht), Code-Dokumentation & Kommentare |
-| Janath Balasubramaniam | UI/Views (NiceGUI), Business-Logik (Card-Service), Kontoeinstellungen, Kartenmanagement, Dauerauftrags-UI |
+| Janath Balasubramaniam | UI/Views (NiceGUI), Business-Logik (Card-Service), Kontoeinstellungen, Kartenmanagement, Dauerauftrags-UI, Klassendiagramm, ER-Diagramm |
 
 ## ✅ Projektanforderungen
 Dieses Projekt erfüllt die Kernanforderungen wie folgt:

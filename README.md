@@ -425,7 +425,7 @@ BetterBank/
 
 <img width="3360" height="2352" alt="Klassendiagramm (9)" src="https://github.com/user-attachments/assets/088340e9-2370-4fbc-ad4b-571dbe5952de" />
 
-ER Diagramm
+## ER Diagramm
 
 <img width="1896" height="1638" alt="ER-Model (1)" src="https://github.com/user-attachments/assets/83a1b1b2-be48-4792-bf58-2d83578f6b6b" />
 

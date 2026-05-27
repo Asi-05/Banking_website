@@ -421,30 +421,34 @@ BetterBank/
 ```
 
 ### Softwarearchitektur
-## UML Klassendiagramm / ER Diagramm
+## UML Klassendiagramm 
 
-<img width="5600" height="1875" alt="Klassendiagramm (6)" src="https://github.com/user-attachments/assets/e7f266f4-ba1b-4600-9c12-231c3b93affd" />
+<img width="3360" height="2352" alt="Klassendiagramm (9)" src="https://github.com/user-attachments/assets/088340e9-2370-4fbc-ad4b-571dbe5952de" />
 
+## ER Diagramm
+
+<img width="1896" height="1638" alt="ER-Model (1)" src="https://github.com/user-attachments/assets/83a1b1b2-be48-4792-bf58-2d83578f6b6b" />
 
 
 #### Schichten / Komponenten
 
  * Präsentation (NiceGUI-Seiten und -Komponenten, Browser als schlanker Client)
- * Anwendungslogik (Controller + Domain/Services)
+ * Controller (Koordination zwischen Präsentation und Anwendungslogik)
+ * Anwendungslogik (Services, Fachregeln)
  * Persistenz (SQLite + SQLModel-Entitäten + Repositories)
 
 #### Entwurfsentscheidungen
 
- * Code nach MVC gegliedert:
+ * Code nach erweitertem MVC gegliedert (View → Controller → Service → Repository), ergänzt um eine dedizierte Service-Schicht für Fachregeln und das Repository-Pattern für den Datenbankzugriff:
    * Model: Domäne + ORM-Entitäten (z. B. `src/domain/models.py`)
    * View: NiceGUI-Komponenten und Seiten
-   * Controller: Ereignisverarbeitung und Koordination zwischen UI, Services und Persistenz
+   * Controller: Ereignisverarbeitung und Koordination zwischen UI und Services
+   * Service: Fachregeln und Geschäftslogik (z. B. Validierung, Berechnungen)
+   * Repository: Datenbankzugriff und Abfragen (z. B. `src/data_access/repositories`)
  
  * Einstiegspunkt/UI-Routing (`main.py`, `src/__main__.py`) von der Domänenlogik (`src/services`) und der Persistenz (`src/data_access`) getrennt
  * Module mit klar definierten Zuständigkeiten, um Kopplung zu reduzieren und die Fachlogik testbar zu halten
  * Fachliche Regeln sind ohne gestartete UI testbar
-
-* Hinweis: Das ER-Diagramm wird separat gepflegt und hier bewusst nicht angepasst.
 
 #### Entwurfsmuster
 
@@ -476,7 +480,7 @@ Unsere Datenbankarchitektur folgt einer strikten Trennung der Zuständigkeiten u
 |---|---|
 | Asithan Supendran | Projektsetup & Infrastruktur, Business-Logik (Account, Auth, Budget, Dashboard, Payment, Transaction), Passwort-Sicherheit, Tests, README |
 | Filmon Samy | Softwarearchitektur, Business-Logik (Recurring, Category, CreditcardBilling), MVC-Refactoring (Controller-Schicht), Code-Dokumentation & Kommentare |
-| Janath Balasubramaniam | UI/Views (NiceGUI), Business-Logik (Card-Service), Kontoeinstellungen, Kartenmanagement, Dauerauftrags-UI |
+| Janath Balasubramaniam | UI/Views (NiceGUI), Business-Logik (Card-Service), Kontoeinstellungen, Kartenmanagement, Dauerauftrags-UI, Klassendiagramm, ER-Diagramm |
 
 ## ✅ Projektanforderungen
 Dieses Projekt erfüllt die Kernanforderungen wie folgt:

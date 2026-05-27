@@ -41,6 +41,7 @@ from sqlmodel import Session
 
 from src.data_access.db import engine
 from src.data_access.repositories.account_repository import AccountRepository
+from src.data_access.repositories.card_repository import CardRepository
 from src.data_access.repositories.user_repository import UserRepository
 from src.domain.models import Account
 from src.utils.validators import generate_ch_iban
@@ -171,6 +172,10 @@ class AccountService:
                 raise ValueError("Konto kann nicht geschlossen werden: Balance ist nicht 0")
 
             account.close()
+            card_repository = CardRepository(session)
+            for card in card_repository.list_active_debit_by_account(account_id):
+                card.status = "gesperrt"
+                card_repository.save_debit(card)
             return account_repository.save(account)
 
     def list_accounts(self, user_id: int) -> list[Account]:

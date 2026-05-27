@@ -135,7 +135,7 @@ global fuer alle Kategorien.
 	from nicegui import ui
 	from src.ui.controllers.category_controller import category_controller
 
-	category_options = category_controller.list_categories()
+	category_options = category_controller.list_expense_categories()
 
 	# Monats-Optionen (deutsche Namen) fuer ein lesbares Dropdown.
 	monat_optionen = {

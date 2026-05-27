@@ -159,7 +159,7 @@ class CardService:
             card_controller.order_debit_card(account_id)
             → CardService.order_debit_card(account_id)
             → AccountRepository.get_by_id(account_id)                  [Konto laden]
-            → _ensure_user_has_no_active_debit_card(session, user_id)  [1-Karten-Regel]
+            → list_active_debit_by_account(account_id)                  [1-Karten-Regel]
             → CardRepository.create_debit(card)                         [Karte speichern]
             → SQL: INSERT INTO debit_cards (...) VALUES (...)
 
@@ -171,8 +171,8 @@ class CardService:
             1. Debitkarten nur fuer Privatkonten (nicht Sparkonten)
                → Weil Sparkonten fuer langfristiges Sparen gedacht sind,
                  nicht fuer taegliche Zahlungen
-            2. Maximal 1 aktive Debitkarte pro User (global, nicht pro Konto!)
-               → _ensure_user_has_no_active_debit_card prueft alle Konten des Users
+            2. Maximal 1 aktive Debitkarte pro Privatkonto
+               → list_active_debit_by_account prueft nur das bestellte Konto
 
         ABLAUFDATUM:
             Debitkarten laufen 4 Jahre ab heute ab.
@@ -187,7 +187,7 @@ class CardService:
         Raises:
             KeyError: Wenn das Konto nicht existiert.
             ValueError: Wenn das Konto kein Privatkonto ist.
-            ValueError: Wenn der User bereits eine aktive Debitkarte hat.
+            ValueError: Wenn das Konto bereits eine aktive Debitkarte hat.
         """
         with Session(engine) as session:
             account_repository = AccountRepository(session)
@@ -201,8 +201,10 @@ class CardService:
             if account.account_type != "privat":
                 raise ValueError("Debitkarten koennen nur fuer Privatkonten bestellt werden")
 
-            # Geschaeftsregel 2: Max. eine aktive Debitkarte pro User.
-            self._ensure_user_has_no_active_debit_card(session, account.user_id)
+            # Geschaeftsregel 2: Max. eine aktive Debitkarte pro Privatkonto.
+            active_cards = card_repository.list_active_debit_by_account(account_id)
+            if active_cards:
+                raise ValueError("Dieses Konto hat bereits eine aktive Debitkarte")
 
             card = DebitCard(
                 card_number=self._generate_card_number(),
@@ -257,7 +259,7 @@ class CardService:
             → CardRepository.get_debit_by_id(card_id)            [Alte Karte laden]
             → old_card.replace()                                   [Status = "ersetzt"]
             → CardRepository.save_debit(old_card)                 [Alte Karte speichern]
-            → _ensure_user_has_no_active_debit_card(...)          [Sicherheitscheck]
+            → list_active_debit_by_account(account_id)            [Sicherheitscheck]
             → CardRepository.create_debit(new_card)               [Neue Karte anlegen]
 
         RUECKGABE-KETTE:
@@ -293,8 +295,10 @@ class CardService:
             old_card.replace()
             card_repository.save_debit(old_card)
 
-            # Sicherheitscheck: Gibt es zufaellig schon eine aktive Karte?
-            self._ensure_user_has_no_active_debit_card(session, old_account.user_id)
+            # Sicherheitscheck: Gibt es schon eine aktive Karte fuer dieses Konto?
+            active_cards = card_repository.list_active_debit_by_account(old_card.account_id)
+            if active_cards:
+                raise ValueError("Dieses Konto hat bereits eine aktive Debitkarte")
 
             new_card = DebitCard(
                 card_number=self._generate_card_number(),
@@ -512,39 +516,6 @@ class CardService:
         """
         return "".join(str(random.randint(0, 9)) for _ in range(16))
 
-    def _ensure_user_has_no_active_debit_card(
-        self, session: Session, user_id: int
-    ) -> None:
-        """Prueft die Geschaeftsregel: max. 1 aktive Debitkarte pro User (global).
-
-        WARUM GLOBAL (ALLE KONTEN PRUEFEN)?
-            Die Regel ist "max. 1 aktive Debitkarte PRO USER" - nicht pro Konto.
-            Also muss man alle Konten des Users pruefen, nicht nur das aktuelle.
-
-        ABLAUF:
-            1. Alle Konten des Users laden (list_by_user)
-            2. Pro Konto: Gibt es aktive Debitkarten? (list_active_debit_by_account)
-            3. Falls ja → ValueError (Limit erreicht)
-
-        Args:
-            session: Offene DB-Session (wird von der aufrufenden Methode geoeffnet).
-            user_id: Datenbank-ID des Users.
-
-        Raises:
-            ValueError: Wenn bereits eine aktive Debitkarte existiert.
-        """
-        account_repository = AccountRepository(session)
-        card_repository = CardRepository(session)
-
-        # Alle Konten des Users laden.
-        accounts = account_repository.list_by_user(user_id)
-        for account in accounts:
-            # Pro Konto: Aktive Debitkarten pruefen.
-            active_cards = card_repository.list_active_debit_by_account(account.account_id)
-            if active_cards:
-                raise ValueError(
-                    "Debitkarten-Limit erreicht: Ein User darf maximal eine aktive Debitkarte besitzen"
-                )
 
 
 # Singleton-Instanz: wird ueberall im Projekt importiert.

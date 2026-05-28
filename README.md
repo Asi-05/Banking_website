@@ -418,12 +418,13 @@ BetterBank/
 ```
 
 ### Softwarearchitektur
-## UML Klassendiagramm 
+
+### UML Klassendiagramm 
 
 <img width="3360" height="2352" alt="Klassendiagramm (9) (2)" src="https://github.com/user-attachments/assets/eafb71f9-615e-4a01-ade5-4bae210b19fb" />
 
 
-## ER Diagramm
+### ER Diagramm
 
 <img width="1896" height="1638" alt="ER-Model (1) (1)" src="https://github.com/user-attachments/assets/768ac648-a9a2-41d5-86c1-3fab51a3422d" />
 
@@ -548,10 +549,6 @@ Das Projekt enthält **19 Testdateien** mit insgesamt 100 Tests, aufgeteilt in d
 | **Integrations- & Controller-Tests** | `test_integration_*.py`, `test_ui_*.py` | Testen das Zusammenspiel mehrerer Schichten sowie die Controller-Logik |
 
 **Ergebnis: 100 von 100 Tests bestanden ✓**
-
-
-
-
 
 
 

@@ -1,0 +1,5 @@
+nicegui
+sqlmodel
+sqlalchemy
+fpdf2
+pytest

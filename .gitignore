@@ -1,0 +1,17 @@
+statements/
+
+# macOS Systemdateien
+.DS_Store
+
+# Python-Cache ignorieren
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+*.db
+
+# Claude Code lokale Einstellungen (persönlich, nicht für GitHub)
+.claude/settings.json
+.claude/settings.local.json

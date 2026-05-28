@@ -539,15 +539,15 @@ python3 -m pytest -q
 
 ### Testübersicht
 
-Das Projekt enthält **20 Testdateien** mit insgesamt 103 Tests, aufgeteilt in drei Kategorien:
+Das Projekt enthält **19 Testdateien** mit insgesamt 100 Tests, aufgeteilt in drei Kategorien:
 
 | Kategorie | Testdateien | Beschreibung |
 |---|---|---|
-| **Unit-Tests** | `test_budget_service.py`, `test_creditcard_billing_service.py`, `test_calculate_*.py`, `test_validate_iban_format.py`, `test_transaction_source_validation.py` | Testen einzelne Service-Methoden isoliert |
+| **Unit-Tests** | `test_budget_service.py`, `test_creditcard_billing_service.py`, `test_calculate_*.py`, `test_validate_iban_format.py` | Testen einzelne Service-Methoden isoliert |
 | **Datenbank-Tests** | `test_database_logic.py`, `test_db_*.py` | Testen Datenbankoperationen (Persistenz, Filterung, Verhalten bei leeren Daten) |
 | **Integrations- & Controller-Tests** | `test_integration_*.py`, `test_ui_*.py` | Testen das Zusammenspiel mehrerer Schichten sowie die Controller-Logik |
 
-**Ergebnis: 103 von 103 Tests bestanden ✓**
+**Ergebnis: 100 von 100 Tests bestanden ✓**
 
 
 

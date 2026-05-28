@@ -86,12 +86,16 @@ TEST_USERS = [
         "last_name": "Grieder",
         "contract_number": "BB-100001",
         "password_hash": "Dummy_hash_1",   # Demo: wird beim ersten Login auf PBKDF2 migriert.
+        "phone": "+41 79 123 45 67",
+        "address": "Bahnhofstrasse 12, 4001 Basel",
     },
     {
         "first_name": "Felix",
         "last_name": "Haerer",
         "contract_number": "BB-100002",
         "password_hash": "Dummy_hash_2",
+        "phone": "+41 76 987 65 43",
+        "address": "Rümelinsplatz 5, 4001 Basel",
     },
 ]
 
@@ -150,10 +154,25 @@ def seed_users(session: Session) -> list[User]:
                 last_name=user_data["last_name"],
                 contract_number=user_data["contract_number"],
                 password_hash=user_data["password_hash"],
+                phone=user_data.get("phone"),
+                address=user_data.get("address"),
             )
             session.add(existing_user)
             session.commit()
             session.refresh(existing_user)  # user_id aus DB laden.
+        else:
+            # Fehlende Kontaktdaten nachträglich ergänzen.
+            updated = False
+            if existing_user.phone is None and user_data.get("phone"):
+                existing_user.phone = user_data["phone"]
+                updated = True
+            if existing_user.address is None and user_data.get("address"):
+                existing_user.address = user_data["address"]
+                updated = True
+            if updated:
+                session.add(existing_user)
+                session.commit()
+                session.refresh(existing_user)
 
         users.append(existing_user)
 

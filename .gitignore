@@ -1,5 +1,8 @@
 statements/
 
+# macOS Systemdateien
+.DS_Store
+
 # Python-Cache ignorieren
 __pycache__/
 *.pyc

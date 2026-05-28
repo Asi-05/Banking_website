@@ -349,11 +349,8 @@ BetterBank/
 ├── .pytest_cache/                    # pytest cache
 ├── .gitignore                        # Git-Ausschlussliste
 ├── main.py                           # optionaler Top-Level-Runner
-├── pyproject.toml                    # Projekt-Konfiguration
 ├── requirements/                     # ergänzende Anforderungsnotizen
 ├── requirements.txt                  # Verwendete Bibliotheken
-├── technical_design.md               # Design-/Architekturnotizen
-├── architektur_und_lern_doku.md      # Architektur- und Lerndokumentation
 ├── README.md                         # Zentrale Projektdokumentation
 ├── betterbank.db                     # lokale SQLite DB (Entwicklung)
 ├── statements/                       # generierte Kontoauszüge (PDF)

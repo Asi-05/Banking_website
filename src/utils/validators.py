@@ -23,7 +23,6 @@ Sie enthaelt kleine, wiederverwendbare Funktionen fuer zwei Aufgaben:
     validate_positive_amount(amount)      → Betrag muss > 0 sein
     validate_budget_month_year(m, y)      → Monat 1-12, Jahr 1900-9999
     validate_recurring_interval(interval) → nur "monthly" oder "yearly" erlaubt
-    validate_exactly_one_source(...)      → Exactly-one-Regel fuer Transaktionsquellen
     validate_date_range(start, end)       → start darf nicht nach end liegen
 
 === PASSWORT-SICHERHEIT: WARUM PBKDF2? ===
@@ -37,14 +36,6 @@ Format: "salt$hash"
            den gleichen Hash haben → Rainbow-Table-Angriffe wirkungslos)
     hash = PBKDF2-HMAC-SHA256 mit dem Salt als "Schluessel"
 
-=== EXACTLY-ONE-REGEL ===
-Eine Transaktion darf nur EINE Belastungsquelle haben:
-    account_id   → Kontobelastung
-    card_id      → Debitkarte
-    creditcard_id→ Kreditkarte
-`validate_exactly_one_source` stellt sicher, dass genau einer dieser Werte
-gesetzt ist (nicht null, nicht zwei auf einmal).
-
 === WER NUTZT DIESE FUNKTIONEN? ===
     hash_password / verify_password:     auth_service.py (Login, Passwortaenderung)
     validate_password_rules:             auth_service.py (Passwort setzen)
@@ -52,7 +43,6 @@ gesetzt ist (nicht null, nicht zwei auf einmal).
     validate_iban:                       transaction_service.py, payment_service.py
     validate_transaction_type:           transaction_service.py
     validate_positive_amount:            transaction_service.py, budget_service.py
-    validate_exactly_one_source:         transaction_service.py
     validate_date_range:                 dashboard_service.py, transaction_service.py
     validate_budget_month_year:          budget_service.py
     validate_recurring_interval:         recurring_service.py
@@ -251,35 +241,6 @@ def validate_recurring_interval(interval: str) -> None:
 	if interval not in {"monthly", "yearly"}:
 		raise ValueError(
 			"Ungueltiges Intervall: erlaubt sind monthly und yearly"
-		)
-
-
-# Validiert die Exactly-one-Regel fuer Transaktionsquellen.
-def validate_exactly_one_source(
-	account_id: int | None,
-	card_id: int | None,
-	creditcard_id: int | None,
-) -> None:
-	"""Prüft die Regel: Genau eine Belastungsquelle muss gesetzt sein.
-
-	Warum diese Regel wichtig ist:
-	Eine Transaktion darf nicht gleichzeitig „von Konto *und* von Karte" stammen,
-	sonst wüssten wir nicht, wo wir den Betrag abbuchen sollen und es könnte zu
-	doppelten Abbuchungen kommen.
-
-	Args:
-		account_id: Konto-ID, wenn die Transaktion ein Konto belastet.
-		card_id: Debitkarten-ID, wenn die Transaktion über eine Debitkarte läuft.
-		creditcard_id: Kreditkarten-ID, wenn die Transaktion über eine Kreditkarte läuft.
-
-	Raises:
-		ValueError: Wenn keine oder mehr als eine Quelle gesetzt ist.
-	"""
-	# Wir zählen, wie viele der drei Werte NICHT None sind.
-	set_sources = sum(value is not None for value in (account_id, card_id, creditcard_id))
-	if set_sources != 1:
-		raise ValueError(
-			"Genau eine Belastungsquelle muss gesetzt sein: account_id, card_id oder creditcard_id"
 		)
 
 

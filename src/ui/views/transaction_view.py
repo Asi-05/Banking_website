@@ -23,7 +23,6 @@ Diese Datei gehoert zur **UI-View-Schicht** (NiceGUI).
 === WAS DIESE VIEW NICHT TUT ===
 Sie enthaelt KEINE fachlichen Regeln. Alle Regeln liegen in den Services:
     - "Betrag darf Kontostand nicht uebersteigen" → TransactionService
-    - "Genau eine Belastungsquelle" → validate_exactly_one_source()
     - "Naechste Ausfuehrungs-Datum berechnen" → RecurringService._next_due_date()
 
 === AUFRUF-KETTE: INLANDSZAHLUNG ===

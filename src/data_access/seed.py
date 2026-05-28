@@ -52,7 +52,7 @@ from datetime import date
 from sqlmodel import Session, select
 
 from src.data_access.db import create_db_and_tables, engine
-from src.domain.models import Account, Category, CreditCard, DebitCard, RecurringTransaction, Transaction, User
+from src.domain.models import Account, Budget, Category, CreditCard, DebitCard, RecurringTransaction, Transaction, User
 from src.utils.validators import generate_ch_iban
 
 
@@ -730,6 +730,68 @@ def seed_recurring_rent(session: Session, users: list[User]) -> None:
     session.commit()
 
 
+def seed_budgets(session: Session, users: list[User]) -> None:
+    """Legt monatliche Budgets fuer Hermann und Felix an (idempotent).
+
+    Erstellt Budgets fuer Januar bis zum aktuellen Monat des laufenden Jahres.
+    Idempotenz: UniqueConstraint (user_id, month, year, category_id) verhindert Duplikate.
+
+    Args:
+        session: Offene Datenbank-Session.
+        users: Liste der User (aus seed_users).
+    """
+    today = date.today()
+    categories = {c.name: c.category_id for c in session.exec(select(Category)).all()}
+
+    # Budgets pro User: Kategorie → monatliches Limit in CHF
+    budgets_per_user = {
+        "BB-100001": {   # Hermann
+            "Miete":          2200.0,
+            "Versicherungen":  500.0,
+            "Transport":       130.0,
+            "Einkaeufe":       420.0,
+            "Well-being":      160.0,
+            "Freizeit":        220.0,
+            "Steuern":         300.0,
+            "Sonstiges":       320.0,
+        },
+        "BB-100002": {   # Felix
+            "Miete":          1700.0,
+            "Versicherungen":  320.0,
+            "Transport":       130.0,
+            "Einkaeufe":       350.0,
+            "Well-being":      120.0,
+            "Freizeit":        200.0,
+            "Sonstiges":       200.0,
+        },
+    }
+
+    for user in users:
+        limits = budgets_per_user.get(user.contract_number, {})
+        for month in range(1, today.month + 1):
+            for cat_name, limit in limits.items():
+                cat_id = categories.get(cat_name)
+                if cat_id is None:
+                    continue
+                exists = session.exec(
+                    select(Budget).where(
+                        Budget.user_id == user.user_id,
+                        Budget.month == month,
+                        Budget.year == today.year,
+                        Budget.category_id == cat_id,
+                    )
+                ).first()
+                if exists is None:
+                    session.add(Budget(
+                        user_id=user.user_id,
+                        limit_amount=limit,
+                        month=month,
+                        year=today.year,
+                        category_id=cat_id,
+                    ))
+    session.commit()
+
+
 def seed_database() -> None:
     """Fuehrt den kompletten Seeding-Prozess aus.
 
@@ -744,6 +806,7 @@ def seed_database() -> None:
         → seed_monthly_income_for_users(session, users)  [nur Hermann]
         → seed_felix_income(session, felix)
         → seed_recurring_rent(session, users)
+        → seed_budgets(session, users)
 
     ALLE SCHRITTE SIND IDEMPOTENT: mehrfaches Ausfuehren erzeugt keine Duplikate.
     """
@@ -760,6 +823,7 @@ def seed_database() -> None:
         felix = next(u for u in users if u.contract_number == "BB-100002")
         seed_felix_income(session, felix)
         seed_recurring_rent(session, users)
+        seed_budgets(session, users)
         _recalculate_balances(session)
 
 
